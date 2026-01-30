@@ -8,7 +8,7 @@ import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
 import Selectdropdown from '../../../../components/Selectdropdown';
 import Checkbox from '../../../../components/Checkbox';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../../../function/VerificationCheck';
+import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../../function/VerificationCheck';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { UpdateAdminRequest, UpdateAdminResponse, GetAdminsResponse } from '../../../../dto';
@@ -104,21 +104,30 @@ function EditClientContent() {
         setStatusMessage('');
 
         try {
-            const requestData: UpdateAdminRequest = {
-                adminID: formData.adminID,
-                firstName: formData.firstName.trim(),
-                lastName: formData.lastName.trim(),
+            const response = await api<UpdateAdminResponse>('post', '/admin/updateAnEmployeeDetail', {
+                employeeID: formData.adminID,
+                fName: formData.firstName.trim(),
+                lName: formData.lastName.trim(),
                 email: formData.email.trim(),
-                phone: formData.phone.trim() || undefined,
+                pNumber: formData.phone.trim() || '',
                 role: formData.role,
-                isActive: formData.isActive
-            };
-
-            const response = await api<UpdateAdminResponse>('post', '/admin/updateAdmin', requestData);
+                employeeUsername: GetLoggedInUser()
+            });
             
-            if (response.statusCode === 200) {
-                setStatusMessage('Admin updated successfully!');
-                setTimeout(() => navigate.push('/Admin/manageAdmins'), 2000);
+            // Update account status separately if needed
+            if (response.statusCode === 201) {
+                const statusResponse = await api('post', '/admin/updateAnEmployeeAccountStatus', {
+                    employeeID: formData.adminID,
+                    accountStatus: formData.isActive ? 'Active' : 'Inactive',
+                    employeeUsername: GetLoggedInUser()
+                });
+                
+                if (statusResponse.statusCode === 201) {
+                    setStatusMessage('Admin updated successfully!');
+                    setTimeout(() => navigate.push('/Admin/manageAdmins'), 2000);
+                } else {
+                    throw new Error('Failed to update account status');
+                }
             } else {
                 throw new Error(response.serverMessage || 'Failed to update admin');
             }

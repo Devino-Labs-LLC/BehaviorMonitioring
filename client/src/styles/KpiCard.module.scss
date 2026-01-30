@@ -1,0 +1,32 @@
+/* components/dashboard/KpiCard.module.scss */
+@use './colors.scss' as *;
+
+.card {
+  border-radius: $radius-md;
+  border: 1px solid $border-light;
+  background: $form-background;
+  box-shadow: $shadow-md;
+  padding: 14px;
+  text-align: left;
+}
+
+.title {
+  font-weight: 900;
+  color: rgba(15, 23, 42, 0.70);
+  font-size: 0.92rem;
+}
+
+.value {
+  margin-top: 8px;
+  font-weight: 1000;
+  font-size: 1.8rem;
+  color: $font-color;
+  line-height: 1.1;
+}
+
+.sub {
+  margin-top: 8px;
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 0.9rem;
+}

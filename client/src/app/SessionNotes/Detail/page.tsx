@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/navigation';
 import componentStyles from '../../../styles/components.module.scss';
@@ -15,6 +15,7 @@ const Page: React.FC = () => {
     const navigate = useRouter();
     const userLoggedIn = GetLoggedInUserStatus();
     const loggedInUser = GetLoggedInUser();
+    const hasInitialized = useRef(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<React.ReactNode>('');
     const [selectedSessionNoteID, setSelectedSessionNoteID] = useState<string | null>(null);
@@ -26,21 +27,33 @@ const Page: React.FC = () => {
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
 
     useEffect(() => {
-        // Access sessionStorage only on client side
+        // Prevent double execution in React Strict Mode
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+        
         const storedSessionNoteID = sessionStorage.getItem('sessionNoteId');
         const storedClientID = sessionStorage.getItem('clientID');
+        
+        console.log('SessionNotes Detail - Stored IDs:', { storedClientID, storedSessionNoteID });
+        
+        if (!storedClientID || !storedSessionNoteID) {
+            console.log('SessionNotes Detail - Missing IDs, redirecting back');
+            navigate.push('/SessionNotes');
+            return;
+        }
+        
         setSelectedSessionNoteID(storedSessionNoteID);
         setClientID(storedClientID);
         
-        if (!storedClientID || !storedSessionNoteID) {
-            navigate.push('/SessionNotes');
-        } else {
-            debounceAsync(getASessionNoteDetails, 300)();
-        }
+        console.log('SessionNotes Detail - Calling API with:', { storedClientID, storedSessionNoteID });
         
+        // Pass IDs directly to avoid state timing issues
+        debounceAsync(() => getASessionNoteDetails(storedClientID, storedSessionNoteID), 300)();
+        
+        // Clean up after API call is initiated
         sessionStorage.removeItem('clientID');
         sessionStorage.removeItem('sessionNoteId');
-    }, [userLoggedIn]);
+    }, []);
 
     useEffect(() => {
         if (timerCount > 0) {
@@ -68,15 +81,19 @@ const Page: React.FC = () => {
         navigate.back();
     };
 
-    const getASessionNoteDetails = async () => {
+    const getASessionNoteDetails = async (passedClientID?: string, passedNoteID?: string) => {
         setIsLoading(true);
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
         }
 
+        const clientIdToUse = passedClientID || clientID;
+        const noteIdToUse = passedNoteID || selectedSessionNoteID;
+
         try {
-            const response = await api<GetSessionNotesResponse>('post', '/aba/getASessionNote', { "clientID": clientID, "sessionNoteId": selectedSessionNoteID, "employeeUsername": loggedInUser });
+            const response = await api<GetSessionNotesResponse>('post', '/aba/getASessionNote', { "clientID": clientIdToUse, "sessionNoteId": noteIdToUse, "employeeUsername": loggedInUser });
             if (response.statusCode === 200) {
                 return setSessionNotesData(response.sessionNotesData);
             } else {
@@ -98,7 +115,8 @@ const Page: React.FC = () => {
         setIsLoading(true);
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
-            navigate.push(`/Login?previousUrl=${previousUrl}`);        
+            navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
         }
         
         try {

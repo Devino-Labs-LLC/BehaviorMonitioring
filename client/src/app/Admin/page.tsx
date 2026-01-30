@@ -42,6 +42,7 @@ const Admin: React.FC = () => {
                                 <Link href='/Admin/manageAdmins' hrefType='link' placeholder="Manage admins" />
                                 <Link href='/Admin/manageClients' hrefType='link' placeholder="Manage clients" />
                                 <Link href='/Admin/manageHomes' hrefType='link' placeholder="Manage homes" />
+                                <Link href='/Admin/ArchivedClients' hrefType='link' placeholder="Archived clients" />
                             </div>
                         </div>
                     </div>

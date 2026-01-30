@@ -313,15 +313,14 @@ const TargetBehavior: React.FC = () => {
         }
         
         try {
-            const response = await api<ArchiveBehaviorResponse>('post', '/aba/checkBehaviorArchiveStatus', { "clientID": selectedClientID, behaviorId, "employeeUsername": loggedInUser });
+            const response = await api<ArchiveBehaviorResponse>('post', '/aba/archiveBehavior', { "clientID": selectedClientID, behaviorId, "employeeUsername": loggedInUser });
             if (response.statusCode === 200) {
-                if (!response.isArchived) {
-                    setIsLoading(false);
-                    setStatusMessage(`Behavior "${behaviorName}" must be archived before it can be deleted.`);
-                    return;
-                }
+                setStatusMessage(`Behavior "${behaviorName}" has been archived successfully.`);
+                debounceAsync(getClientTargetBehaviors, 300)();
+                setTimerCount(3);
+                setClearMessageStatus(true);
             } else {
-                throw new Error(`Failed to delete "${behaviorName}".`);
+                throw new Error(`Failed to archive "${behaviorName}".`);
             }
         } catch (error) {
             return setStatusMessage(String(error));
@@ -397,7 +396,6 @@ const TargetBehavior: React.FC = () => {
                                             <th>Behavior Name</th>
                                             <th>Definition</th>
                                             <th>Measurement</th>
-                                            <th>Data Today</th>
                                             <th>Graph</th>
                                             <th>More Options</th>
                                         </tr>
@@ -409,7 +407,6 @@ const TargetBehavior: React.FC = () => {
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.label}</div></td>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.definition}</div></td>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.measurementType}</div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>0</div></td>
                                                 <td><div><Button nameOfClass='tbHRSGraphButton' placeholder='Graph' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); graphBehaviorCall(option.value, option.label)}}/></div></td>
                                                 <td><div><Button nameOfClass='tbHRSEllipsesButton' btnName='More options' placeholder='...' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); handleEllipsisClick(index)}}/></div></td>
                                             </tr>

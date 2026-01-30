@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, JSX } from 'react';
+import React, { useState, useEffect, useRef, JSX } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/navigation';
 import componentStyles from '../../../styles/components.module.scss';
@@ -22,6 +22,7 @@ const TargetbehaviorDetails: React.FC = () => {
     const navigate = useRouter();
     const userLoggedIn = GetLoggedInUserStatus();
     const loggedInUser = GetLoggedInUser();
+    const hasInitialized = useRef(false);
     const [clientID, setClientID] = useState<string>('');
     const [bID, setBID] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,22 +41,29 @@ const TargetbehaviorDetails: React.FC = () => {
     const paginatedData = targetBehaviorData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
-        // Access sessionStorage only on client side
+        // Prevent double execution in React Strict Mode
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+        
         const storedClientID = sessionStorage.getItem('clientID');
         const storedBehaviorID = sessionStorage.getItem('behaviorID');
         
         if (!storedClientID || !storedBehaviorID) {
             navigate.push('/Behavior');
-        } else {
-            setClientID(storedClientID);
-            setBID(storedBehaviorID);
-            debounceAsync(getClientTargetBehaviorBaseData, 300)();
-            debounceAsync(getClientTargetBehaviorData, 300)();
+            return;
         }
         
+        setClientID(storedClientID);
+        setBID(storedBehaviorID);
+        
+        // Pass IDs directly to avoid state timing issues
+        debounceAsync(() => getClientTargetBehaviorBaseData(storedClientID, storedBehaviorID), 300)();
+        debounceAsync(() => getClientTargetBehaviorData(storedClientID, storedBehaviorID), 300)();
+        
+        // Clean up after API calls are initiated
         sessionStorage.removeItem('clientID');
         sessionStorage.removeItem('behaviorID');
-    }, [userLoggedIn]);
+    }, []);
 
     useEffect(() => {
         if (timerCount > 0) {
@@ -83,18 +91,22 @@ const TargetbehaviorDetails: React.FC = () => {
         navigate.back();
     };
 
-    const getClientTargetBehaviorBaseData = async () => {
+    const getClientTargetBehaviorBaseData = async (passedClientID?: string, passedBehaviorID?: string) => {
         setIsLoading(true);
         setBehaviorBase([]);
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
         }
+
+        const clientIdToUse = passedClientID || clientID;
+        const behaviorIdToUse = passedBehaviorID || bID;
 
         try {
             const response = await api<GetBehaviorResponse>('post', '/aba/getAClientTargetBehavior', {
-                "clientID": clientID,
-                "behaviorID": bID,
+                "clientID": clientIdToUse,
+                "behaviorID": behaviorIdToUse,
                 "employeeUsername": loggedInUser
             });
 
@@ -111,18 +123,22 @@ const TargetbehaviorDetails: React.FC = () => {
         }
     }
 
-    const getClientTargetBehaviorData = async () => {
+    const getClientTargetBehaviorData = async (passedClientID?: string, passedBehaviorID?: string) => {
         setIsLoading(true);
         setTargetBehaviorData([]);
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
         }
+
+        const clientIdToUse = passedClientID || clientID;
+        const behaviorIdToUse = passedBehaviorID || bID;
 
         try {
             const response = await api<GetBehaviorDataResponse>('post', '/aba/getTargetBehavior', {
-                "clientID": clientID,
-                "behaviorID": bID,
+                "clientID": clientIdToUse,
+                "behaviorID": behaviorIdToUse,
                 "employeeUsername": loggedInUser
             });
             if (response.statusCode === 200) {
@@ -189,7 +205,7 @@ const TargetbehaviorDetails: React.FC = () => {
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-
+            return;
         }
 
         try {

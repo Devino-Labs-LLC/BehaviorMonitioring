@@ -1,0 +1,242 @@
+/* app/dashboard/Dashboard.module.scss */
+@use './colors.scss' as *;
+
+.dashboardPage {
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2.5rem;
+  background: $page-background;
+
+  @media (max-width: 768px) {
+    padding: 1rem 0.5rem 2rem;
+  }
+}
+
+/* Sticky filter bar */
+.filterBar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+
+  display: flex;
+  align-items: end;
+  gap: 12px;
+
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid $border-light;
+  background: $form-background;
+  box-shadow: $shadow-sm;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 200px;
+
+  @media (max-width: 768px) {
+    min-width: 100%;
+    width: 100%;
+  }
+}
+
+.filterSpacer {
+  flex: 1;
+}
+
+.label {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: $font-color;
+}
+
+.select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: $radius-sm;
+  border: 1px solid $border-light;
+  background: $color6;
+  color: $font-color;
+
+  &:focus {
+    outline: none;
+    border-color: $color5;
+    box-shadow: $focus-ring;
+  }
+}
+
+.primaryButton {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: $radius-sm;
+  background: $button-background-color;
+  color: $button-font-color;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: $shadow-sm;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+
+  &:hover {
+    background: $button-background-color-hover;
+    transform: translateY(-1px);
+    box-shadow: $shadow-md;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 0 12px;
+  }
+}
+
+.statusRow {
+  margin: 12px 0 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.statusPill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid $border-light;
+  background: rgba(59, 130, 246, 0.08);
+  color: $font-color;
+  font-weight: 800;
+}
+
+.statusPillError {
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* KPI cards */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Layout grids */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  margin-top: 12px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card */
+.card {
+  border-radius: $radius-md;
+  border: 1px solid $border-light;
+  background: $form-background;
+  box-shadow: $shadow-md;
+  overflow: hidden;
+}
+
+.cardHeader {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid $border-light;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 950;
+  color: $font-color;
+}
+
+.cardSub {
+  margin: 6px 0 0;
+  color: rgba(15, 23, 42, 0.65);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.chartWrap {
+  padding: 10px 12px 14px;
+}
+
+.emptyState {
+  padding: 24px 14px;
+  text-align: center;
+  font-weight: 900;
+  color: rgba(15, 23, 42, 0.65);
+}
+
+/* Recent list */
+.recentList {
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  border: 1px solid $border-light;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.recentLeft {
+  min-width: 0;
+}
+
+.recentTitle {
+  font-weight: 950;
+  color: $font-color;
+}
+
+.recentMeta {
+  margin-top: 4px;
+  color: rgba(15, 23, 42, 0.65);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.recentValue {
+  font-weight: 950;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.10);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: $font-color;
+}

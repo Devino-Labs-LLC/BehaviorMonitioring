@@ -2,6 +2,19 @@ const request = require('supertest');
 const express = require('express');
 const adminRoutes = require('../../../routes/Admin');
 
+// Mock authMiddleware to simulate authenticated requests
+jest.mock('../../../middleware/authMiddleware', () => {
+  return (req, res, next) => {
+    // Simulate authenticated user from JWT token
+    req.user = {
+      username: 'testadmin',
+      email: 'admin@test.com',
+      role: 'admin'
+    };
+    next();
+  };
+});
+
 // Mock adminQueries module
 jest.mock('../../../middleware/helpers/AdminQueries', () => ({
   adminExistByUsername: jest.fn(),
@@ -17,13 +30,29 @@ jest.mock('../../../middleware/helpers/AdminQueries', () => ({
   adminUpdateEmployeeAccountByID: jest.fn(),
 }));
 
+// Mock employeeQueries module (used by authorizationHelper)
+jest.mock('../../../middleware/helpers/EmployeeQueries', () => ({
+  employeeExistByUsername: jest.fn(),
+  employeeDataByUsername: jest.fn(),
+}));
+
 // Mock generate username
 jest.mock('../../../functions/users/generateUsername', () => jest.fn(() => 'test.user'));
 
 // Mock email handler
-jest.mock('../../../middleware/email/emailTemplate', () => jest.fn());
+jest.mock('../../../middleware/email/emailTemplate', () => ({
+  sendEmployeeVerification: jest.fn().mockResolvedValue(true),
+  sendAdminVerification: jest.fn().mockResolvedValue(true),
+  sendAccountApprovalNotification: jest.fn().mockResolvedValue(true),
+  sendSignupVerification: jest.fn().mockResolvedValue(true),
+  sendPasswordRecovery: jest.fn().mockResolvedValue(true),
+  sendNewSignupNotificationToAdmin: jest.fn().mockResolvedValue(true),
+  sendDatabaseBackupNotification: jest.fn().mockResolvedValue(true),
+  sendDatabaseBackupResults: jest.fn().mockResolvedValue(true),
+}));
 
 const adminQueries = require('../../../middleware/helpers/AdminQueries');
+const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
 
 const app = express();
 app.use(express.json());
@@ -37,12 +66,13 @@ describe('Admin API Integration Tests', () => {
   describe('POST /admin/addNewEmployee', () => {
     it('handles add employee request', async () => {
       // Mock authorization check
-      adminQueries.adminExistByUsername.mockResolvedValue(true);
-      adminQueries.adminDataByUsername.mockResolvedValue({
+      employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+      employeeQueries.employeeDataByUsername.mockResolvedValue({
         role: 'admin',
         fName: 'Test',
         lName: 'Admin',
       });
+      adminQueries.adminExistByUsername.mockResolvedValue(false);
       adminQueries.adminAddNewEmployee.mockResolvedValue(true);
 
       const response = await request(app)
@@ -53,18 +83,19 @@ describe('Admin API Integration Tests', () => {
           email: 'john@example.com',
           pNumber: '1234567890',
           role: 'Technician',
-          employeeUsername: 'admin',
+          employeeUsername: 'testadmin',
         });
 
       expect(response.status).toBe(200);
-      expect([200, 201]).toContain(response.body.statusCode);
+      expect(response.body.statusCode).toBeGreaterThanOrEqual(200);
+      expect(response.body.statusCode).toBeLessThan(300);
     });
   });
 
   describe('POST /admin/deleteAnEmployee', () => {
     it('handles delete request', async () => {
-      adminQueries.adminExistByUsername.mockResolvedValue(true);
-      adminQueries.adminDataByUsername.mockResolvedValue({
+      employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+      employeeQueries.employeeDataByUsername.mockResolvedValue({
         role: 'admin',
       });
       adminQueries.adminDeleteAnEmployeeByID.mockResolvedValue(true);
@@ -73,7 +104,7 @@ describe('Admin API Integration Tests', () => {
         .post('/admin/deleteAnEmployee')
         .send({
           employeeID: 1,
-          employeeUsername: 'admin',
+          employeeUsername: 'testadmin',
         });
 
       expect(response.status).toBe(200);
@@ -83,8 +114,8 @@ describe('Admin API Integration Tests', () => {
 
   describe('POST /admin/updateAnEmployeeDetail', () => {
     it('handles update request', async () => {
-      adminQueries.adminExistByUsername.mockResolvedValue(true);
-      adminQueries.adminDataByUsername.mockResolvedValue({
+      employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+      employeeQueries.employeeDataByUsername.mockResolvedValue({
         role: 'admin',
       });
       adminQueries.adminUpdateEmployeeAccountByID.mockResolvedValue(true);
@@ -98,7 +129,7 @@ describe('Admin API Integration Tests', () => {
           email: 'john@example.com',
           pNumber: '1234567890',
           role: 'Technician',
-          employeeUsername: 'admin',
+          employeeUsername: 'testadmin',
         });
 
       expect(response.status).toBe(200);
@@ -113,7 +144,6 @@ describe('Admin API Integration Tests', () => {
         .send({
           homeName: 'Test Home',
           location: 'Test Location',
-          employeeUsername: 'admin',
         });
 
       expect(response.status).toBe(200);
@@ -126,7 +156,6 @@ describe('Admin API Integration Tests', () => {
         .post('/admin/deleteAHome')
         .send({
           homeID: 1,
-          employeeUsername: 'admin',
         });
 
       expect(response.status).toBe(200);

@@ -73,7 +73,10 @@ const Header: React.FC = () => {
             <a href={userIsLoggedIn ? '/Dashboard' : '/'}><img src={companyLogo.src} alt ="BMetrics Logo" /></a>
             <h1 className={componentStyles.companyName}>BMetrics <span className={componentStyles.trade}>&trade;</span></h1>
             <img className={componentStyles.farBars} src={farBars.src} alt ="FarBar Button" onClick={showPhoneMenuBoolean}/>
-            <Button nameOfClass='loginButton' placeholder={buttonLabel} btnType='button' onClick={routeChange}/>
+            <div className={componentStyles.headerButtons}>
+                {!userIsLoggedIn && <Button nameOfClass='signupButton' placeholder='Sign Up' btnType='button' onClick={() => navigate.push('/SignUp')}/> }
+                <Button nameOfClass='loginButton' placeholder={buttonLabel} btnType='button' onClick={routeChange}/>
+            </div>
             {phoneMenu}
             <nav>
                 <ul>

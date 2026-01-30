@@ -4,7 +4,7 @@ const { Client, BehaviorAndSkill, BehaviorData, SessionNoteData } = require('../
 async function abaClientExistByID(cID, compID) {
     try {
         const client = await Client.findOne({
-            where: { clientID: cID, companyID: compID }
+            where: { clientID: cID, companyID: compID, }
         });
         return client !== null;
     } catch (err) {
@@ -21,7 +21,7 @@ async function abaAddClientData(fName, lName, DOB, intakeDate, groupHomeName, me
             medicaid_id_number: medicadeNum, 
             behavior_plan_due_date: behaviorPlanDueDate, 
             entered_by: enteredBy, 
-            companyID: compID, 
+            companyID: compID,
             companyName: compName, 
             date_entered: dateEntered, 
             time_entered: timeEntered
@@ -76,7 +76,7 @@ async function abaUpdateClientData(fName, lName, DOB, intakeDate, groupHomeName,
 async function behaviorSkillExistByID(bsID, compID) {
     try {
         const record = await BehaviorAndSkill.findOne({
-            where: { bsID, companyID }
+            where: { bsID, companyID: compID }
         });
         return record !== null;
     } catch (err) {
@@ -95,8 +95,8 @@ async function abaAddBehaviorOrSkill(name, def, meas, cat, type, cID, cName, ent
             clientID: cID, 
             clientName: cName, 
             entered_by: enteredBy, 
-            companyID, 
-            companyName, 
+            companyID: compID,
+            companyName: compName, 
             date_entered: dateEntered, 
             time_entered: timeEntered, 
             status: "Active"
@@ -129,7 +129,7 @@ async function abaUpdateBehaviorOrSkill(name, def, meas, cat, type, cID, cName, 
 async function abaGetBehaviorOrSkill(cID, BorS, compID) {
     try {
         const records = await BehaviorAndSkill.findAll({
-            where: { clientID: cID, type: BorS, companyID, status: "Active" },
+            where: { clientID: cID, type: BorS, companyID: compID, status: "Active" },
             attributes: ['bsID', 'name', 'definition', 'measurement', 'category', 'type', 'clientID', 'clientName', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
@@ -141,7 +141,7 @@ async function abaGetBehaviorOrSkill(cID, BorS, compID) {
 async function abaGetABehaviorOrSkill(cID, bsID, BorS, compID) {
     try {
         const records = await BehaviorAndSkill.findAll({
-            where: { clientID: cID, bsID, type: BorS, companyID, status: "Active" },
+            where: { clientID: cID, bsID, type: BorS, companyID: compID, status: "Active" },
             attributes: ['bsID', 'name', 'definition', 'measurement', 'category', 'type', 'clientID', 'clientName', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
@@ -160,8 +160,8 @@ async function abaAddFrequencyBehaviorData(bsID, cID, cName, sDate, sTime, count
             sessionTime: sTime, 
             count, 
             entered_by: enteredBy, 
-            companyID, 
-            companyName, 
+            companyID: compID, 
+            companyName: compName, 
             date_entered: dateEntered, 
             time_entered: timeEntered, 
             status: "Active"
@@ -183,8 +183,8 @@ async function abaAddRateBehaviorData(bsID, cID, cName, sDate, sTime, count, dur
             count, 
             duration, 
             entered_by: enteredBy, 
-            companyID, 
-            companyName, 
+            companyID: compID,
+            companyName: compName, 
             date_entered: dateEntered, 
             time_entered: timeEntered, 
             status: "Active"
@@ -205,8 +205,8 @@ async function abaAddDurationBehaviorData(bsID, cID, cName, sDate, sTime, trial,
             sessionTime: sTime, 
             duration: trial, 
             entered_by: enteredBy, 
-            companyID, 
-            companyName, 
+            companyID: compID, 
+            companyName: compName, 
             date_entered: dateEntered, 
             time_entered: timeEntered, 
             status: "Active"
@@ -220,7 +220,7 @@ async function abaAddDurationBehaviorData(bsID, cID, cName, sDate, sTime, trial,
 async function abaGetBehaviorDataById(cID, bsID, compID) {
     try {
         const records = await BehaviorData.findAll({
-            where: { bsID, clientID: cID, companyID, status: "Active" },
+            where: { bsID, clientID: cID, companyID: compID, status: "Active" },
             attributes: ['behaviorDataID', 'bsID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'count', 'duration', 'trial', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
@@ -232,7 +232,7 @@ async function abaGetBehaviorDataById(cID, bsID, compID) {
 async function abaFoundBehaviorDataById(cID, bsID, compID) {
     try {
         const count = await BehaviorData.count({
-            where: { bsID, clientID: cID, companyID, status: "Active" }
+            where: { bsID, clientID: cID, companyID: compID, status: "Active" }
         });
         return count > 0;
     } catch (err) {
@@ -266,7 +266,7 @@ async function abaDeleteBehaviorDataByID(cID, bsID, compID) {
 async function abaGetBehaviorDataByBehaviorId(cID, bsID, bdID, compID) {
     try {
         const count = await BehaviorData.count({
-            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID, status: "Active" }
+            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID: compID, status: "Active" }
         });
         return count > 0;
     } catch (err) {
@@ -325,7 +325,7 @@ async function abaArchiveBehaviorOrSkillByID(cID, bsID, dateArchived, dateToDele
 async function archiveBehaviorSkillExistByID(bsID, compID) {
     try {
         const record = await BehaviorAndSkill.findOne({
-            where: { bsID, companyID, status: 'Archived' }
+            where: { bsID, companyID: compID, status: 'Archived' }
         });
         return record !== null;
     } catch (err) {
@@ -360,7 +360,7 @@ async function abaReactivateBehaviorOrSkillByID(cID, bsID, dateArchived, dateToD
 async function abaGetArchivedBehaviorDataById(cID, bsID, compID) {
     try {
         const records = await BehaviorData.findAll({
-            where: { bsID, clientID: cID, companyID, status: "Archived" },
+            where: { bsID, clientID: cID, companyID: compID, status: "Archived" },
             attributes: ['behaviorDataID', 'bsID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'count', 'duration', 'trial', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
@@ -372,7 +372,7 @@ async function abaGetArchivedBehaviorDataById(cID, bsID, compID) {
 async function abaGetArchivedBehaviorOrSkill(cID, BorS, compID) {
     try {
         const records = await BehaviorAndSkill.findAll({
-            where: { clientID: cID, type: BorS, companyID, status: "Archived" },
+            where: { clientID: cID, type: BorS, companyID: compID, status: "Archived" },
             attributes: ['bsID', 'name', 'definition', 'measurement', 'category', 'type', 'clientID', 'clientName', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
@@ -384,7 +384,7 @@ async function abaGetArchivedBehaviorOrSkill(cID, BorS, compID) {
 async function abaDeleteArchivedBehaviorDataByID(cID, bsID, compID) {
     try {
         const rowsDeleted = await BehaviorData.destroy({
-            where: { bsID, clientID: cID, companyID, status: 'Archived' }
+            where: { bsID, clientID: cID, companyID: compID, status: 'Archived' }
         });
         return rowsDeleted > 0;
     } catch (err) {
@@ -395,7 +395,7 @@ async function abaDeleteArchivedBehaviorDataByID(cID, bsID, compID) {
 async function abaDeleteArchivedBehaviorOrSkillByID(cID, bsID, compID) {
     try {
         const rowsDeleted = await BehaviorAndSkill.destroy({
-            where: { bsID, clientID: cID, companyID, status: 'Archived' }
+            where: { bsID, clientID: cID, companyID: compID, status: 'Archived' }
         });
         return rowsDeleted > 0;
     } catch (err) {
@@ -406,7 +406,7 @@ async function abaDeleteArchivedBehaviorOrSkillByID(cID, bsID, compID) {
 async function abaGetAArchivedBehaviorOrSkill(cID, bsID, BorS, compID) {
     try {
         const records = await BehaviorAndSkill.findAll({
-            where: { clientID: cID, bsID, type: BorS, companyID, status: "Archived" },
+            where: { clientID: cID, bsID, type: BorS, companyID: compID, status: "Archived" },
             attributes: ['bsID', 'name', 'definition', 'measurement', 'category', 'type', 'clientID', 'clientName', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
@@ -418,7 +418,7 @@ async function abaGetAArchivedBehaviorOrSkill(cID, bsID, BorS, compID) {
 async function abaGetArchivedBehaviorDataByBehaviorId(cID, bsID, bdID, compID) {
     try {
         const count = await BehaviorData.count({
-            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID, status: "Archived" }
+            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID: compID, status: "Archived" }
         });
         return count > 0;
     } catch (err) {
@@ -429,7 +429,7 @@ async function abaGetArchivedBehaviorDataByBehaviorId(cID, bsID, bdID, compID) {
 async function abaDeleteArchivedBehaviorDataByBehaviorID(cID, bsID, bdID, compID) {
     try {
         const rowsDeleted = await BehaviorData.destroy({
-            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID, status: "Archived" }
+            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID: compID, status: "Archived" }
         });
         return rowsDeleted > 0;
     } catch (err) {
@@ -441,7 +441,7 @@ async function abaDeleteArchivedBehaviorDataByBehaviorID(cID, bsID, bdID, compID
 async function abaSessionNoteDataByClientIDExists(cID, compID) {
     try {
         const count = await SessionNoteData.count({
-            where: { clientID: cID, companyID }
+            where: { clientID: cID, companyID: compID, }
         });
         return count > 0;
     } catch (err) {
@@ -452,8 +452,8 @@ async function abaSessionNoteDataByClientIDExists(cID, compID) {
 async function abaSessionNoteDataByClientID(cID, compID) {
     try {
         const records = await SessionNoteData.findAll({
-            where: { clientID: cID, companyID },
-            attributes: ['sessionNoteDataID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'sessionNotes', 'entered_by', 'date_entered', 'time_entered']
+            where: { clientID: cID, companyID: compID, status: 'Active' },
+            attributes: ['sessionNoteDataID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'sessionNotes', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
@@ -464,8 +464,8 @@ async function abaSessionNoteDataByClientID(cID, compID) {
 async function abaGetSessionNoteByID(cID, sessionNoteId, compID) {
     try {
         const records = await SessionNoteData.findAll({
-            where: { clientID: cID, sessionNoteDataID: sessionNoteId, companyID },
-            attributes: ['sessionNoteDataID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'sessionNotes', 'entered_by', 'date_entered', 'time_entered']
+            where: { clientID: cID, sessionNoteDataID: sessionNoteId, companyID: compID, status: 'Active' },
+            attributes: ['sessionNoteDataID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'sessionNotes', 'entered_by', 'date_entered', 'time_entered', 'status']
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
@@ -482,10 +482,11 @@ async function abaAddSessionNoteData(cID, cName, sDate, sTime, sNotes, enteredBy
             sessionTime: sTime, 
             sessionNotes: sNotes, 
             entered_by: enteredBy, 
-            companyID, 
-            companyName, 
+            companyID: compID, 
+            companyName: compName, 
             date_entered: dateEntered, 
-            time_entered: timeEntered
+            time_entered: timeEntered,
+            status: 'Active'
         });
         return true;
     } catch (err) {
@@ -496,7 +497,66 @@ async function abaAddSessionNoteData(cID, cName, sDate, sTime, sNotes, enteredBy
 async function abaDeleteSessionNoteDataByID(cID, snID, compID) {
     try {
         const rowsDeleted = await SessionNoteData.destroy({
-            where: { sessionNoteDataID: snID, clientID: cID, companyID }
+            where: { sessionNoteDataID: snID, clientID: cID, companyID: compID, }
+        });
+        return rowsDeleted > 0;
+    } catch (err) {
+        throw { message: err.message };
+    }
+}
+/*-------------------------------------------------Archived Session Notes--------------------------------------------------*/
+async function abaGetArchivedSessionNoteDataByClientID(cID, compID) {
+    try {
+        const records = await SessionNoteData.findAll({
+            where: { clientID: cID, companyID: compID, status: 'Archived' },
+            attributes: ['sessionNoteDataID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'sessionNotes', 'entered_by', 'date_entered', 'time_entered', 'status']
+        });
+        return records.map(r => r.get({ plain: true }));
+    } catch (err) {
+        throw { message: err.message };
+    }
+}
+
+async function abaGetArchivedSessionNoteByID(cID, sessionNoteId, compID) {
+    try {
+        const records = await SessionNoteData.findAll({
+            where: { clientID: cID, sessionNoteDataID: sessionNoteId, companyID: compID, status: 'Archived' },
+            attributes: ['sessionNoteDataID', 'clientID', 'clientName', 'sessionDate', 'sessionTime', 'sessionNotes', 'entered_by', 'date_entered', 'time_entered', 'status']
+        });
+        return records.map(r => r.get({ plain: true }));
+    } catch (err) {
+        throw { message: err.message };
+    }
+}
+
+async function abaReactivateSessionNoteByID(cID, sessionNoteId, compID) {
+    try {
+        const [rowsUpdated] = await SessionNoteData.update(
+            { status: 'Active' },
+            { where: { sessionNoteDataID: sessionNoteId, clientID: cID, companyID: compID } }
+        );
+        return rowsUpdated > 0;
+    } catch (err) {
+        throw { message: err.message };
+    }
+}
+
+async function abaArchiveSessionNoteByID(cID, sessionNoteId, compID) {
+    try {
+        const [rowsUpdated] = await SessionNoteData.update(
+            { status: 'Archived' },
+            { where: { sessionNoteDataID: sessionNoteId, clientID: cID, companyID: compID } }
+        );
+        return rowsUpdated > 0;
+    } catch (err) {
+        throw { message: err.message };
+    }
+}
+
+async function abaDeleteArchivedSessionNoteByID(cID, sessionNoteId, compID) {
+    try {
+        const rowsDeleted = await SessionNoteData.destroy({
+            where: { sessionNoteDataID: sessionNoteId, clientID: cID, companyID: compID, status: 'Archived' }
         });
         return rowsDeleted > 0;
     } catch (err) {
@@ -541,5 +601,10 @@ module.exports = {
     abaSessionNoteDataByClientID,
     abaSessionNoteDataByClientIDExists,
     abaGetSessionNoteByID,
-    abaDeleteSessionNoteDataByID
+    abaDeleteSessionNoteDataByID,
+    abaGetArchivedSessionNoteDataByClientID,
+    abaGetArchivedSessionNoteByID,
+    abaReactivateSessionNoteByID,
+    abaArchiveSessionNoteByID,
+    abaDeleteArchivedSessionNoteByID
 }

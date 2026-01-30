@@ -12,6 +12,7 @@
 
 # testing
 /client/coverage
+/server/coverage
 
 # next.js
 /client/.next/
