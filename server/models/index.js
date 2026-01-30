@@ -31,15 +31,20 @@ const models = {
 // Auto-sync database (creates/updates tables)
 const syncDatabase = async () => {
   try {
-    // Disable auto-sync to avoid "Too many keys" errors on existing databases
-    // Use `npm run db:init` or `npm run db:sync` to manually sync when needed
-    console.log('✓ Skipping database sync (use npm run db:init to sync manually)');
-    return;
+    // Check if we're in production/Railway environment
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
     
-    // alter: true - will update existing tables without dropping data
-    // force: false - will NOT drop tables (safer for production)
-    // await sequelize.sync({ alter: true });
-    // console.log('✓ Database synchronized successfully');
+    if (isProduction) {
+      console.log('🔄 Production environment detected - syncing database schema...');
+      // alter: true - will update existing tables without dropping data
+      // force: false - will NOT drop tables (safer for production)
+      await sequelize.sync({ alter: true });
+      console.log('✓ Database synchronized successfully');
+    } else {
+      // In development, skip auto-sync to avoid "Too many keys" errors
+      // Use `npm run db:init` or `npm run db:sync` to manually sync when needed
+      console.log('✓ Development mode - skipping auto-sync (use npm run db:sync to sync manually)');
+    }
   } catch (error) {
     console.error('✗ Database sync failed:', error);
     throw error;
