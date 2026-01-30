@@ -54,13 +54,23 @@
     z-index: 1000; // Ensure the header is above other elements
     position: relative; // For absolute positioning of buttons
 
-    a>img {
+    a {
         position: absolute;
         left: 1.5em;
         top: 50%;
         transform: translateY(-50%);
         height: 4em;
-        margin: 0;
+        width: 4em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        img {
+            height: 100% !important;
+            width: auto !important;
+            max-width: 100%;
+            object-fit: contain;
+        }
     }
 
     .companyName {
@@ -150,12 +160,19 @@
             display: none;
         }
 
-        a>img {
+        a {
             float: left;
             display: flex;
             height: 4em;
-            margin: 0 -7.5em 0em 1.5em;
-            transform: translateY(30%);
+            width: 4em;
+            margin: 0.5em 0 0 1.5em;
+            transform: none;
+            position: static;
+
+            img {
+                height: 100% !important;
+                width: 100% !important;
+            }
         }
 
         nav {
@@ -220,9 +237,15 @@
             margin: 1.2em auto;
         }
 
-        a>img {
+        a {
             height: 3em;
-            margin: 0 -5.5em 0 1em;
+            width: 3em;
+            margin: 0.75em 0 0 1em;
+
+            img {
+                height: 100% !important;
+                width: 100% !important;
+            }
         }
 
         .farBars {
