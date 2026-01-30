@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import React from 'react';
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
@@ -24,6 +25,22 @@ jest.mock('next/navigation', () => ({
 jest.mock('next/head', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock Next.js Image component
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: function MockImage({ src, alt, width, height, priority, loading, ...props }: any) {
+    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+    return React.createElement('img', {
+      src: typeof src === 'string' ? src : '/mock-image.png',
+      alt: alt || '',
+      width,
+      height,
+      loading,
+      ...props,
+    });
+  },
 }));
 
 // Setup localStorage mock
