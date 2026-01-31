@@ -1,5 +1,5 @@
 function setRefreshCookie(res, token) {
-    res.cookie(process.env.COOKIE_NAME || "bmRefreshToken", token, {
+    res.cookie(process.env.COOKIE_NAME, token, {
         httpOnly: true,
         secure: process.env.IN_PROD === "true",
         sameSite: process.env.IN_PROD === "true" ? "none" : "lax",
@@ -9,7 +9,7 @@ function setRefreshCookie(res, token) {
 }
 
 function clearRefreshCookie(res) {
-    res.clearCookie(process.env.COOKIE_NAME || "bmRefreshToken", {
+    res.clearCookie(process.env.COOKIE_NAME, {
         path: "/auth/refresh",
     });
 }

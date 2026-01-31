@@ -1,6 +1,8 @@
 // Auth
 export * from './auth/LoginResponse';
 export * from './auth/RefreshTokenResponse';
+export * from './auth/SignUpRequest';
+export * from './auth/SignUpResponse';
 
 // Admin - Requests
 export * from './admin/requests/CreateAdminRequest';
@@ -11,6 +13,7 @@ export * from './admin/responses/GetAdminsResponse';
 export * from './admin/responses/CreateAdminResponse';
 export * from './admin/responses/UpdateAdminResponse';
 export * from './admin/responses/DeleteAdminResponse';
+export * from './admin/ArchivedClient';
 
 // Client
 export * from './client/GetAllClientsResponse';

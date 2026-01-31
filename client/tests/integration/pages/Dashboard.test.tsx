@@ -1,0 +1,70 @@
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import Dashboard from '../../../src/app/Dashboard/page';
+import { api } from '../../../src/lib/Api';
+
+jest.mock('../../../src/lib/Api');
+jest.mock('../../../src/function/VerificationCheck', () => ({
+  GetLoggedInUserStatus: () => true,
+  GetLoggedInUser: () => 'testuser',
+  GetCompanyID: () => 1,
+  GetAdminStatus: () => false,
+}));
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+  }),
+  usePathname: () => '/Dashboard',
+  useSearchParams: () => ({
+    get: jest.fn(),
+  }),
+}));
+
+const mockApi = api as jest.MockedFunction<typeof api>;
+
+describe('Dashboard Page Integration', () => {
+  const mockClients = [
+    { clientID: 1, fName: 'John', lName: 'Doe' },
+    { clientID: 2, fName: 'Jane', lName: 'Smith' },
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('fetches clients on mount', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      clientData: mockClients,
+    } as any);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getAllClientInfo', {
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('redirects to login when not authenticated', () => {
+    jest
+      .spyOn(require('../../../src/function/VerificationCheck'), 'GetLoggedInUserStatus')
+      .mockReturnValue(false);
+
+    const mockPush = jest.fn();
+    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
+      push: mockPush,
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+    });
+
+    render(<Dashboard />);
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login'));
+  });
+});

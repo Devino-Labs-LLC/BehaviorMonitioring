@@ -39,9 +39,10 @@ const Admin: React.FC = () => {
                     <div className={componentStyles.bodyBlock}>
                         <div className={componentStyles.innerBlock}>
                             <div className={componentStyles.adminLinksContainer}>
-                                <Link href='/admin/manageAdmins' hrefType='link' placeholder="Manage admins" />
-                                <Link href='/admin/manageClients' hrefType='link' placeholder="Manage clients" />
-                                <Link href='/admin/manageHomes' hrefType='link' placeholder="Manage homes" />
+                                <Link href='/Admin/manageAdmins' hrefType='link' placeholder="Manage admins" />
+                                <Link href='/Admin/manageClients' hrefType='link' placeholder="Manage clients" />
+                                <Link href='/Admin/manageHomes' hrefType='link' placeholder="Manage homes" />
+                                <Link href='/Admin/ArchivedClients' hrefType='link' placeholder="Archived clients" />
                             </div>
                         </div>
                     </div>

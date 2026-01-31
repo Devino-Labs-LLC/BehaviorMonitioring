@@ -60,8 +60,36 @@ Employee.init({
   time_entered: {
     type: DataTypes.STRING(50),
     allowNull: false
-  }
-}, {
+  },
+  email_verified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
+  verification_token: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  verification_token_expires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  signup_date: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  last_login: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  password_reset_token: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  password_reset_expires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }}, {
   sequelize,
   modelName: 'Employee',
   tableName: 'employee',

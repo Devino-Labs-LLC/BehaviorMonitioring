@@ -81,16 +81,16 @@ const EditClientContent: React.FC = () => {
                 if (client) {
                     setFormData({
                         clientID: client.clientID,
-                        firstName: client.fName || '',
-                        lastName: client.lName || '',
-                        dateOfBirth: (client as any).dateOfBirth || '',
+                        firstName: client.fName,
+                        lastName: client.lName,
+                        dateOfBirth: (client as any).dateOfBirth,
                         homeID: (client as any).homeID || 0,
-                        guardianName: (client as any).guardianName || '',
-                        guardianPhone: (client as any).guardianPhone || '',
-                        guardianEmail: (client as any).guardianEmail || '',
-                        allergies: (client as any).allergies || '',
-                        medications: (client as any).medications || '',
-                        notes: (client as any).notes || '',
+                        guardianName: (client as any).guardianName,
+                        guardianPhone: (client as any).guardianPhone,
+                        guardianEmail: (client as any).guardianEmail,
+                        allergies: (client as any).allergies,
+                        medications: (client as any).medications,
+                        notes: (client as any).notes,
                         isActive: (client as any).isActive !== false,
                         companyID: client.companyID || 1
                     });

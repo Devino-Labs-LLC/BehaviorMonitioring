@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, JSX } from 'react';
+import React, { useState, useEffect, useRef, JSX } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/navigation';
 import componentStyles from '../../../styles/components.module.scss';
@@ -22,6 +22,7 @@ const ArchiveDetails: React.FC = () => {
     const navigate = useRouter();
     const userLoggedIn = GetLoggedInUserStatus();
     const loggedInUser = GetLoggedInUser();
+    const hasInitialized = useRef(false);
     const [clientID, setClientID] = useState<string | null>(null);
     const [bID, setBID] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,22 +41,29 @@ const ArchiveDetails: React.FC = () => {
     const paginatedData = targetBehaviorData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
-        // Access sessionStorage only on client side
+        // Prevent double execution in React Strict Mode
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+        
         const storedClientID = sessionStorage.getItem('clientID');
         const storedBehaviorID = sessionStorage.getItem('archivedBehaviorID');
-        setClientID(storedClientID);
-        setBID(storedBehaviorID);
         
         if (!storedClientID || !storedBehaviorID) {
             navigate.push('/Behavior');
-        } else {
-            debounceAsync(getClientArchivedBehaviorBaseData, 300)();
-            debounceAsync(getClientTargetBehaviorData, 300)();
+            return;
         }
         
+        setClientID(storedClientID);
+        setBID(storedBehaviorID);
+        
+        // Pass IDs directly to avoid state timing issues
+        debounceAsync(() => getClientArchivedBehaviorBaseData(storedClientID, storedBehaviorID), 300)();
+        debounceAsync(() => getClientTargetBehaviorData(storedClientID, storedBehaviorID), 300)();
+        
+        // Clean up after API calls are initiated
         sessionStorage.removeItem('clientID');
         sessionStorage.removeItem('archivedBehaviorID');
-    }, [userLoggedIn]);
+    }, []);
 
     useEffect(() => {
         if (timerCount > 0) {
@@ -83,18 +91,22 @@ const ArchiveDetails: React.FC = () => {
         navigate.back();
     };
 
-    const getClientArchivedBehaviorBaseData = async () => {
+const getClientArchivedBehaviorBaseData = async (passedClientID?: string, passedBehaviorID?: string) => {
         setIsLoading(true);
         setBehaviorBase([]);
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
-            navigate.push(`/Login?previousUrl=${previousUrl}`);        
+            navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
         }
+
+        const clientIdToUse = passedClientID || clientID;
+        const behaviorIdToUse = passedBehaviorID || bID;
 
         try {
             const response = await api<GetBehaviorResponse>('POST', '/aba/getAClientArchivedBehavior', {
-                "clientID": clientID,
-                "behaviorID": bID,
+                "clientID": clientIdToUse,
+                "behaviorID": behaviorIdToUse,
                 "employeeUsername": loggedInUser
             });
 
@@ -112,18 +124,22 @@ const ArchiveDetails: React.FC = () => {
         }
     }
 
-    const getClientTargetBehaviorData = async () => {
+const getClientTargetBehaviorData = async (passedClientID?: string, passedBehaviorID?: string) => {
         setIsLoading(true);
         setTargetBehaviorData([]);
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
-            navigate.push(`/Login?previousUrl=${previousUrl}`);        
+            navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
         }
+
+        const clientIdToUse = passedClientID || clientID;
+        const behaviorIdToUse = passedBehaviorID || bID;
 
         try {
             const response = await api<GetBehaviorDataResponse>('POST', '/aba/getAArchivedBehaviorData', {
-                "clientID": clientID,
-                "behaviorID": bID,
+                "clientID": clientIdToUse,
+                "behaviorID": behaviorIdToUse,
                 "employeeUsername": loggedInUser
             });
 

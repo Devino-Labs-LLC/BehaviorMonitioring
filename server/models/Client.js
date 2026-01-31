@@ -53,6 +53,31 @@ Client.init({
   time_entered: {
     type: DataTypes.STRING(50),
     allowNull: false
+  },
+  status: {
+    type: DataTypes.STRING(20),
+    defaultValue: 'Active'
+  },
+  archived_date: {
+    type: DataTypes.STRING(50)
+  },
+  archived_deletion_date: {
+    type: DataTypes.STRING(50)
+  },
+  archived_by: {
+    type: DataTypes.STRING(100)
+  },
+  reminder_90_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  reminder_60_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  reminder_30_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   sequelize,

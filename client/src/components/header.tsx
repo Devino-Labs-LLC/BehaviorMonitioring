@@ -1,6 +1,8 @@
 "use client";
 import React, {useState, useEffect, JSX} from 'react';
 import { useRouter } from 'next/navigation';
+import NextLink from 'next/link';
+import Image from 'next/image';
 import componentStyles from '../styles/components.module.scss';
 import companyLogo from '../Images/BMetrics-logo-removebg.png';
 import farBars from '../Images/naviconrww752.png';
@@ -70,10 +72,15 @@ const Header: React.FC = () => {
 
     return (
         <div className={componentStyles.headerBody}>
-            <a href={userIsLoggedIn ? '/Dashboard' : '/'}><img src={companyLogo.src} alt ="BMetrics Logo" /></a>
+            <NextLink href={userIsLoggedIn ? '/Dashboard' : '/'}>
+                <Image src={companyLogo} alt="BMetrics Logo" height={64} width={64} priority />
+            </NextLink>
             <h1 className={componentStyles.companyName}>BMetrics <span className={componentStyles.trade}>&trade;</span></h1>
-            <img className={componentStyles.farBars} src={farBars.src} alt ="FarBar Button" onClick={showPhoneMenuBoolean}/>
-            <Button nameOfClass='loginButton' placeholder={buttonLabel} btnType='button' onClick={routeChange}/>
+            <Image className={componentStyles.farBars} src={farBars} alt="FarBar Button" onClick={showPhoneMenuBoolean} height={48} width={48} />
+            <div className={componentStyles.headerButtons}>
+                {!userIsLoggedIn && <Button nameOfClass='signupButton' placeholder='Sign Up' btnType='button' onClick={() => navigate.push('/SignUp')}/> }
+                <Button nameOfClass='loginButton' placeholder={buttonLabel} btnType='button' onClick={routeChange}/>
+            </div>
             {phoneMenu}
             <nav>
                 <ul>

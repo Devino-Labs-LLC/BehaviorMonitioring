@@ -11,7 +11,7 @@ const sequelize = new Sequelize(
         host: process.env.MYSQL_HOST,
         port: process.env.MYSQL_PORT,
         dialect: 'mysql',
-        logging: isDevelopment ? console.log : false,
+        logging: false,
         pool: {
             max: 5,
             min: 0,

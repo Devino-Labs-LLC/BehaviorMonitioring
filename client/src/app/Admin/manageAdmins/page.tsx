@@ -72,8 +72,8 @@ const ManageAdmins: React.FC = () => {
         setIsLoading(true);
         
         try {
-            const response = await api<DeleteAdminResponse>('post', '/admin/deleteAdmin', {
-                adminID: admin.adminID,
+            const response = await api<DeleteAdminResponse>('post', '/admin/deleteAnEmployee', {
+                employeeID: admin.adminID,
                 employeeUsername: loggedInUser
             });
             

@@ -263,7 +263,7 @@ const SessionNotes: React.FC = () => {
                         <div className={componentStyles.bodyBlock}>
                             <div className={componentStyles.tbHRSButtons}>
                                 <Link href='/DataEntry' hrefType='link' placeholder="Add Session Notes" />
-                                <Link href='/SessionNotes/Archive' hrefType='link' placeholder="Archived Behavior" />
+                                <Link href='/SessionNotes/Archive' hrefType='link' placeholder="Archived Notes" />
                             </div>
                             <p className={componentStyles.statusMessage}>{statusMessage ? <b>{statusMessage}</b> : null}</p>
                             <div className={componentStyles.innerBlock}>

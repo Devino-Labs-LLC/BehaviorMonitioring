@@ -18,7 +18,7 @@ function createRefreshToken(payload) {
     payload,
     process.env.JWT_REFRESH_SECRET, // separate secret from access token
     {
-      expiresIn: "7d",               // typical refresh lifetime
+      expiresIn: process.env.REFRESH_TOKEN_TTL_DAYS + "d",
       issuer: process.env.HOST,
       audience: process.env.ClientHost
     }

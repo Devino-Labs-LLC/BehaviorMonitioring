@@ -24,13 +24,9 @@ const AddAdmin: React.FC = () => {
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
-        username: '',
         email: '',
         phone: '',
-        password: '',
-        confirmPassword: '',
-        role: 'admin' as 'root' | 'admin' | 'manager',
-        companyID: 1 // Default, will be set from logged in user
+        role: 'admin' as 'root' | 'admin' | 'manager'
     });
 
     useEffect(() => {
@@ -49,13 +45,8 @@ const AddAdmin: React.FC = () => {
     const validateForm = (): string | null => {
         if (!formData.firstName.trim()) return 'First name is required';
         if (!formData.lastName.trim()) return 'Last name is required';
-        if (!formData.username.trim()) return 'Username is required';
-        if (formData.username.length < 3) return 'Username must be at least 3 characters';
         if (!formData.email.trim()) return 'Email is required';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
-        if (!formData.password) return 'Password is required';
-        if (formData.password.length < 8) return 'Password must be at least 8 characters';
-        if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
         return null;
     };
 
@@ -70,22 +61,19 @@ const AddAdmin: React.FC = () => {
         setStatusMessage('');
 
         try {
-            const requestData: CreateAdminRequest = {
-                firstName: formData.firstName.trim(),
-                lastName: formData.lastName.trim(),
-                username: formData.username.trim().toLowerCase(),
+            const response = await api<CreateAdminResponse>('post', '/admin/addNewEmployee', {
+                fName: formData.firstName.trim(),
+                lName: formData.lastName.trim(),
                 email: formData.email.trim().toLowerCase(),
-                phone: formData.phone.trim() || undefined,
-                password: formData.password,
+                pNumber: formData.phone.trim() || '',
                 role: formData.role,
-                companyID: formData.companyID
-            };
-
-            const response = await api<CreateAdminResponse>('post', '/admin/createAdmin', requestData);
+                accountStatus: 'Active',
+                employeeUsername: loggedInUser
+            });
             
-            if (response.statusCode === 200) {
-                setStatusMessage('Admin created successfully!');
-                setTimeout(() => navigate.push('/Admin/manageAdmins'), 2000);
+            if (response.statusCode === 201) {
+                setStatusMessage('Admin created successfully! A verification email will be sent to set up their password.');
+                setTimeout(() => navigate.push('/Admin/manageAdmins'), 3000);
             } else {
                 throw new Error(response.serverMessage || 'Failed to create admin');
             }
@@ -141,15 +129,6 @@ const AddAdmin: React.FC = () => {
                                 />
                                 
                                 <InputFields
-                                    name="username"
-                                    type="text"
-                                    placeholder="Username"
-                                    requiring={false}
-                                    value={formData.username}
-                                    onChange={(e) => handleInputChange('username', e.target.value)}
-                                />
-                                
-                                <InputFields
                                     name="email"
                                     type="text"
                                     placeholder="Email Address"
@@ -173,26 +152,6 @@ const AddAdmin: React.FC = () => {
                                     value={formData.role}
                                     onChange={(e) => handleInputChange('role', e.target.value)}
                                     requiring={false}
-                                />
-                                
-                                <h2>Security</h2>
-                                
-                                <InputFields
-                                    name="password"
-                                    type="password"
-                                    placeholder="Password"
-                                    requiring={false}
-                                    value={formData.password}
-                                    onChange={(e) => handleInputChange('password', e.target.value)}
-                                />
-                                
-                                <InputFields
-                                    name="confirmPassword"
-                                    type="password"
-                                    placeholder="Confirm Password"
-                                    requiring={false}
-                                    value={formData.confirmPassword}
-                                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                                 />
                                 
                                 <Button 

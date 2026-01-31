@@ -10,7 +10,7 @@ import Link from '../../../components/Link';
 import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
-import type { GetAllClientsResponse, DeleteClientResponse, Client } from '../../../dto';
+import type { GetAllClientsResponse, DeleteClientResponse, Client, ArchiveClientResponse } from '../../../dto';
 
 const ManageClients: React.FC = () => {
     const navigate = useRouter();
@@ -96,6 +96,40 @@ const ManageClients: React.FC = () => {
         navigate.push(`/Admin/manageClients/edit?id=${clientID}`);
     };
 
+    const handleArchiveClick = async (client: Client) => {
+        if (!window.confirm(`Are you sure you want to archive client "${client.fName} ${client.lName}"? This will mark them as inactive and schedule their data for deletion in 7 years.`)) {
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            const response = await api<ArchiveClientResponse>('post', '/admin/archiveClient', {
+                clientID: client.clientID,
+                employeeUsername: loggedInUser
+            });
+            
+            if (response.statusCode === 200) {
+                setStatusMessage(
+                    <>
+                        Client "{client.fName} {client.lName}" has been archived successfully.
+                        <br />
+                        Deletion scheduled for: {response.deletionDate}
+                    </>
+                );
+                setTimerCount(5);
+                setClearMessageStatus(true);
+                await fetchClients();
+            } else {
+                throw new Error(response.serverMessage || 'Failed to archive client');
+            }
+        } catch (error) {
+            setStatusMessage(String(error));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <>
             <Header />
@@ -119,13 +153,14 @@ const ManageClients: React.FC = () => {
                                 {clients.length === 0 ? (
                                     <p>No clients found. Click "Add Client" to create one.</p>
                                 ) : (
-                                    <table className={componentStyles.tbHRSTable}>
+                                    <table className={componentStyles.tbClientTable}>
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
                                                 <th>Client Name</th>
                                                 <th>Company</th>
                                                 <th>Edit</th>
+                                                <th>Archive</th>
                                                 <th>Delete</th>
                                             </tr>
                                         </thead>
@@ -134,10 +169,20 @@ const ManageClients: React.FC = () => {
                                                 <tr key={client.clientID}>
                                                     <td><div>{client.clientID}</div></td>
                                                     <td><div>{client.fName} {client.lName}</div></td>
-                                                    <td><div>{client.companyID}</div></td>
+                                                    <td><div>{client.companyName}</div></td>
                                                     <td>
                                                         <div>
                                                             <button onClick={() => handleEditClick(client.clientID)}>✏️</button>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div>
+                                                            <button 
+                                                                onClick={() => handleArchiveClick(client)}
+                                                                title="Archive client (7-year retention)"
+                                                            >
+                                                                📦
+                                                            </button>
                                                         </div>
                                                     </td>
                                                     <td>

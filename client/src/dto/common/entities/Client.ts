@@ -7,4 +7,5 @@ export type Client = {
   lName: string;
   fullName?: string;
   companyID?: number;
+  companyName?: string;
 };

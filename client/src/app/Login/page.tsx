@@ -33,18 +33,7 @@ const LoginContent: React.FC = () => {
         }
     }, [userStatus, navigate, previousUrl]);
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Enter') {
-                debounceAsync(submitLoginForm, 300)();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    const submitLoginForm = async () => {
+    const submitLoginForm = React.useCallback(async () => {
         setIsLoading(true);
         if (uName.length < 1 || pWord.length < 1) {
             setIsLoading(false);
@@ -81,7 +70,18 @@ const LoginContent: React.FC = () => {
         finally {
             setIsLoading(false);
         }
-    };
+    }, [uName, pWord, navigate, previousUrl]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                debounceAsync(submitLoginForm, 300)();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [submitLoginForm]);
 
     return (
         <>
