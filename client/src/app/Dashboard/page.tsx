@@ -144,6 +144,11 @@ export default function DashboardClient() {
     }, [entries, range]);
 
     return (
+        <>
+        <Header />
+        <Head>
+            <title>Dashboard - BMetrics</title>
+        </Head>
         <EmptyStatePrompt
             title="No Clients Found"
             message="You don't have any clients yet. Would you like to add a new client to get started?"
@@ -152,11 +157,6 @@ export default function DashboardClient() {
             navigationLabel="Add New Client"
             onClose={() => setShowNoClientsPrompt(false)}
         />
-        <>
-        <Header />
-        <Head>
-            <title>Dashboard - BMetrics</title>
-        </Head>
         <div className={styles.dashboardPage}>
             {/* Sticky filter bar */}
             <div className={styles.filterBar}>

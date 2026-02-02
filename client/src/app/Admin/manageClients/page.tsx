@@ -164,7 +164,7 @@ const ManageClients: React.FC = () => {
                                 <p className={componentStyles.statusMessage}>{statusMessage ? <b>{statusMessage}</b> : null}</p>
                                 
                                 {clients.length === 0 ? (
-                                    <p>No clients found. Click "Add Client" to create one.</p>
+                                    <p>Click "Add Client" above to create your first client.</p>
                                 ) : (
                                     <table className={componentStyles.tbClientTable}>
                                         <thead>

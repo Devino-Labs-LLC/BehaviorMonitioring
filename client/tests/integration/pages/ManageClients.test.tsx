@@ -89,7 +89,9 @@ describe('ManageClients Page Integration', () => {
     render(<ManageClients />);
 
     await waitFor(() => {
-      expect(screen.getByText(/no clients found/i)).toBeInTheDocument();
+      // Check for the EmptyStatePrompt modal
+      expect(screen.getByRole('heading', { name: /no clients found/i })).toBeInTheDocument();
+      expect(screen.getByText(/you don't have any clients yet/i)).toBeInTheDocument();
     });
   });
 
