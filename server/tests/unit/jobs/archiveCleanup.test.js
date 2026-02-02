@@ -29,7 +29,7 @@ describe('Archive Cleanup Job - Unit Tests', () => {
           fName: 'John',
           lName: 'Doe',
           archived_date: '2025-11-01',
-          archived_deletion_date: '2026-04-29',
+          archived_deletion_date: '2026-05-02',
           reminder_90_sent: false
         }
       ];
@@ -43,7 +43,7 @@ describe('Archive Cleanup Job - Unit Tests', () => {
       expect(emailTemplate.sendClientDataDeletionReminder).toHaveBeenCalledWith(
         'John Doe',
         90,
-        '2026-04-29',
+        '2026-05-02',
         '2025-11-01'
       );
       expect(adminQueries.adminUpdateReminderSent).toHaveBeenCalledWith(1, '90');
@@ -86,7 +86,7 @@ describe('Archive Cleanup Job - Unit Tests', () => {
           fName: 'Jane',
           lName: 'Smith',
           archived_date: '2025-12-01',
-          archived_deletion_date: '2026-03-30',
+          archived_deletion_date: '2026-04-02',
           reminder_60_sent: false
         }
       ];
@@ -100,7 +100,7 @@ describe('Archive Cleanup Job - Unit Tests', () => {
       expect(emailTemplate.sendClientDataDeletionReminder).toHaveBeenCalledWith(
         'Jane Smith',
         60,
-        '2026-03-30',
+        '2026-04-02',
         '2025-12-01'
       );
     });
@@ -114,7 +114,7 @@ describe('Archive Cleanup Job - Unit Tests', () => {
           fName: 'Bob',
           lName: 'Johnson',
           archived_date: '2025-12-30',
-          archived_deletion_date: '2026-02-28',
+          archived_deletion_date: '2026-03-03',
           reminder_30_sent: false
         }
       ];
@@ -128,7 +128,7 @@ describe('Archive Cleanup Job - Unit Tests', () => {
       expect(emailTemplate.sendClientDataDeletionReminder).toHaveBeenCalledWith(
         'Bob Johnson',
         30,
-        '2026-02-28',
+        '2026-03-03',
         '2025-12-30'
       );
     });
