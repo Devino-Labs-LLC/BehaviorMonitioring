@@ -54,7 +54,7 @@
     z-index: 1000; // Ensure the header is above other elements
     position: relative; // For absolute positioning of buttons
 
-    a {
+    > a {
         position: absolute;
         left: 1.5em;
         top: 50%;
@@ -74,12 +74,11 @@
     }
 
     .companyName {
-        display: inline-block;
+        display: block;
         font-size: 2em;
         text-decoration: none;
-        margin-bottom: 0.25em;
+        margin: 0.5em auto 0.5em;
         position: relative;
-        z-index: 1; // Ensure title is above logo
 
         .trade {
             position: relative;
@@ -114,6 +113,7 @@
 
     nav {
         margin-bottom: 0.50em;
+        clear: both;
 
         ul {
             display: block;
