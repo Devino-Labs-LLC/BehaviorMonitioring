@@ -35,11 +35,36 @@ const syncDatabase = async () => {
     const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
     
     if (isProduction) {
-      console.log('🔄 Production environment detected - syncing database schema...');
-      // alter: true - will update existing tables without dropping data
-      // force: false - will NOT drop tables (safer for production)
-      await sequelize.sync({ alter: true });
-      console.log('✓ Database synchronized successfully');
+      console.log('🔄 Production environment detected - checking database schema...');
+      
+      // In production, only create tables that don't exist
+      // This avoids "Too many keys" errors when trying to alter existing tables
+      const queryInterface = sequelize.getQueryInterface();
+      const existingTables = await queryInterface.showAllTables();
+      
+      let tablesCreated = 0;
+      let tablesSkipped = 0;
+      
+      // Check each model and only sync if table doesn't exist
+      for (const [modelName, model] of Object.entries(models)) {
+        const tableName = model.tableName;
+        
+        if (!existingTables.includes(tableName)) {
+          console.log(`  → Creating table: ${tableName}`);
+          await model.sync();
+          tablesCreated++;
+        } else {
+          tablesSkipped++;
+        }
+      }
+      
+      if (tablesCreated > 0) {
+        console.log(`✓ Created ${tablesCreated} new table(s)`);
+      }
+      if (tablesSkipped > 0) {
+        console.log(`✓ Skipped ${tablesSkipped} existing table(s) (use migrations for schema changes)`);
+      }
+      console.log('✓ Database schema check complete');
     } else {
       // In development, skip auto-sync to avoid "Too many keys" errors
       // Use `npm run db:init` or `npm run db:sync` to manually sync when needed
