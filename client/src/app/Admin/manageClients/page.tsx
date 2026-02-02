@@ -7,6 +7,7 @@ import Header from '../../../components/header';
 import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
 import Link from '../../../components/Link';
+import EmptyStatePrompt from '../../../components/EmptyStatePrompt';
 import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
@@ -22,6 +23,7 @@ const ManageClients: React.FC = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [timerCount, setTimerCount] = useState<number>(0);
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
+    const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
     useEffect(() => {
         if (!userLoggedIn) {
@@ -54,6 +56,9 @@ const ManageClients: React.FC = () => {
             
             if (response.statusCode === 200) {
                 setClients(response.clientData);
+                if (response.clientData.length === 0) {
+                    setShowNoClientsPrompt(true);
+                }
             } else {
                 throw new Error(response.serverMessage || 'Failed to fetch clients');
             }
@@ -136,6 +141,14 @@ const ManageClients: React.FC = () => {
             <Head>
                 <title>Manage Clients - BMetrics</title>
             </Head>
+            <EmptyStatePrompt
+                title="No Clients Found"
+                message="You don't have any clients yet. Would you like to add a new client to get started?"
+                isVisible={showNoClientsPrompt}
+                navigationPath="/Admin/manageClients/add"
+                navigationLabel="Add New Client"
+                onClose={() => setShowNoClientsPrompt(false)}
+            />
             <div className={componentStyles.pageBody}>
                 <main>
                     {isLoading ? (
@@ -151,7 +164,7 @@ const ManageClients: React.FC = () => {
                                 <p className={componentStyles.statusMessage}>{statusMessage ? <b>{statusMessage}</b> : null}</p>
                                 
                                 {clients.length === 0 ? (
-                                    <p>No clients found. Click "Add Client" to create one.</p>
+                                    <p>Click "Add Client" above to create your first client.</p>
                                 ) : (
                                     <table className={componentStyles.tbClientTable}>
                                         <thead>

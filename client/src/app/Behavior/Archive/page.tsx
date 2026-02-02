@@ -19,6 +19,7 @@ import type {
 } from '../../../dto';
 import Button from '../../../components/Button';
 import PopoutPrompt from '../../../components/PopoutPrompt';
+import EmptyStatePrompt from '../../../components/EmptyStatePrompt';
 
 
 const Archive: React.FC = () => {
@@ -40,6 +41,7 @@ const Archive: React.FC = () => {
     const [popupAction, setPopupAction] = useState<string>('');
     const [behaviorNameToActOn, setBehaviorNameToActOn] = useState<string>('');
     const [behaviorIdToActOn, setBehaviorIdToActOn] = useState<string>('');
+    const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
     useEffect(() => {
         debounceAsync(getClientNames, 300)();
@@ -71,6 +73,10 @@ const Archive: React.FC = () => {
         try {
             const data = await api<GetAllClientsResponse>('post','/aba/getAllClientInfo', { "employeeUsername": loggedInUser });
             if (data.statusCode === 200) {
+                if (data.clientData.length === 0) {
+                    setShowNoClientsPrompt(true);
+                    return;
+                }
                 setSelectedClient(data.clientData[0].fName + " " + data.clientData[0].lName);
                 setSelectedClientID(data.clientData[0].clientID);
                 const fetchedOptions = data.clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
@@ -224,6 +230,14 @@ const Archive: React.FC = () => {
         <Head>
             <title>Archived Behavior - BMetrics</title>
         </Head>
+        <EmptyStatePrompt
+            title="No Clients Found"
+            message="You don't have any clients yet. Would you like to add a new client to get started?"
+            isVisible={showNoClientsPrompt}
+            navigationPath="/Admin/manageClients/add"
+            navigationLabel="Add New Client"
+            onClose={() => setShowNoClientsPrompt(false)}
+        />
         <div className={componentStyles.pageBody}>
             <main>
                 {isLoading ? <Loading /> : 

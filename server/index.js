@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const jsonHandler = require('./functions/base/jsonHandler');
 const { testConnection, syncDatabase } = require('./models');
 const host = process.env.HOST;

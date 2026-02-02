@@ -24,6 +24,7 @@ import type {
 import Button from '../../components/Button';
 import PromptForMerge from '../../components/PromptForMerge';
 import PopoutPrompt from '../../components/PopoutPrompt';
+import EmptyStatePrompt from '../../components/EmptyStatePrompt';
 
 const TargetBehavior: React.FC = () => {
     const navigate = useRouter();
@@ -47,6 +48,7 @@ const TargetBehavior: React.FC = () => {
     const [behaviorIdToActOn, setBehaviorIdToActOn] = useState<string>('');
     const [timerCount, setTimerCount] = useState<number>(0);
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
+    const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
     useEffect(() => {
         sessionStorage.removeItem('clientID');
@@ -81,6 +83,10 @@ const TargetBehavior: React.FC = () => {
         try {
             const data = await api<GetAllClientsResponse>('post','/aba/getAllClientInfo', { "employeeUsername": loggedInUser });
             if (data.statusCode === 200) {
+                if (data.clientData.length === 0) {
+                    setShowNoClientsPrompt(true);
+                    return;
+                }
                 setSelectedClient(data.clientData[0].fName + " " + data.clientData[0].lName);
                 setSelectedClientID(data.clientData[0].clientID);
                 const fetchedOptions = data.clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
@@ -370,8 +376,14 @@ const TargetBehavior: React.FC = () => {
             <Header />
             <Head>
                 <title>Behaviors - BMetrics</title>
-            </Head>
-            <div className={componentStyles.pageBody}>
+            </Head>            <EmptyStatePrompt
+                title="No Clients Found"
+                message="You don't have any clients yet. Would you like to add a new client to get started?"
+                isVisible={showNoClientsPrompt}
+                navigationPath="/Admin/manageClients/add"
+                navigationLabel="Add New Client"
+                onClose={() => setShowNoClientsPrompt(false)}
+            />            <div className={componentStyles.pageBody}>
                 <main>
                     {isLoading ? 
                         <Loading/> 

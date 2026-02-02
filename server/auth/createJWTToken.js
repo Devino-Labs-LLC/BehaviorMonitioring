@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 const prodStatus = process.env.IN_PROD === "true";
 
 function createJWTToken(payload) {
+    if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is not set. Cannot create JWT token.');
+    }
     return jwt.sign(
         payload,
         process.env.JWT_SECRET,
@@ -14,6 +17,9 @@ function createJWTToken(payload) {
 }
 
 function createRefreshToken(payload) {
+  if (!process.env.JWT_REFRESH_SECRET) {
+      throw new Error('JWT_REFRESH_SECRET environment variable is not set. Cannot create refresh token.');
+  }
   return jwt.sign(
     payload,
     process.env.JWT_REFRESH_SECRET, // separate secret from access token

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from '../../styles/Dashboard.module.scss';
 import KpiCard from '../../components/KpiCard';
 import AlertList from '../../components/AlertList';
+import EmptyStatePrompt from '../../components/EmptyStatePrompt';
 import {
     buildDashboardView,
     type BehaviorEntry,
@@ -57,6 +58,7 @@ export default function DashboardClient() {
     const [entries, setEntries] = useState<BehaviorEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState<string>('');
+    const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
     useEffect(() => {
         if (!userLoggedIn) {
@@ -78,9 +80,14 @@ export default function DashboardClient() {
 
                 if (data.statusCode === 200 && data.clientData) {
                     setClients(data.clientData);
-                    // auto select first client
-                    if (data.clientData.length > 0 && !clientID) {
-                        setClientID(String(data.clientData[0].clientID));
+                    // Check if no clients exist
+                    if (data.clientData.length === 0) {
+                        setShowNoClientsPrompt(true);
+                    } else {
+                        // auto select first client
+                        if (!clientID) {
+                            setClientID(String(data.clientData[0].clientID));
+                        }
                     }
                 } else {
                     throw new Error(data.serverMessage || 'Failed to load clients');
@@ -142,6 +149,14 @@ export default function DashboardClient() {
         <Head>
             <title>Dashboard - BMetrics</title>
         </Head>
+        <EmptyStatePrompt
+            title="No Clients Found"
+            message="You don't have any clients yet. Would you like to add a new client to get started?"
+            isVisible={showNoClientsPrompt}
+            navigationPath="/Admin/manageClients/add"
+            navigationLabel="Add New Client"
+            onClose={() => setShowNoClientsPrompt(false)}
+        />
         <div className={styles.dashboardPage}>
             {/* Sticky filter bar */}
             <div className={styles.filterBar}>
