@@ -19,23 +19,11 @@ function authMiddleware(req, res, next) {
     }
 
     try {
-        const expectedIssuer = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
-        const expectedAudience = process.env.ClientHost;
-        
-        console.log('🔐 JWT Verification Debug:');
-        console.log('   Expected Issuer:', expectedIssuer);
-        console.log('   Expected Audience:', expectedAudience);
-        console.log('   Secret exists:', !!secret);
-        console.log('   Token (first 20 chars):', token.substring(0, 20) + '...');
-        
         const payload = jwt.verify(token, secret, {
             algorithms: ['HS256'],
-            issuer: expectedIssuer,
-            audience: expectedAudience,
+            issuer: prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`,
+            audience: process.env.ClientHost,
         });
-
-        console.log('   ✓ JWT Verified Successfully');
-        console.log('   User ID:', payload.sub);
 
         logAuthEvent("JWT_VERIFY_SUCCESS", {
             userId: payload.sub,
@@ -47,8 +35,6 @@ function authMiddleware(req, res, next) {
         req.user = payload;
         next();
     } catch (err) {
-        console.error('❌ JWT Verification Failed:', err.message);
-        
         logAuthEvent("JWT_VERIFY_FAILED", {
             ip: req.ip,
             userAgent: req.headers['user-agent'],

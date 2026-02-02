@@ -1,29 +1,5 @@
 require('dotenv').config();
 
-// Validate critical environment variables
-const requiredEnvVars = [
-  'JWT_SECRET',
-  'JWT_REFRESH_SECRET',
-  'MYSQL_HOST',
-  'MYSQL_DATABASE',
-  'MYSQL_USER',
-  'MYSQL_PASSWORD',
-  'HOST',
-  'ClientHost'
-];
-
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingEnvVars.length > 0) {
-  console.error('❌ CRITICAL: Missing required environment variables:');
-  missingEnvVars.forEach(varName => {
-    console.error(`   - ${varName}`);
-  });
-  console.error('\n💡 Please set these environment variables in your Railway dashboard or .env file');
-  console.error('   For JWT secrets, use strong random strings (e.g., openssl rand -base64 32)\n');
-  process.exit(1);
-}
-
 const jsonHandler = require('./functions/base/jsonHandler');
 const { testConnection, syncDatabase } = require('./models');
 const host = process.env.HOST;
