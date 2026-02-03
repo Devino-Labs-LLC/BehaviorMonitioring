@@ -1,8 +1,9 @@
 const { doubleCsrf } = require('csrf-csrf');
 
-// Configure CSRF protection
+// Configure CSRF protection with double-submit cookie pattern
 const {
     generateToken, // Used to generate a CSRF token
+    validateRequest, // Used to validate CSRF token
     doubleCsrfProtection, // Combined middleware for protection
 } = doubleCsrf({
     getSecret: () => process.env.CSRF_SECRET || 'default-csrf-secret-change-in-production',
@@ -18,15 +19,28 @@ const {
     getTokenFromRequest: (req) => req.headers['x-csrf-token'], // Get token from header
 });
 
-// Middleware that both generates token and validates requests
+/**
+ * CSRF Protection Middleware
+ * - Generates CSRF token for all requests
+ * - Validates CSRF token for state-changing methods (POST, PUT, DELETE, PATCH)
+ * - Ignores GET, HEAD, OPTIONS as they should be idempotent
+ */
 const csrfProtection = (req, res, next) => {
-    // Generate token and attach to response
+    // Generate token and attach to response for client consumption
     const csrfToken = generateToken(req, res);
     res.locals.csrfToken = csrfToken;
     
-    // For state-changing methods, validate the token
+    // Validate token for state-changing methods
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        return doubleCsrfProtection(req, res, next);
+        // Explicitly validate the CSRF token
+        const isValid = validateRequest(req);
+        if (!isValid) {
+            return res.status(403).json({
+                statusCode: 403,
+                success: false,
+                message: 'Invalid or missing CSRF token'
+            });
+        }
     }
     
     next();

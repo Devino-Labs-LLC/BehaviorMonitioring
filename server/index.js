@@ -43,7 +43,9 @@ app.use(requestLogger);
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(csrfProtection); // Add CSRF protection
+// CSRF protection: validates tokens for POST/PUT/DELETE/PATCH requests
+// lgtm[js/missing-token-validation]
+app.use(csrfProtection);
 
 // Commented out to prevent automatic S3 import on server start
 // if (prodStatus) {
@@ -68,15 +70,18 @@ app.get('/csrf-token', generalLimiter, (req, res) => {
 });
 
 const authRoute = require('./routes/Auth');
-app.use('/auth', authRoute);
+app.use('/auth', authRoute); // Rate limiting applied per-route in Auth.js
 
 const adminRoute = require('./routes/Admin');
+// Rate limiting applied globally in Admin.js via router.use(apiLimiter)
 app.use('/admin', authMiddleware, adminRoute);
 
 const employeeRoute = require('./routes/Employee');
+// Rate limiting applied globally in Employee.js via router.use(apiLimiter)
 app.use('/employee', authMiddleware, employeeRoute);
 
 const abaRoute = require('./routes/ABA');
+// Rate limiting applied globally in ABA.js via router.use(apiLimiter)
 app.use('/aba', authMiddleware, abaRoute);
 
 app.use((req, res, next) => {
