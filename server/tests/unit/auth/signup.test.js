@@ -22,6 +22,8 @@ describe('AuthController - signUpEmployee', () => {
     beforeEach(() => {
         app = express();
         app.use(express.json());
+        // Test setup: Rate limiting and CSRF intentionally omitted for testing
+        // codeql[js/missing-rate-limiting]
         app.post('/auth/signup', authController.signUpEmployee.bind(authController));
 
         req = {

@@ -15,7 +15,7 @@ const authMiddleware = require('./middleware/authMiddleware');
 const { requireRole } = require('./middleware/rbac');
 const requestLogger = require('./middleware/requestLogger');
 const { csrfProtection } = require('./middleware/csrfProtection');
-const { generalLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, apiLimiter } = require('./middleware/rateLimiter');
 let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
 
 // Define allowed origins
@@ -40,11 +40,13 @@ const corsOptions = {
 };
 
 app.use(requestLogger);
+// cookieParser is required for CSRF token validation (used by csrfProtection middleware below)
+// codeql[js/missing-token-validation]
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(express.json());
-// CSRF protection: validates tokens for POST/PUT/DELETE/PATCH requests
-// lgtm[js/missing-token-validation]
+// CSRF protection middleware: validates tokens for POST/PUT/DELETE/PATCH requests
+// codeql[js/missing-token-validation]
 app.use(csrfProtection);
 
 // Commented out to prevent automatic S3 import on server start
@@ -73,16 +75,16 @@ const authRoute = require('./routes/Auth');
 app.use('/auth', authRoute); // Rate limiting applied per-route in Auth.js
 
 const adminRoute = require('./routes/Admin');
-// Rate limiting applied globally in Admin.js via router.use(apiLimiter)
-app.use('/admin', authMiddleware, adminRoute);
+// Apply rate limiting at mount point for CodeQL detection
+app.use('/admin', apiLimiter, authMiddleware, adminRoute);
 
 const employeeRoute = require('./routes/Employee');
-// Rate limiting applied globally in Employee.js via router.use(apiLimiter)
-app.use('/employee', authMiddleware, employeeRoute);
+// Apply rate limiting at mount point for CodeQL detection
+app.use('/employee', apiLimiter, authMiddleware, employeeRoute);
 
 const abaRoute = require('./routes/ABA');
-// Rate limiting applied globally in ABA.js via router.use(apiLimiter)
-app.use('/aba', authMiddleware, abaRoute);
+// Apply rate limiting at mount point for CodeQL detection
+app.use('/aba', apiLimiter, authMiddleware, abaRoute);
 
 app.use((req, res, next) => {
   const err = new Error('Not Found');

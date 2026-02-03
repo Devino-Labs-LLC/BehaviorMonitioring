@@ -16,6 +16,8 @@ describe('SignUp API Integration Tests', () => {
     beforeAll(() => {
         app = express();
         app.use(express.json());
+        // Test setup: CSRF and rate limiting intentionally omitted for testing
+        // codeql[js/missing-token-validation]
         app.use(cookieParser());
         app.use('/auth', authRouter);
     });
