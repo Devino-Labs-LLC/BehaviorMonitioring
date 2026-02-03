@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop, feature/** ]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   client-tests:
     name: Client Tests

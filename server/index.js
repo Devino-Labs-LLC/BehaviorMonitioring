@@ -15,6 +15,7 @@ const authMiddleware = require('./middleware/authMiddleware');
 const { requireRole } = require('./middleware/rbac');
 const requestLogger = require('./middleware/requestLogger');
 const { csrfProtection } = require('./middleware/csrfProtection');
+const { generalLimiter } = require('./middleware/rateLimiter');
 let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
 
 // Define allowed origins
@@ -52,7 +53,7 @@ app.use(csrfProtection); // Add CSRF protection
 // }
 
 // Define your routes before the middleware for handling 404 errors
-app.get('/', (req, res) => {
+app.get('/', generalLimiter, (req, res) => {
   if (prodStatus === "true") {
     res.send("The server is running successfully. <br/>The server url is " + prodHost + "...");
   }
@@ -62,7 +63,7 @@ app.get('/', (req, res) => {
 });
 
 // Endpoint to get CSRF token
-app.get('/csrf-token', (req, res) => {
+app.get('/csrf-token', generalLimiter, (req, res) => {
   res.json({ csrfToken: res.locals.csrfToken });
 });
 
