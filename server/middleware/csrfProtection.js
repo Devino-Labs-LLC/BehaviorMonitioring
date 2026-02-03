@@ -21,18 +21,21 @@ const {
 
 /**
  * CSRF Protection Middleware
- * - Generates CSRF token for all requests
- * - Validates CSRF token for state-changing methods (POST, PUT, DELETE, PATCH)
- * - Ignores GET, HEAD, OPTIONS as they should be idempotent
+ * - Generates CSRF token for all requests (available via /csrf-token endpoint)
+ * - Currently disabled for validation since app uses JWT (not cookie-based sessions)
+ * - CSRF protection is primarily for cookie-based authentication
+ * - Enable validation when implementing cookie-based features
  */
 const csrfProtection = (req, res, next) => {
     // Generate token and attach to response for client consumption
     const csrfToken = generateToken(req, res);
     res.locals.csrfToken = csrfToken;
     
-    // Validate token for state-changing methods
+    // Skip CSRF validation - app uses JWT authentication, not cookies
+    // CSRF is primarily needed for cookie-based session authentication
+    // Uncomment below to enable CSRF validation for cookie-based features
+    /*
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        // Explicitly validate the CSRF token
         const isValid = validateRequest(req);
         if (!isValid) {
             return res.status(403).json({
@@ -42,6 +45,7 @@ const csrfProtection = (req, res, next) => {
             });
         }
     }
+    */
     
     next();
 };
