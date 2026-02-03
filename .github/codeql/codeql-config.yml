@@ -1,0 +1,33 @@
+name: "CodeQL Config"
+
+# Paths to exclude from analysis
+paths-ignore:
+  - '**/tests/**'
+  - '**/test/**'
+  - '**/__tests__/**'
+  - '**/*.test.js'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.js'
+  - '**/*.spec.ts'
+  - '**/coverage/**'
+  - '**/node_modules/**'
+
+# Queries to run
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+# Custom query filters
+query-filters:
+  # Exclude false positives for test files
+  - exclude:
+      id: js/missing-rate-limiting
+      paths:
+        - '**/tests/**'
+        - '**/*.test.*'
+  - exclude:
+      id: js/missing-csrf-middleware
+      paths:
+        - '**/tests/**'
+        - '**/*.test.*'

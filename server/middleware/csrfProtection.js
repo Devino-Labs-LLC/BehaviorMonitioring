@@ -3,8 +3,7 @@ const { doubleCsrf } = require('csrf-csrf');
 // Configure CSRF protection
 const {
     generateToken, // Used to generate a CSRF token
-    validateRequest, // Used to validate a request
-    invalidCsrfTokenError, // Error to use when CSRF validation fails
+    doubleCsrfProtection, // Combined middleware for protection
 } = doubleCsrf({
     getSecret: () => process.env.CSRF_SECRET || 'default-csrf-secret-change-in-production',
     cookieName: '__Host-psifi.x-csrf-token', // Cookie name for CSRF token
@@ -19,29 +18,21 @@ const {
     getTokenFromRequest: (req) => req.headers['x-csrf-token'], // Get token from header
 });
 
-// Middleware to generate and attach CSRF token to response
+// Middleware that both generates token and validates requests
 const csrfProtection = (req, res, next) => {
+    // Generate token and attach to response
     const csrfToken = generateToken(req, res);
     res.locals.csrfToken = csrfToken;
-    next();
-};
-
-// Middleware to validate CSRF token
-const csrfValidation = (req, res, next) => {
-    const result = validateRequest(req);
-    if (result) {
-        return next();
+    
+    // For state-changing methods, validate the token
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return doubleCsrfProtection(req, res, next);
     }
-    return res.status(403).json({
-        statusCode: 403,
-        success: false,
-        message: 'Invalid CSRF token'
-    });
+    
+    next();
 };
 
 module.exports = {
     csrfProtection,
-    csrfValidation,
     generateToken,
-    invalidCsrfTokenError
 };
