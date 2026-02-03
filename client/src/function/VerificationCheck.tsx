@@ -36,21 +36,32 @@ export const GetLoggedInUserStatus = () => {
     const userData = localStorage.getItem('bmUserData');
     if (!userData) return false;
     
-    const parsedData = JSON.parse(userData);
-    if (!parsedData.bmLoggedInStatus) return false;
-    
-    // If still bootstrapping and user data exists, stay logged in
-    if (isBootstrapping) return true;
-    
-    // After bootstrap completes, check for token
-    if (isBootstrapped) {
-        const token = getAccessToken();
-        return Boolean(token);
+    try {
+        const parsedData = JSON.parse(userData);
+        if (!parsedData.bmLoggedInStatus) return false;
+        
+        // If still bootstrapping and user data exists, stay logged in (wait for token refresh)
+        if (isBootstrapping) return true;
+        
+        // After bootstrap completes, check for token
+        if (isBootstrapped) {
+            const token = getAccessToken();
+            // If no token after bootstrap, the refresh failed - log out
+            if (!token) {
+                ClearLoggedInUser();
+                return false;
+            }
+            return true;
+        }
+        
+        // Before bootstrap starts, if user data exists, assume logged in temporarily
+        // This prevents premature redirects on page load
+        return true;
+    } catch (e) {
+        // If localStorage data is corrupted, clear it
+        ClearLoggedInUser();
+        return false;
     }
-    
-    // Before bootstrap starts, check for token
-    const token = getAccessToken();
-    return Boolean(token);
 }
 
 export const GetLoggedInUser = () => {
