@@ -7,13 +7,14 @@ import styles from '../../styles/Dashboard.module.scss';
 import KpiCard from '../../components/KpiCard';
 import AlertList from '../../components/AlertList';
 import EmptyStatePrompt from '../../components/EmptyStatePrompt';
+import Loading from '../../components/loading';
 import {
     buildDashboardView,
     type BehaviorEntry,
     type DateRangeKey,
     RANGE_OPTIONS,
 } from '../../components/dashboardData';
-import { GetLoggedInUserStatus, GetLoggedInUser } from '../../function/VerificationCheck';
+import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../lib/Api';
 import {
     ResponsiveContainer,
@@ -50,8 +51,7 @@ function getRangeDates(range: DateRangeKey) {
 
 export default function DashboardClient() {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const loggedInUser = GetLoggedInUser();
+    const { isReady, isLoggedIn, username } = useAuth();
     const [clients, setClients] = useState<Client[]>([]);
     const [clientID, setClientID] = useState<string>('');
     const [range, setRange] = useState<DateRangeKey>('30d');
@@ -61,7 +61,10 @@ export default function DashboardClient() {
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        // Wait for auth to be ready before checking login status
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
             return;
@@ -73,7 +76,7 @@ export default function DashboardClient() {
             try {
                 setErr('');
                 const data = await api<GetAllClientsResponse>('post', '/aba/getAllClientInfo', { 
-                    employeeUsername: loggedInUser 
+                    employeeUsername: username 
                 });
 
                 if (!mounted) return;
@@ -111,10 +114,10 @@ export default function DashboardClient() {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [isReady, isLoggedIn, username]);
 
     useEffect(() => {
-        if (!clientID) return;
+        if (!clientID || !username) return;
 
         let mounted = true;
 
@@ -129,7 +132,7 @@ export default function DashboardClient() {
                     clientID,
                     startDate: start,
                     endDate: end,
-                    employeeUsername: loggedInUser
+                    employeeUsername: username
                 });
 
                 if (!mounted) return;
@@ -152,6 +155,21 @@ export default function DashboardClient() {
         const { start, end } = getRangeDates(range);
         return buildDashboardView(entries, { start, end });
     }, [entries, range]);
+
+    // Show loading while auth is being checked
+    if (!isReady) {
+        return (
+            <>
+                <Header />
+                <Head>
+                    <title>Dashboard - BMetrics</title>
+                </Head>
+                <div className={styles.dashboardPage}>
+                    <Loading />
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
