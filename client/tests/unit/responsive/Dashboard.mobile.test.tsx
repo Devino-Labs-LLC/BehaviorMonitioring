@@ -5,6 +5,14 @@ import { api } from '../../../src/lib/Api';
 import { setViewport, resetViewport } from '../../utils/viewportUtils';
 
 jest.mock('../../../src/lib/Api');
+jest.mock('../../../src/hooks/useAuth', () => ({
+  useAuth: () => ({
+    isReady: true,
+    isLoggedIn: true,
+    username: 'testuser',
+    isAdmin: false,
+  }),
+}));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUserStatus: () => true,
   GetLoggedInUser: () => 'testuser',

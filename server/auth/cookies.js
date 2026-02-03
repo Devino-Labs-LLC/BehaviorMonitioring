@@ -1,11 +1,19 @@
 function setRefreshCookie(res, token) {
-    res.cookie(process.env.COOKIE_NAME, token, {
+    const cookieOptions = {
         httpOnly: true,
         secure: process.env.IN_PROD === "true",
         sameSite: process.env.IN_PROD === "true" ? "none" : "lax",
         path: "/auth/refresh",
         maxAge: Number(process.env.REFRESH_TOKEN_TTL_DAYS || 7) * 24 * 60 * 60 * 1000,
-    });
+    };
+
+    // In production, ensure the domain is properly set for cross-domain cookies
+    // Only set domain if it's explicitly provided (for cross-subdomain support)
+    if (process.env.COOKIE_DOMAIN) {
+        cookieOptions.domain = process.env.COOKIE_DOMAIN;
+    }
+
+    res.cookie(process.env.COOKIE_NAME, token, cookieOptions);
 }
 
 function clearRefreshCookie(res) {

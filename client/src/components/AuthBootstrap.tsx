@@ -4,15 +4,31 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { setAccessToken, clearAccessToken } from "@/lib/tokenStore";
 import { scheduleSilentRefresh } from "../lib/authScheduler";
+import { ClearLoggedInUser } from "../function/VerificationCheck";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // Track if bootstrap is complete
 let isBootstrapped = false;
 let isBootstrapping = false;
+let bootstrapListeners: Array<() => void> = [];
 
 export function getBootstrapStatus() {
     return { isBootstrapped, isBootstrapping };
+}
+
+// Allow components to wait for bootstrap to complete
+export function onBootstrapComplete(callback: () => void) {
+    if (isBootstrapped) {
+        callback();
+    } else {
+        bootstrapListeners.push(callback);
+    }
+}
+
+function notifyBootstrapComplete() {
+    bootstrapListeners.forEach(cb => cb());
+    bootstrapListeners = [];
 }
 
 export default function AuthBootstrap() {
@@ -30,12 +46,15 @@ export default function AuthBootstrap() {
                 });
                 setAccessToken(res.data.accessToken);
                 scheduleSilentRefresh(res.data.accessToken);
-            } catch {
+            } catch (error) {
+                // If refresh fails and user data exists, clear it
                 clearAccessToken();
+                ClearLoggedInUser();
             } finally {
                 isBootstrapped = true;
                 isBootstrapping = false;
                 setReady(true);
+                notifyBootstrapComplete();
             }
         })();
     }, []);
