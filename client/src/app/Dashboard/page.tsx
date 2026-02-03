@@ -89,12 +89,22 @@ export default function DashboardClient() {
                             setClientID(String(data.clientData[0].clientID));
                         }
                     }
+                } else if (data.statusCode === 401) {
+                    // Handle unauthorized - redirect to login or show appropriate message
+                    const previousUrl = encodeURIComponent(location.pathname);
+                    navigate.push(`/Login?previousUrl=${previousUrl}`);
                 } else {
                     throw new Error(data.serverMessage || 'Failed to load clients');
                 }
             } catch (e: any) {
                 if (!mounted) return;
-                setErr(e?.message || 'Failed to load clients.');
+                // Check if it's an authorization error
+                if (e?.response?.status === 401 || e?.response?.data?.serverMessage === 'Unauthorized user') {
+                    const previousUrl = encodeURIComponent(location.pathname);
+                    navigate.push(`/Login?previousUrl=${previousUrl}`);
+                } else {
+                    setErr(e?.response?.data?.serverMessage || e?.message || 'Failed to load clients.');
+                }
             }
         })();
 

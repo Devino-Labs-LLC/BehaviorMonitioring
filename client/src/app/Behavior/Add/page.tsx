@@ -69,11 +69,20 @@ const AddTargetBehavior: React.FC = () => {
                     label: `${clientData.fName} ${clientData.lName}`,
                 }));
                 setClientLists(fetchedOptions);
+            } else if (response.statusCode === 401) {
+                const previousUrl = encodeURIComponent(location.pathname);
+                navigate.push(`/Login?previousUrl=${previousUrl}`);
+                return;
             } else {
                 throw new Error(response.serverMessage);
             }
-        } catch (error) {
-            return setStatusMessage(String(error));
+        } catch (error: any) {
+            if (error?.response?.status === 401 || error?.response?.data?.serverMessage === 'Unauthorized user') {
+                const previousUrl = encodeURIComponent(location.pathname);
+                navigate.push(`/Login?previousUrl=${previousUrl}`);
+                return;
+            }
+            return setStatusMessage(error?.response?.data?.serverMessage || String(error));
         }
         finally {
             setIsLoading(false);
