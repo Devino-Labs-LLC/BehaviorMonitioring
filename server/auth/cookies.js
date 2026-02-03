@@ -13,12 +13,6 @@ function setRefreshCookie(res, token) {
         cookieOptions.domain = process.env.COOKIE_DOMAIN;
     }
 
-    // Debug logging - always log for troubleshooting
-    console.log('[COOKIE] Setting refresh cookie');
-    console.log('[COOKIE] IN_PROD:', process.env.IN_PROD);
-    console.log('[COOKIE] Options:', JSON.stringify(cookieOptions, null, 2));
-    console.log('[COOKIE] Cookie name:', process.env.COOKIE_NAME);
-
     res.cookie(process.env.COOKIE_NAME, token, cookieOptions);
 }
 

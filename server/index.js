@@ -19,15 +19,6 @@ let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${proces
 // Define allowed origins
 const allowedOrigins = [clientOrigin, amplifyOrigin].filter(Boolean);
 
-// Log CORS configuration in production
-if (prodStatus) {
-  console.log('[CORS] Production mode enabled');
-  console.log('[CORS] Allowed origins:', allowedOrigins);
-  console.log('[CORS] IN_PROD:', process.env.IN_PROD);
-  console.log('[CORS] COOKIE_NAME:', process.env.COOKIE_NAME);
-  console.log('[CORS] COOKIE_DOMAIN:', process.env.COOKIE_DOMAIN || '(not set)');
-}
-
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {

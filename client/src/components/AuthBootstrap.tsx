@@ -41,19 +41,12 @@ export default function AuthBootstrap() {
         
         (async () => {
             try {
-                console.log('[AuthBootstrap] Starting refresh request');
-                console.log('[AuthBootstrap] API_BASE:', API_BASE);
-                console.log('[AuthBootstrap] Full URL:', `${API_BASE}/auth/refresh`);
-                
                 const res = await axios.post(`${API_BASE}/auth/refresh`, null, {
                     withCredentials: true,
                 });
-                
-                console.log('[AuthBootstrap] Refresh successful');
                 setAccessToken(res.data.accessToken);
                 scheduleSilentRefresh(res.data.accessToken);
-            } catch (error: any) {
-                console.error('[AuthBootstrap] Refresh failed:', error.response?.status, error.response?.data);
+            } catch (error) {
                 // If refresh fails and user data exists, clear it
                 clearAccessToken();
                 ClearLoggedInUser();
