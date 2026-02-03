@@ -272,7 +272,11 @@ class AuthController {
                             lastUsedAt: new Date() 
                         });
 
+                        console.log('[LOGIN] Setting refresh cookie');
+                        console.log('[LOGIN] IN_PROD:', process.env.IN_PROD);
+                        console.log('[LOGIN] Origin:', req.headers.origin);
                         setRefreshCookie(res, refreshToken);
+                        
                         await logAuthEvent("EMPLOYEE_LOGIN_SUCCESS", { 
                             userId: employeeData.employeeID, 
                             email: employeeData.email, 
@@ -370,15 +374,14 @@ class AuthController {
         const cookieName = process.env.COOKIE_NAME || "bmRefreshToken";
         const refreshToken = req.cookies?.[cookieName];
 
-        // Debug logging for production
-        if (process.env.IN_PROD === "true") {
-            console.log('[REFRESH] Request received');
-            console.log('[REFRESH] Cookie name:', cookieName);
-            console.log('[REFRESH] Has refresh token:', !!refreshToken);
-            console.log('[REFRESH] All cookies:', Object.keys(req.cookies || {}));
-            console.log('[REFRESH] Origin:', req.headers.origin);
-            console.log('[REFRESH] Referer:', req.headers.referer);
-        }
+        // Debug logging - always log for troubleshooting
+        console.log('[REFRESH] Request received');
+        console.log('[REFRESH] IN_PROD:', process.env.IN_PROD);
+        console.log('[REFRESH] Cookie name:', cookieName);
+        console.log('[REFRESH] Has refresh token:', !!refreshToken);
+        console.log('[REFRESH] All cookies:', Object.keys(req.cookies || {}));
+        console.log('[REFRESH] Origin:', req.headers.origin);
+        console.log('[REFRESH] Referer:', req.headers.referer);
 
         if (!refreshToken) {
             console.log('[REFRESH] Missing refresh token - returning 401');
@@ -442,9 +445,7 @@ class AuthController {
 
             setRefreshCookie(res, newRefreshToken);
 
-            if (process.env.IN_PROD === "true") {
-                console.log('[REFRESH] Success - new tokens issued');
-            }
+            console.log('[REFRESH] Success - new tokens issued');
 
             return res.json({ accessToken: newAccessToken });
         } catch (err) {
