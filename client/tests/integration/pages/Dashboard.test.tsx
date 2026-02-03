@@ -4,6 +4,14 @@ import Dashboard from '../../../src/app/Dashboard/page';
 import { api } from '../../../src/lib/Api';
 
 jest.mock('../../../src/lib/Api');
+jest.mock('../../../src/hooks/useAuth', () => ({
+  useAuth: () => ({
+    isReady: true,
+    isLoggedIn: true,
+    username: 'testuser',
+    isAdmin: false,
+  }),
+}));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUserStatus: () => true,
   GetLoggedInUser: () => 'testuser',
@@ -52,8 +60,13 @@ describe('Dashboard Page Integration', () => {
 
   it('redirects to login when not authenticated', () => {
     jest
-      .spyOn(require('../../../src/function/VerificationCheck'), 'GetLoggedInUserStatus')
-      .mockReturnValue(false);
+      .spyOn(require('../../../src/hooks/useAuth'), 'useAuth')
+      .mockReturnValue({
+        isReady: true,
+        isLoggedIn: false,
+        username: null,
+        isAdmin: false,
+      });
 
     const mockPush = jest.fn();
     jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
