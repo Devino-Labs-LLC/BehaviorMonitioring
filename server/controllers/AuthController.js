@@ -370,7 +370,18 @@ class AuthController {
         const cookieName = process.env.COOKIE_NAME || "bmRefreshToken";
         const refreshToken = req.cookies?.[cookieName];
 
+        // Debug logging for production
+        if (process.env.IN_PROD === "true") {
+            console.log('[REFRESH] Request received');
+            console.log('[REFRESH] Cookie name:', cookieName);
+            console.log('[REFRESH] Has refresh token:', !!refreshToken);
+            console.log('[REFRESH] All cookies:', Object.keys(req.cookies || {}));
+            console.log('[REFRESH] Origin:', req.headers.origin);
+            console.log('[REFRESH] Referer:', req.headers.referer);
+        }
+
         if (!refreshToken) {
+            console.log('[REFRESH] Missing refresh token - returning 401');
             return res.status(401).json({ error: "Missing refresh token" });
         }
 
@@ -378,11 +389,15 @@ class AuthController {
             const decoded = verifyRefreshToken(refreshToken);
 
             const rows = await findRefreshToken(refreshToken);
-            if (!rows || rows.length === 0) return res.status(401).json({ error: "Refresh token not recognized" });
+            if (!rows || rows.length === 0) {
+                console.log('[REFRESH] Token not found in database');
+                return res.status(401).json({ error: "Refresh token not recognized" });
+            }
             const row = rows[0];
 
             const isExpired = new Date(row.expires_at).getTime() <= Date.now();
             if (row.revoked || isExpired) {
+                console.log('[REFRESH] Token revoked or expired');
                 clearRefreshCookie(res);
                 return res.status(401).json({ error: "Invalid refresh token" });
             }
@@ -390,6 +405,7 @@ class AuthController {
             const employeeData = await employeeQueries.employeeDataById(decoded.sub);
 
             if (!employeeData) {
+                console.log('[REFRESH] User not found');
                 clearRefreshCookie(res);
                 return res.status(401).json({ error: "User not found" });
             }
@@ -426,8 +442,13 @@ class AuthController {
 
             setRefreshCookie(res, newRefreshToken);
 
+            if (process.env.IN_PROD === "true") {
+                console.log('[REFRESH] Success - new tokens issued');
+            }
+
             return res.json({ accessToken: newAccessToken });
         } catch (err) {
+            console.log('[REFRESH] Error:', err.message);
             clearRefreshCookie(res);
             return res.status(401).json({ error: "Invalid refresh token" });
         }
