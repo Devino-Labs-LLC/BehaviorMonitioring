@@ -44,10 +44,12 @@ async function abaGetClientDataByID(cID) {
     }
 }
 
-async function abaGetAllClientData() {
+async function abaGetAllClientData(companyID = null) {
     try {
+        const whereClause = companyID ? { companyID } : {};
         const clients = await Client.findAll({
-            attributes: ['clientID', 'fName', 'lName', 'DOB', 'intake_Date', 'group_home_name', 'medicaid_id_number', 'behavior_plan_due_date', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered']
+            attributes: ['clientID', 'fName', 'lName', 'DOB', 'intake_Date', 'group_home_name', 'medicaid_id_number', 'behavior_plan_due_date', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered'],
+            where: whereClause
         });
         return clients.map(c => c.get({ plain: true }));
     } catch (err) {

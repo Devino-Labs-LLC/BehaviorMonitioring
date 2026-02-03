@@ -4,11 +4,13 @@ const bcrypt = require('bcryptjs');
 const authController = require('../../../controllers/AuthController');
 const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
 const Employee = require('../../../models/Employee');
+const CompanyData = require('../../../models/CompanyData');
 const logAuthEvent = require('../../../middleware/helpers/authLog');
 
 // Mock dependencies
 jest.mock('../../../middleware/helpers/EmployeeQueries');
 jest.mock('../../../models/Employee');
+jest.mock('../../../models/CompanyData');
 jest.mock('../../../middleware/helpers/authLog');
 jest.mock('bcryptjs');
 
@@ -175,6 +177,11 @@ describe('AuthController - signUpEmployee', () => {
 
             employeeQueries.employeeExistByUsername.mockResolvedValue(false);
             Employee.findOne.mockResolvedValue(null);
+            CompanyData.findOne.mockResolvedValue(null); // No existing company
+            CompanyData.create.mockResolvedValue({
+                companyDataID: 1,
+                companyName: 'Test Company'
+            });
             bcrypt.hash.mockResolvedValue('hashed_password');
             Employee.create.mockResolvedValue({
                 employeeID: 1,
@@ -195,11 +202,10 @@ describe('AuthController - signUpEmployee', () => {
                     username: 'johndoe',
                     email: 'john@example.com',
                     phone_number: '1234567890',
-                    role: 'employee',
+                    role: 'admin',
                     password: 'hashed_password',
-                    account_status: 'Pending',
+                    account_status: 'Active',
                     entered_by: 'self-registration',
-                    companyID: 0,
                     companyName: 'Test Company',
                     email_verified: false
                 })
@@ -213,8 +219,9 @@ describe('AuthController - signUpEmployee', () => {
                 statusCode: 201,
                 signupSuccess: true,
                 userId: 1,
-                message: 'Registration successful. Your account is pending admin approval.',
-                emailVerificationSent: false
+                message: 'Registration successful. You have been assigned as company administrator.',
+                emailVerificationSent: false,
+                isCompanyAdmin: true
             });
         });
 
@@ -226,7 +233,7 @@ describe('AuthController - signUpEmployee', () => {
                 email: 'john@example.com',
                 ip: '127.0.0.1',
                 userAgent: 'test-agent',
-                details: 'New employee registration pending approval'
+                details: 'New company registered - user assigned as admin'
             });
         });
 

@@ -3,7 +3,7 @@ const employeeQueries = require('../middleware/helpers/EmployeeQueries');
 const currentDateTime = require('../functions/base/currentDateTime');
 const { addDays, addYears } = require('../functions/base/addDayYear');
 const { formatDateString, formatTimeString } = require('../functions/base/dateTimeFormat');
-const { verifyABAAuthorization } = require('../middleware/helpers/authorizationHelper');
+const { verifyABAAuthorization, verifyBasicAuthentication } = require('../middleware/helpers/authorizationHelper');
 
 class ABAController {
     // ============================================
@@ -95,10 +95,10 @@ class ABAController {
      */
     async getAllClientInfo(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
-            const clientData = await abaQueries.abaGetAllClientData();
+            const clientData = await abaQueries.abaGetAllClientData(employeeData.companyID);
             if (clientData) {
                 return res.json({ statusCode: 200, clientData: clientData });
             }

@@ -14,11 +14,16 @@ describe('Archive Cleanup Job - Unit Tests', () => {
     // Mock console methods to keep test output clean
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    
+    // Mock Date to always return February 2, 2026
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-02-02T00:00:00Z'));
   });
 
   afterEach(() => {
     console.log.mockRestore();
     console.error.mockRestore();
+    jest.useRealTimers();
   });
 
   describe('send90DayReminders', () => {

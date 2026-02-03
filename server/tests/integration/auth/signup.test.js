@@ -39,9 +39,15 @@ describe('SignUp API Integration Tests', () => {
         it('should successfully register a new user with valid data', async () => {
             const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
             const logAuthEvent = require('../../../middleware/helpers/authLog');
+            const CompanyData = require('../../../models/CompanyData');
             
             employeeQueries.employeeExistByUsername = jest.fn().mockResolvedValue(false);
             Employee.findOne = jest.fn().mockResolvedValue(null);
+            CompanyData.findOne = jest.fn().mockResolvedValue(null); // No existing company
+            CompanyData.create = jest.fn().mockResolvedValue({
+                companyDataID: 1,
+                companyName: 'Acme Corporation'
+            });
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe',
@@ -61,7 +67,8 @@ describe('SignUp API Integration Tests', () => {
                 statusCode: 201,
                 signupSuccess: true,
                 userId: 1,
-                message: expect.stringContaining('pending admin approval')
+                message: expect.stringContaining('company administrator'),
+                isCompanyAdmin: true
             });
 
             expect(Employee.create).toHaveBeenCalledWith(
@@ -71,9 +78,10 @@ describe('SignUp API Integration Tests', () => {
                     username: 'johndoe',
                     email: 'john.doe@example.com',
                     phone_number: '5551234567',
-                    role: 'employee',
-                    account_status: 'Pending',
-                    companyName: 'Acme Corporation'
+                    role: 'admin',
+                    account_status: 'Active',
+                    companyName: 'Acme Corporation',
+                    companyID: 1
                 })
             );
         });
@@ -218,12 +226,17 @@ describe('SignUp API Integration Tests', () => {
             expect(createArgs.password).toMatch(/^\$2[aby]\$\d{1,2}\$/);
         });
 
-        it('should set account_status to Pending for new signups', async () => {
+        it('should set account_status to Pending for new signups to existing company', async () => {
             const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
             const logAuthEvent = require('../../../middleware/helpers/authLog');
+            const CompanyData = require('../../../models/CompanyData');
             
             employeeQueries.employeeExistByUsername = jest.fn().mockResolvedValue(false);
             Employee.findOne = jest.fn().mockResolvedValue(null);
+            CompanyData.findOne = jest.fn().mockResolvedValue({
+                companyDataID: 1,
+                companyName: 'Acme Corporation'
+            }); // Existing company
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe'

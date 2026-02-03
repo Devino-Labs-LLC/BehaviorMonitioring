@@ -88,19 +88,50 @@ class AuthController {
             const dateEntered = now.toISOString().split('T')[0];
             const timeEntered = now.toTimeString().split(' ')[0];
 
-            // Create new employee with "Pending" status (requires admin approval)
+            // Check if company exists
+            const CompanyData = require('../models/CompanyData');
+            let companyRecord = await CompanyData.findOne({ 
+                where: { companyName: companyName.trim() } 
+            });
+
+            let role = 'employee';
+            let accountStatus = 'Pending';
+            let companyID = 0;
+
+            // If company doesn't exist, create it and make this user the admin
+            if (!companyRecord) {
+                companyRecord = await CompanyData.create({
+                    companyName: companyName.trim(),
+                    companyStreetAddress: 'To be updated',
+                    companyCity: 'To be updated',
+                    companyState: 'To be updated',
+                    companyZipCode: '00000',
+                    companyContact: email.toLowerCase(),
+                    companyFinanceContact: email.toLowerCase(),
+                    entered_by: username.toLowerCase(),
+                    date_entered: dateEntered,
+                    time_entered: timeEntered
+                });
+
+                // First user of a new company becomes admin
+                role = 'admin';
+                accountStatus = 'Active';
+                companyID = companyRecord.companyDataID;
+            }
+
+            // Create new employee
             const newEmployee = await Employee.create({
                 fName: firstName,
                 lName: lastName,
                 username: username.toLowerCase(),
                 email: email.toLowerCase(),
                 phone_number: phoneNumber || null,
-                role: 'employee', // Default role
+                role: role,
                 password: hashedPassword,
-                account_status: 'Pending', // Requires admin approval
+                account_status: accountStatus,
                 entered_by: 'self-registration',
-                companyID: 0, // Will be assigned by admin
-                companyName: companyName,
+                companyID: companyID,
+                companyName: companyName.trim(),
                 date_entered: dateEntered,
                 time_entered: timeEntered,
                 email_verified: false,
@@ -114,7 +145,9 @@ class AuthController {
                 email: email.toLowerCase(), 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'],
-                details: 'New employee registration pending approval'
+                details: role === 'admin' 
+                    ? 'New company registered - user assigned as admin'
+                    : 'New employee registration pending approval'
             });
 
             // Send verification email to user
@@ -125,20 +158,25 @@ class AuthController {
                 verificationToken
             );
 
-            // Notify admin of new signup
-            await emailTemplate.sendNewSignupNotificationToAdmin(
-                firstName,
-                lastName,
-                email.toLowerCase(),
-                companyName
-            );
+            // Notify admin of new signup (only if joining existing company)
+            if (role === 'employee') {
+                await emailTemplate.sendNewSignupNotificationToAdmin(
+                    firstName,
+                    lastName,
+                    email.toLowerCase(),
+                    companyName
+                );
+            }
 
             return res.json({ 
                 statusCode: 201, 
                 signupSuccess: true,
                 userId: newEmployee.employeeID,
-                message: 'Registration successful. Your account is pending admin approval.',
-                emailVerificationSent: emailSent
+                message: role === 'admin' 
+                    ? 'Registration successful. You have been assigned as company administrator.'
+                    : 'Registration successful. Your account is pending admin approval.',
+                emailVerificationSent: emailSent,
+                isCompanyAdmin: role === 'admin'
             });
         } catch (error) {
             await logAuthEvent("EMPLOYEE_SIGNUP_ERROR", { 

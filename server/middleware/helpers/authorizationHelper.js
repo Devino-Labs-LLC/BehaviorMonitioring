@@ -52,6 +52,25 @@ async function verifyAuthorization(req, res, allowedRoles = ['root', 'admin', 'A
 }
 
 /**
+ * Verify basic user authentication (any authenticated user from the same company)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object|null>} Employee data if authenticated, null otherwise
+ */
+async function verifyBasicAuthentication(req, res) {
+    const { employeeUsername } = req.body;
+    
+    const employeeData = await getAuthenticatedUser(employeeUsername);
+    
+    if (!employeeData) {
+        res.json({ statusCode: 401, serverMessage: 'Unauthorized user' });
+        return null;
+    }
+    
+    return employeeData;
+}
+
+/**
  * Verify user authorization for ABA operations (requires root or Admin role)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -75,6 +94,7 @@ module.exports = {
     getAuthenticatedUser,
     hasRole,
     verifyAuthorization,
+    verifyBasicAuthentication,
     verifyABAAuthorization,
     verifyAdminAuthorization
 };
