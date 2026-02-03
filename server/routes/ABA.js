@@ -2,6 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const abaController = require('../controllers/ABAController');
+const { apiLimiter } = require('../middleware/rateLimiter');
+
+// Apply rate limiting to all ABA routes
+router.use(apiLimiter);
 
 // Client management routes
 router.post('/addNewClient', abaController.addNewClient.bind(abaController));

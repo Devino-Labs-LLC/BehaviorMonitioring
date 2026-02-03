@@ -2,6 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/AdminController');
+const { apiLimiter } = require('../middleware/rateLimiter');
+
+// Apply rate limiting to all Admin routes
+router.use(apiLimiter);
 
 // Employee management routes
 router.post('/addNewEmployee', adminController.addNewEmployee.bind(adminController));

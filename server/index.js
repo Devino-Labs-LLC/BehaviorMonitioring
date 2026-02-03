@@ -14,6 +14,7 @@ const cookieParser = require("cookie-parser");
 const authMiddleware = require('./middleware/authMiddleware');
 const { requireRole } = require('./middleware/rbac');
 const requestLogger = require('./middleware/requestLogger');
+const { csrfProtection } = require('./middleware/csrfProtection');
 let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
 
 // Define allowed origins
@@ -41,6 +42,7 @@ app.use(requestLogger);
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(csrfProtection); // Add CSRF protection
 
 // Commented out to prevent automatic S3 import on server start
 // if (prodStatus) {
@@ -57,6 +59,11 @@ app.get('/', (req, res) => {
   else {
     res.send("The server is running successfully. <br/>The server is running on port " + port + "... <br/>The server url is " + prodHost + "...");
   }
+});
+
+// Endpoint to get CSRF token
+app.get('/csrf-token', (req, res) => {
+  res.json({ csrfToken: res.locals.csrfToken });
 });
 
 const authRoute = require('./routes/Auth');

@@ -36,7 +36,7 @@ class AuthController {
             }
 
             // Password strength validation (at least 8 characters, one uppercase, one lowercase, one number)
-            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,100}$/;
             if (!passwordRegex.test(password)) {
                 return res.json({ 
                     statusCode: 400, 
@@ -46,7 +46,7 @@ class AuthController {
             }
 
             // Email validation
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
             if (!emailRegex.test(email)) {
                 return res.json({ 
                     statusCode: 400, 
@@ -534,7 +534,7 @@ class AuthController {
             }
 
             // Password strength validation
-            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,100}$/;
             if (!passwordRegex.test(newPassword)) {
                 return res.json({ 
                     statusCode: 400, 
