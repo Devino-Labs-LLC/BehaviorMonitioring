@@ -1,15 +1,74 @@
 require('dotenv').config();
-const sendGridAPI = process.env.SENDGRID_API_KEY;
-const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(sendGridAPI);
+const { Resend } = require('resend');
+
 const businessEmail = process.env.BUSINESS_EMAIL;
 const businessPOCEmail = process.env.POC_Email;
+const brevoApiKey = process.env.Brevo_API_KEY;
+
+// Lazy initialize Resend to support testing
+let resend = null;
+function getResendClient() {
+    if (!resend) {
+        resend = new Resend(process.env.Resend_API_KEY);
+    }
+    return resend;
+}
+
+/**
+ * Send email using Resend with Brevo fallback
+ */
+async function sendEmailWithFallback(emailData) {
+    try {
+        // Try Resend first
+        const resendClient = getResendClient();
+        const result = await resendClient.emails.send(emailData);
+        if (result.error) {
+            throw result.error;
+        }
+        return { success: true, provider: 'resend', id: result.data.id };
+    } catch (resendError) {
+        console.warn('Resend failed, attempting fallback to Brevo:', resendError.message);
+        try {
+            // Fallback to Brevo REST API
+            const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'api-key': brevoApiKey,
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    to: [{
+                        email: emailData.to,
+                        name: emailData.to.split('@')[0]
+                    }],
+                    sender: {
+                        email: emailData.from.email,
+                        name: emailData.from.name
+                    },
+                    subject: emailData.subject,
+                    htmlContent: emailData.html
+                })
+            });
+
+            if (!brevoResponse.ok) {
+                throw new Error(`Brevo API error: ${brevoResponse.status} ${brevoResponse.statusText}`);
+            }
+
+            const result = await brevoResponse.json();
+            return { success: true, provider: 'brevo', id: result.messageId };
+        } catch (brevoError) {
+            console.error('Both Resend and Brevo failed:', brevoError);
+            return { success: false, provider: 'both', error: brevoError };
+        }
+    }
+}
 
 /**
  * Send verification email to new signup users
  */
 async function sendSignupVerification(email, firstName, lastName, verificationToken) {
-    const msg = {
+    const emailData = {
         to: email,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - Verify Your Account',
@@ -23,8 +82,8 @@ async function sendSignupVerification(email, firstName, lastName, verificationTo
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending signup verification email:', error);
         return false;
@@ -35,7 +94,7 @@ async function sendSignupVerification(email, firstName, lastName, verificationTo
  * Send account approval notification to user
  */
 async function sendAccountApprovalNotification(email, firstName, lastName, username) {
-    const msg = {
+    const emailData = {
         to: email,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - Account Approved',
@@ -49,8 +108,8 @@ async function sendAccountApprovalNotification(email, firstName, lastName, usern
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending account approval email:', error);
         return false;
@@ -61,7 +120,7 @@ async function sendAccountApprovalNotification(email, firstName, lastName, usern
  * Send employee account verification (for admin-created accounts)
  */
 async function sendEmployeeVerification(email, firstName, lastName, username) {
-    const msg = {
+    const emailData = {
         to: email,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - Activate Your Account',
@@ -75,8 +134,8 @@ async function sendEmployeeVerification(email, firstName, lastName, username) {
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending employee verification email:', error);
         return false;
@@ -87,7 +146,7 @@ async function sendEmployeeVerification(email, firstName, lastName, username) {
  * Send admin account verification
  */
 async function sendAdminVerification(email, firstName, lastName, username) {
-    const msg = {
+    const emailData = {
         to: email,
         from: { name: 'BMetrics Admin', email: businessEmail },
         subject: 'BMetrics - Admin Account Activation',
@@ -101,8 +160,8 @@ async function sendAdminVerification(email, firstName, lastName, username) {
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending admin verification email:', error);
         return false;
@@ -113,7 +172,7 @@ async function sendAdminVerification(email, firstName, lastName, username) {
  * Send password recovery email
  */
 async function sendPasswordRecovery(email, firstName, lastName, username, resetToken) {
-    const msg = {
+    const emailData = {
         to: email,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - Password Recovery',
@@ -128,8 +187,8 @@ async function sendPasswordRecovery(email, firstName, lastName, username, resetT
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending password recovery email:', error);
         return false;
@@ -140,7 +199,7 @@ async function sendPasswordRecovery(email, firstName, lastName, username, resetT
  * Send new signup notification to admin
  */
 async function sendNewSignupNotificationToAdmin(firstName, lastName, email, companyName) {
-    const msg = {
+    const emailData = {
         to: businessPOCEmail,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - New User Signup Pending Approval',
@@ -155,8 +214,8 @@ async function sendNewSignupNotificationToAdmin(firstName, lastName, email, comp
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending admin notification email:', error);
         return false;
@@ -167,7 +226,7 @@ async function sendNewSignupNotificationToAdmin(firstName, lastName, email, comp
  * Send database backup notification
  */
 async function sendDatabaseBackupNotification() {
-    const msg = {
+    const emailData = {
         to: businessPOCEmail,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - Database Backup Started',
@@ -179,8 +238,8 @@ async function sendDatabaseBackupNotification() {
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending backup notification:', error);
         return false;
@@ -191,7 +250,7 @@ async function sendDatabaseBackupNotification() {
  * Send database backup results
  */
 async function sendDatabaseBackupResults(status, logs) {
-    const msg = {
+    const emailData = {
         to: businessPOCEmail,
         from: { name: 'BMetrics', email: businessEmail },
         subject: `BMetrics - Database Backup ${status}`,
@@ -204,8 +263,8 @@ async function sendDatabaseBackupResults(status, logs) {
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending backup results:', error);
         return false;
@@ -216,7 +275,7 @@ async function sendDatabaseBackupResults(status, logs) {
  * Send reminder email about upcoming client data deletion
  */
 async function sendClientDataDeletionReminder(clientName, daysRemaining, deletionDate, archivedDate) {
-    const msg = {
+    const emailData = {
         to: businessPOCEmail,
         from: { name: 'BMetrics', email: businessEmail },
         subject: `BMetrics - Client Data Deletion Reminder: ${daysRemaining} Days`,
@@ -236,8 +295,8 @@ async function sendClientDataDeletionReminder(clientName, daysRemaining, deletio
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending deletion reminder:', error);
         return false;
@@ -248,7 +307,7 @@ async function sendClientDataDeletionReminder(clientName, daysRemaining, deletio
  * Send notification that client data has been deleted
  */
 async function sendClientDataDeleted(clientName, deletionDate, archivedDate) {
-    const msg = {
+    const emailData = {
         to: businessPOCEmail,
         from: { name: 'BMetrics', email: businessEmail },
         subject: `BMetrics - Client Data Deleted: ${clientName}`,
@@ -266,8 +325,8 @@ async function sendClientDataDeleted(clientName, deletionDate, archivedDate) {
     };
 
     try {
-        await sgMail.send(msg);
-        return true;
+        const result = await sendEmailWithFallback(emailData);
+        return result.success;
     } catch (error) {
         console.error('Error sending deletion notification:', error);
         return false;

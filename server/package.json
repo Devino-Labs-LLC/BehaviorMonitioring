@@ -15,7 +15,7 @@
   "author": "Devino Labs LLC",
   "license": "ISC",
   "dependencies": {
-    "@sendgrid/mail": "^8.1.6",
+    "resend": "^6.9.0",
     "aws-sdk": "^2.1693.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",

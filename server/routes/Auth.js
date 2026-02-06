@@ -12,5 +12,6 @@ router.post('/verifyEmployeeLogout', generalLimiter, authController.verifyEmploy
 router.post('/refresh', generalLimiter, authController.refresh.bind(authController));
 router.post('/request-password-reset', passwordResetLimiter, authController.requestPasswordReset.bind(authController));
 router.post('/reset-password', passwordResetLimiter, authController.resetPassword.bind(authController));
+router.post('/verify-email', generalLimiter, authController.verifyEmail.bind(authController));
 
 module.exports = router;

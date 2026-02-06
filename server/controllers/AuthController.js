@@ -252,6 +252,48 @@ class AuthController {
 
                     if (bcryptResult) {
                         const employeeData = await employeeQueries.employeeDataByUsername(uName.toLowerCase());
+                        
+                        // Check if email is verified
+                        if (!employeeData.email_verified) {
+                            // Generate new verification token
+                            const verificationToken = crypto.randomBytes(32).toString('hex');
+                            const verificationExpiry = new Date();
+                            verificationExpiry.setHours(verificationExpiry.getHours() + 24); // 24 hour expiry
+
+                            // Update verification token
+                            const Employee = require('../models/Employee');
+                            await Employee.update(
+                                {
+                                    verification_token: verificationToken,
+                                    verification_token_expires: verificationExpiry
+                                },
+                                { where: { employeeID: employeeData.employeeID } }
+                            );
+
+                            // Resend verification email
+                            await emailTemplate.sendSignupVerification(
+                                employeeData.email,
+                                employeeData.fName,
+                                employeeData.lName,
+                                verificationToken
+                            );
+
+                            await logAuthEvent("EMPLOYEE_LOGIN_BLOCKED_UNVERIFIED", { 
+                                userId: employeeData.employeeID, 
+                                email: employeeData.email, 
+                                ip: req.ip, 
+                                userAgent: req.headers['user-agent'],
+                                details: 'Login blocked - email not verified. Verification email resent.' 
+                            });
+
+                            return res.json({ 
+                                statusCode: 403, 
+                                loginStatus: false,
+                                emailNotVerified: true,
+                                serverMessage: 'Please verify your email address before logging in. A new verification email has been sent to your inbox.' 
+                            });
+                        }
+
                         const accessPayload = {
                             sub: employeeData.employeeID,
                             email: employeeData.email,
@@ -587,6 +629,99 @@ class AuthController {
             });
         } catch (error) {
             await logAuthEvent("PASSWORD_RESET_ERROR", { 
+                ip: req.ip, 
+                userAgent: req.headers['user-agent'], 
+                details: error.message 
+            });
+            return res.json({ 
+                statusCode: 500, 
+                success: false,
+                message: 'A server error occurred', 
+                errorMessage: error.message 
+            });
+        }
+    }
+
+    async verifyEmail(req, res) {
+        try {
+            const { token } = req.body;
+
+            if (!token) {
+                return res.json({ 
+                    statusCode: 400, 
+                    success: false, 
+                    message: 'Verification token is required' 
+                });
+            }
+
+            const Employee = require('../models/Employee');
+            const employee = await Employee.findOne({ 
+                where: { verification_token: token } 
+            });
+
+            if (!employee) {
+                await logAuthEvent("EMAIL_VERIFICATION_FAILED", { 
+                    ip: req.ip, 
+                    userAgent: req.headers['user-agent'],
+                    details: 'Invalid verification token'
+                });
+                return res.json({ 
+                    statusCode: 400, 
+                    success: false, 
+                    message: 'Invalid verification token' 
+                });
+            }
+
+            // Check if token has expired
+            if (new Date() > new Date(employee.verification_token_expires)) {
+                await logAuthEvent("EMAIL_VERIFICATION_EXPIRED", { 
+                    userId: employee.employeeID,
+                    email: employee.email,
+                    ip: req.ip, 
+                    userAgent: req.headers['user-agent'],
+                    details: 'Verification token expired'
+                });
+                return res.json({ 
+                    statusCode: 400, 
+                    success: false, 
+                    message: 'Verification token has expired. Please request a new one.' 
+                });
+            }
+
+            // Check if already verified
+            if (employee.email_verified) {
+                return res.json({ 
+                    statusCode: 200, 
+                    success: true, 
+                    message: 'Email is already verified. You can now log in.' 
+                });
+            }
+
+            // Verify the email
+            await Employee.update(
+                { 
+                    email_verified: true, 
+                    verification_token: null, 
+                    verification_token_expires: null 
+                },
+                { where: { employeeID: employee.employeeID } }
+            );
+
+            await logAuthEvent("EMAIL_VERIFICATION_SUCCESS", { 
+                userId: employee.employeeID,
+                email: employee.email,
+                ip: req.ip, 
+                userAgent: req.headers['user-agent'],
+                details: 'Email successfully verified'
+            });
+
+            return res.json({ 
+                statusCode: 200, 
+                success: true, 
+                message: 'Email successfully verified! You can now log in.' 
+            });
+        } catch (error) {
+            await logAuthEvent("EMAIL_VERIFICATION_ERROR", { 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
                 details: error.message 

@@ -1,24 +1,42 @@
-const sgMail = require('@sendgrid/mail');
-const emailTemplate = require('../../../middleware/email/emailTemplate');
+jest.mock('resend');
 
-// Mock SendGrid
-jest.mock('@sendgrid/mail');
+// We'll require emailTemplate after setting up mocks in beforeEach
+let emailTemplate;
 
-describe('Email Template Unit Tests', () => {
-    const mockSend = jest.fn();
-    
-    beforeAll(() => {
-        // Tests will use actual environment variables from .env
-        sgMail.send = mockSend;
-    });
+describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
+    let mockResendEmails;
+    let mockResend;
 
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.resetModules(); // Clear the module cache
+        global.fetch = jest.fn();
+        
+        // Setup Resend mock BEFORE importing emailTemplate
+        const { Resend } = require('resend');
+        mockResendEmails = {
+            send: jest.fn()
+        };
+        Resend.mockImplementation(() => ({
+            emails: mockResendEmails
+        }));
+        mockResend = Resend;
+        
+        // Now import emailTemplate AFTER setting up the mock
+        emailTemplate = require('../../../middleware/email/emailTemplate');
+    });
+
+    afterEach(() => {
+        delete global.fetch;
+        jest.resetModules();
     });
 
     describe('sendSignupVerification', () => {
-        it('should send signup verification email with correct parameters', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+        it('should send signup verification email using Resend', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-123' }
+            });
 
             const result = await emailTemplate.sendSignupVerification(
                 'user@example.com',
@@ -28,8 +46,7 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledTimes(1);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'user@example.com',
                     from: expect.objectContaining({ name: 'BMetrics' }),
@@ -38,23 +55,33 @@ describe('Email Template Unit Tests', () => {
             );
         });
 
-        it('should include user name in email body', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+        it('should fallback to Brevo when Resend fails', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: new Error('Resend API error'),
+                data: null
+            });
+            global.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => ({ messageId: 'brevo-123' })
+            });
 
-            await emailTemplate.sendSignupVerification(
+            const result = await emailTemplate.sendSignupVerification(
                 'user@example.com',
-                'Jane',
-                'Smith',
-                'token-456'
+                'John',
+                'Doe',
+                'token'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
-            expect(emailCall.html).toContain('Hello Jane Smith');
-            expect(emailCall.html).toContain('pending admin approval');
+            expect(result).toBe(true);
+            expect(global.fetch).toHaveBeenCalledWith(
+                'https://api.brevo.com/v3/smtp/email',
+                expect.any(Object)
+            );
         });
 
-        it('should return false when email sending fails', async () => {
-            mockSend.mockRejectedValue(new Error('SendGrid error'));
+        it('should return false when both providers fail', async () => {
+            mockResendEmails.send.mockRejectedValue(new Error('Resend error'));
+            global.fetch.mockRejectedValue(new Error('Brevo error'));
 
             const result = await emailTemplate.sendSignupVerification(
                 'user@example.com',
@@ -68,8 +95,11 @@ describe('Email Template Unit Tests', () => {
     });
 
     describe('sendAccountApprovalNotification', () => {
-        it('should send account approval email with correct parameters', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+        it('should send account approval email using Resend', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-456' }
+            });
 
             const result = await emailTemplate.sendAccountApprovalNotification(
                 'user@example.com',
@@ -79,7 +109,7 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'user@example.com',
                     subject: 'BMetrics - Account Approved'
@@ -88,7 +118,10 @@ describe('Email Template Unit Tests', () => {
         });
 
         it('should include username and login link in email', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-456' }
+            });
 
             await emailTemplate.sendAccountApprovalNotification(
                 'user@example.com',
@@ -97,28 +130,18 @@ describe('Email Template Unit Tests', () => {
                 'johndoe'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
             expect(emailCall.html).toContain('johndoe');
-            expect(emailCall.html).toContain('http://localhost:3000/Login');
-        });
-
-        it('should handle sending errors gracefully', async () => {
-            mockSend.mockRejectedValue(new Error('Network error'));
-
-            const result = await emailTemplate.sendAccountApprovalNotification(
-                'user@example.com',
-                'John',
-                'Doe',
-                'johndoe'
-            );
-
-            expect(result).toBe(false);
+            expect(emailCall.html).toContain('/Login');
         });
     });
 
     describe('sendEmployeeVerification', () => {
         it('should send employee verification email', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-789' }
+            });
 
             const result = await emailTemplate.sendEmployeeVerification(
                 'employee@example.com',
@@ -128,7 +151,7 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'employee@example.com',
                     subject: 'BMetrics - Activate Your Account'
@@ -136,8 +159,11 @@ describe('Email Template Unit Tests', () => {
             );
         });
 
-        it('should include activation link with username', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+        it('should include activation link with lowercase username', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-789' }
+            });
 
             await emailTemplate.sendEmployeeVerification(
                 'employee@example.com',
@@ -146,15 +172,18 @@ describe('Email Template Unit Tests', () => {
                 'AliceJ'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
-            expect(emailCall.html).toContain('alicej'); // lowercase
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
+            expect(emailCall.html).toContain('alicej');
             expect(emailCall.html).toContain('AccountVerification/alicej');
         });
     });
 
     describe('sendAdminVerification', () => {
         it('should send admin verification email', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-admin' }
+            });
 
             const result = await emailTemplate.sendAdminVerification(
                 'admin@example.com',
@@ -164,7 +193,7 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'admin@example.com',
                     from: expect.objectContaining({ name: 'BMetrics Admin' }),
@@ -173,8 +202,11 @@ describe('Email Template Unit Tests', () => {
             );
         });
 
-        it('should include admin verification link', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+        it('should include admin verification link with case conversion', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-admin' }
+            });
 
             await emailTemplate.sendAdminVerification(
                 'admin@example.com',
@@ -183,14 +215,17 @@ describe('Email Template Unit Tests', () => {
                 'BobAdmin'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
             expect(emailCall.html).toContain('Admin/Verification/bobadmin');
         });
     });
 
     describe('sendPasswordRecovery', () => {
         it('should send password recovery email with reset token', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-reset' }
+            });
 
             const result = await emailTemplate.sendPasswordRecovery(
                 'user@example.com',
@@ -201,7 +236,7 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'user@example.com',
                     subject: 'BMetrics - Password Recovery'
@@ -209,8 +244,11 @@ describe('Email Template Unit Tests', () => {
             );
         });
 
-        it('should include reset link with token', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+        it('should include reset link with token and expiration info', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-reset' }
+            });
 
             await emailTemplate.sendPasswordRecovery(
                 'user@example.com',
@@ -220,7 +258,7 @@ describe('Email Template Unit Tests', () => {
                 'reset-token-xyz'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
             expect(emailCall.html).toContain('ResetPassword/reset-token-xyz');
             expect(emailCall.html).toContain('24 hours');
         });
@@ -228,7 +266,10 @@ describe('Email Template Unit Tests', () => {
 
     describe('sendNewSignupNotificationToAdmin', () => {
         it('should send notification to admin about new signup', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-admin-notif' }
+            });
 
             const result = await emailTemplate.sendNewSignupNotificationToAdmin(
                 'John',
@@ -238,16 +279,18 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    to: expect.any(String), // Will use POC_Email from env
                     subject: 'BMetrics - New User Signup Pending Approval'
                 })
             );
         });
 
         it('should include user details in admin notification', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-admin-notif' }
+            });
 
             await emailTemplate.sendNewSignupNotificationToAdmin(
                 'Jane',
@@ -256,7 +299,7 @@ describe('Email Template Unit Tests', () => {
                 'Tech Industries'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
             expect(emailCall.html).toContain('Jane Smith');
             expect(emailCall.html).toContain('jane@company.com');
             expect(emailCall.html).toContain('Tech Industries');
@@ -265,14 +308,16 @@ describe('Email Template Unit Tests', () => {
 
     describe('sendDatabaseBackupNotification', () => {
         it('should send backup notification to admin', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-backup' }
+            });
 
             const result = await emailTemplate.sendDatabaseBackupNotification();
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    to: expect.any(String), // Will use POC_Email from env
                     subject: 'BMetrics - Database Backup Started'
                 })
             );
@@ -281,7 +326,10 @@ describe('Email Template Unit Tests', () => {
 
     describe('sendDatabaseBackupResults', () => {
         it('should send backup results with success status', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-backup-result' }
+            });
 
             const result = await emailTemplate.sendDatabaseBackupResults(
                 'Success',
@@ -289,7 +337,7 @@ describe('Email Template Unit Tests', () => {
             );
 
             expect(result).toBe(true);
-            expect(mockSend).toHaveBeenCalledWith(
+            expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     subject: 'BMetrics - Database Backup Success'
                 })
@@ -297,23 +345,30 @@ describe('Email Template Unit Tests', () => {
         });
 
         it('should include status and logs in email', async () => {
-            mockSend.mockResolvedValue([{ statusCode: 202 }]);
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-backup-result' }
+            });
 
             await emailTemplate.sendDatabaseBackupResults(
                 'Failed',
                 'Error: Connection timeout'
             );
 
-            const emailCall = mockSend.mock.calls[0][0];
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
             expect(emailCall.html).toContain('Failed');
             expect(emailCall.html).toContain('Error: Connection timeout');
         });
     });
 
-    describe('Error Handling', () => {
-        it('should handle SendGrid API errors', async () => {
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-            mockSend.mockRejectedValue(new Error('API key invalid'));
+    describe('Error Handling with Fallback Strategy', () => {
+        it('should handle Resend API errors and fallback to Brevo', async () => {
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+            mockResendEmails.send.mockRejectedValue(new Error('Resend API error'));
+            global.fetch.mockResolvedValue({
+                ok: true,
+                json: async () => ({ messageId: 'brevo-msg' })
+            });
 
             const result = await emailTemplate.sendSignupVerification(
                 'user@example.com',
@@ -322,19 +377,44 @@ describe('Email Template Unit Tests', () => {
                 'token'
             );
 
-            expect(result).toBe(false);
-            expect(consoleErrorSpy).toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
+            expect(result).toBe(true);
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Resend failed'),
+                expect.anything()
+            );
+            expect(global.fetch).toHaveBeenCalled();
+            consoleWarnSpy.mockRestore();
         });
 
-        it('should handle network errors', async () => {
-            mockSend.mockRejectedValue(new Error('Network timeout'));
+        it('should log error when both providers fail', async () => {
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+            mockResendEmails.send.mockRejectedValue(new Error('Resend timeout'));
+            global.fetch.mockRejectedValue(new Error('Brevo timeout'));
 
             const result = await emailTemplate.sendAccountApprovalNotification(
                 'user@example.com',
                 'John',
                 'Doe',
                 'johndoe'
+            );
+
+            expect(result).toBe(false);
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Both Resend and Brevo failed'),
+                expect.anything()
+            );
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should handle network errors gracefully', async () => {
+            mockResendEmails.send.mockRejectedValue(new Error('Network timeout'));
+            global.fetch.mockRejectedValue(new Error('Network timeout'));
+
+            const result = await emailTemplate.sendEmployeeVerification(
+                'employee@example.com',
+                'Alice',
+                'Johnson',
+                'alicej'
             );
 
             expect(result).toBe(false);

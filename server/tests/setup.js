@@ -9,7 +9,8 @@ process.env.ACCESS_TOKEN_TTL = '15m';
 process.env.REFRESH_TOKEN_TTL = '7d';
 process.env.BUSINESS_EMAIL = 'test@bmetrics.com';
 process.env.POC_Email = 'admin@bmetrics.com';
-process.env.SENDGRID_API_KEY = 'test-sendgrid-key';
+process.env.Resend_API_KEY = 'test-resend-key';
+process.env.Brevo_API_KEY = 'test-brevo-key';
 
 // Mock Sequelize models
 jest.mock('../models', () => {
