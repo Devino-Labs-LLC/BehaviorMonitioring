@@ -15,13 +15,38 @@ function getResendClient() {
 }
 
 /**
+ * Parse 'from' string into email and name components
+ * Supports formats: "email@domain.com" or "Name <email@domain.com>"
+ */
+function parseFromField(fromString) {
+    const match = fromString.match(/^(?:(.+?)\s+)?<(.+?)>$|^(.+)$/);
+    if (match) {
+        if (match[2]) {
+            // Format: "Name <email@domain.com>"
+            return { name: match[1] || 'BMetrics', email: match[2] };
+        } else if (match[3]) {
+            // Format: "email@domain.com"
+            return { name: 'BMetrics', email: match[3] };
+        }
+    }
+    // Fallback
+    return { name: 'BMetrics', email: fromString };
+}
+
+/**
  * Send email using Resend with Brevo fallback
  */
 async function sendEmailWithFallback(emailData) {
     try {
+        // Ensure 'from' is a string for Resend
+        let resendEmailData = { ...emailData };
+        if (typeof resendEmailData.from === 'object') {
+            resendEmailData.from = `${resendEmailData.from.name} <${resendEmailData.from.email}>`;
+        }
+        
         // Try Resend first
         const resendClient = getResendClient();
-        const result = await resendClient.emails.send(emailData);
+        const result = await resendClient.emails.send(resendEmailData);
         if (result.error) {
             throw result.error;
         }
@@ -29,6 +54,12 @@ async function sendEmailWithFallback(emailData) {
     } catch (resendError) {
         console.warn('Resend failed, attempting fallback to Brevo:', resendError.message);
         try {
+            // Parse from field for Brevo
+            let fromParsed = emailData.from;
+            if (typeof fromParsed === 'string') {
+                fromParsed = parseFromField(fromParsed);
+            }
+
             // Fallback to Brevo REST API
             const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
                 method: 'POST',
@@ -43,8 +74,8 @@ async function sendEmailWithFallback(emailData) {
                         name: emailData.to.split('@')[0]
                     }],
                     sender: {
-                        email: emailData.from.email,
-                        name: emailData.from.name
+                        email: fromParsed.email,
+                        name: fromParsed.name
                     },
                     subject: emailData.subject,
                     htmlContent: emailData.html

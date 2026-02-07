@@ -183,7 +183,7 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
 
             const emailCall = mockResendEmails.send.mock.calls[0][0];
             expect(emailCall.to).toBe('admin@company.com');
-            expect(emailCall.from.name).toBe('BMetrics Admin');
+            expect(emailCall.from).toContain('BMetrics Admin');
             expect(emailCall.html).toContain('Admin/Verification/johna');
         });
     });
@@ -259,18 +259,10 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
             await emailTemplate.sendAdminVerification('test@test.com', 'Test', 'User', 'testuser');
 
             // Regular email from BMetrics
-            expect(mockResendEmails.send.mock.calls[0][0].from).toEqual(
-                expect.objectContaining({
-                    name: 'BMetrics'
-                })
-            );
+            expect(mockResendEmails.send.mock.calls[0][0].from).toContain('BMetrics');
 
             // Admin email from BMetrics Admin
-            expect(mockResendEmails.send.mock.calls[1][0].from).toEqual(
-                expect.objectContaining({
-                    name: 'BMetrics Admin'
-                })
-            );
+            expect(mockResendEmails.send.mock.calls[1][0].from).toContain('BMetrics Admin');
         });
     });
 

@@ -49,7 +49,7 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
             expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'user@example.com',
-                    from: expect.objectContaining({ name: 'BMetrics' }),
+                    from: expect.stringContaining('BMetrics'),
                     subject: 'BMetrics - Verify Your Account'
                 })
             );
@@ -196,7 +196,7 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
             expect(mockResendEmails.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     to: 'admin@example.com',
-                    from: expect.objectContaining({ name: 'BMetrics Admin' }),
+                    from: expect.stringContaining('BMetrics Admin'),
                     subject: 'BMetrics - Admin Account Activation'
                 })
             );
