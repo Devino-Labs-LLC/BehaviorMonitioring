@@ -1,16 +1,18 @@
 jest.mock('resend');
+jest.mock('nodemailer');
 
 // We'll require emailTemplate after setting up mocks in beforeEach
 let emailTemplate;
 
-describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
+describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
     let mockResendEmails;
     let mockResend;
+    let mockSendMail;
+    let mockNodemailer;
 
     beforeEach(() => {
         jest.clearAllMocks();
         jest.resetModules(); // Clear the module cache
-        global.fetch = jest.fn();
         
         // Setup Resend mock BEFORE importing emailTemplate
         const { Resend } = require('resend');
@@ -21,13 +23,19 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
             emails: mockResendEmails
         }));
         mockResend = Resend;
+
+        // Setup nodemailer mock BEFORE importing emailTemplate
+        mockSendMail = jest.fn();
+        mockNodemailer = require('nodemailer');
+        mockNodemailer.createTransport.mockReturnValue({
+            sendMail: mockSendMail
+        });
         
-        // Now import emailTemplate AFTER setting up the mock
+        // Now import emailTemplate AFTER setting up the mocks
         emailTemplate = require('../../../middleware/email/emailTemplate');
     });
 
     afterEach(() => {
-        delete global.fetch;
         jest.resetModules();
     });
 
@@ -55,14 +63,13 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
             );
         });
 
-        it('should fallback to Brevo when Resend fails', async () => {
+        it('should fallback to Brevo SMTP when Resend fails', async () => {
             mockResendEmails.send.mockResolvedValue({
                 error: new Error('Resend API error'),
                 data: null
             });
-            global.fetch.mockResolvedValue({
-                ok: true,
-                json: async () => ({ messageId: 'brevo-123' })
+            mockSendMail.mockResolvedValue({
+                messageId: 'brevo-123'
             });
 
             const result = await emailTemplate.sendSignupVerification(
@@ -73,15 +80,17 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
             );
 
             expect(result).toBe(true);
-            expect(global.fetch).toHaveBeenCalledWith(
-                'https://api.brevo.com/v3/smtp/email',
-                expect.any(Object)
+            expect(mockSendMail).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    to: 'user@example.com',
+                    subject: 'BMetrics - Verify Your Account'
+                })
             );
         });
 
         it('should return false when both providers fail', async () => {
             mockResendEmails.send.mockRejectedValue(new Error('Resend error'));
-            global.fetch.mockRejectedValue(new Error('Brevo error'));
+            mockSendMail.mockRejectedValue(new Error('Brevo SMTP error'));
 
             const result = await emailTemplate.sendSignupVerification(
                 'user@example.com',
@@ -362,12 +371,11 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
     });
 
     describe('Error Handling with Fallback Strategy', () => {
-        it('should handle Resend API errors and fallback to Brevo', async () => {
+        it('should handle Resend API errors and fallback to Brevo SMTP', async () => {
             const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
             mockResendEmails.send.mockRejectedValue(new Error('Resend API error'));
-            global.fetch.mockResolvedValue({
-                ok: true,
-                json: async () => ({ messageId: 'brevo-msg' })
+            mockSendMail.mockResolvedValue({
+                messageId: 'brevo-msg'
             });
 
             const result = await emailTemplate.sendSignupVerification(
@@ -382,14 +390,14 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
                 expect.stringContaining('Resend failed'),
                 expect.anything()
             );
-            expect(global.fetch).toHaveBeenCalled();
+            expect(mockSendMail).toHaveBeenCalled();
             consoleWarnSpy.mockRestore();
         });
 
         it('should log error when both providers fail', async () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
             mockResendEmails.send.mockRejectedValue(new Error('Resend timeout'));
-            global.fetch.mockRejectedValue(new Error('Brevo timeout'));
+            mockSendMail.mockRejectedValue(new Error('Brevo SMTP timeout'));
 
             const result = await emailTemplate.sendAccountApprovalNotification(
                 'user@example.com',
@@ -400,7 +408,7 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
 
             expect(result).toBe(false);
             expect(consoleErrorSpy).toHaveBeenCalledWith(
-                expect.stringContaining('Both Resend and Brevo failed'),
+                expect.stringContaining('Both Resend and Brevo SMTP failed'),
                 expect.anything()
             );
             consoleErrorSpy.mockRestore();
@@ -408,7 +416,7 @@ describe('Email Template Unit Tests - Resend with Brevo Fallback', () => {
 
         it('should handle network errors gracefully', async () => {
             mockResendEmails.send.mockRejectedValue(new Error('Network timeout'));
-            global.fetch.mockRejectedValue(new Error('Network timeout'));
+            mockSendMail.mockRejectedValue(new Error('Network timeout'));
 
             const result = await emailTemplate.sendEmployeeVerification(
                 'employee@example.com',

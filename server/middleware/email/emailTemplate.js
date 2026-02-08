@@ -1,9 +1,9 @@
 require('dotenv').config();
 const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 const businessEmail = process.env.BUSINESS_EMAIL;
 const businessPOCEmail = process.env.POC_Email;
-const brevoApiKey = process.env.Brevo_API_KEY;
 
 // Lazy initialize Resend to support testing
 let resend = null;
@@ -14,27 +14,26 @@ function getResendClient() {
     return resend;
 }
 
-/**
- * Parse 'from' string into email and name components
- * Supports formats: "email@domain.com" or "Name <email@domain.com>"
- */
-function parseFromField(fromString) {
-    const match = fromString.match(/^(?:(.+?)\s+)?<(.+?)>$|^(.+)$/);
-    if (match) {
-        if (match[2]) {
-            // Format: "Name <email@domain.com>"
-            return { name: match[1] || 'BMetrics', email: match[2] };
-        } else if (match[3]) {
-            // Format: "email@domain.com"
-            return { name: 'BMetrics', email: match[3] };
-        }
+// Lazy initialize Brevo SMTP transporter
+let brevoTransporter = null;
+function getBrevoTransporter() {
+    if (!brevoTransporter) {
+        const port = parseInt(process.env.Brevo_SMTP_Port, 10);
+        brevoTransporter = nodemailer.createTransport({
+            host: process.env.Brevo_SMTP_Server,
+            port: port,
+            secure: port === 465, // true for 465, false for 587 (STARTTLS)
+            auth: {
+                user: process.env.Brevo_SMTP_Login,
+                pass: process.env.Brevo_SMTP_Password
+            }
+        });
     }
-    // Fallback
-    return { name: 'BMetrics', email: fromString };
+    return brevoTransporter;
 }
 
 /**
- * Send email using Resend with Brevo fallback
+ * Send email using Resend with Brevo SMTP fallback
  */
 async function sendEmailWithFallback(emailData) {
     try {
@@ -50,46 +49,30 @@ async function sendEmailWithFallback(emailData) {
         if (result.error) {
             throw result.error;
         }
+        console.log('Email sent via Resend:', result.data.id);
         return { success: true, provider: 'resend', id: result.data.id };
     } catch (resendError) {
-        console.warn('Resend failed, attempting fallback to Brevo:', resendError.message);
+        console.warn('Resend failed, attempting fallback to Brevo SMTP:', resendError.message);
         try {
-            // Parse from field for Brevo
-            let fromParsed = emailData.from;
-            if (typeof fromParsed === 'string') {
-                fromParsed = parseFromField(fromParsed);
+            // Parse from field for Brevo SMTP
+            let fromAddress = emailData.from;
+            if (typeof fromAddress === 'object') {
+                fromAddress = `${fromAddress.name} <${fromAddress.email}>`;
             }
 
-            // Fallback to Brevo REST API
-            const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-                method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'api-key': brevoApiKey,
-                    'content-type': 'application/json',
-                },
-                body: JSON.stringify({
-                    to: [{
-                        email: emailData.to,
-                        name: emailData.to.split('@')[0]
-                    }],
-                    sender: {
-                        email: fromParsed.email,
-                        name: fromParsed.name
-                    },
-                    subject: emailData.subject,
-                    htmlContent: emailData.html
-                })
+            // Fallback to Brevo SMTP
+            const transporter = getBrevoTransporter();
+            const result = await transporter.sendMail({
+                from: fromAddress,
+                to: emailData.to,
+                subject: emailData.subject,
+                html: emailData.html
             });
 
-            if (!brevoResponse.ok) {
-                throw new Error(`Brevo API error: ${brevoResponse.status} ${brevoResponse.statusText}`);
-            }
-
-            const result = await brevoResponse.json();
+            console.log('Email sent via Brevo SMTP:', result.messageId);
             return { success: true, provider: 'brevo', id: result.messageId };
         } catch (brevoError) {
-            console.error('Both Resend and Brevo failed:', brevoError);
+            console.error('Both Resend and Brevo SMTP failed:', brevoError);
             return { success: false, provider: 'both', error: brevoError };
         }
     }

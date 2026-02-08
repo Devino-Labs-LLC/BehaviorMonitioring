@@ -222,7 +222,7 @@ describe('AuthController - signUpEmployee', () => {
                 signupSuccess: true,
                 userId: 1,
                 message: 'Registration successful. You have been assigned as company administrator.',
-                emailVerificationSent: false,
+                emailVerificationSent: true, // Email is now successfully sent via Brevo SMTP
                 isCompanyAdmin: true
             });
         });

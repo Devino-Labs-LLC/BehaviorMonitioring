@@ -1,15 +1,17 @@
 jest.mock('resend');
+jest.mock('nodemailer');
 
 // We'll require emailTemplate after setting up mocks in beforeEach
 let emailTemplate;
 
-describe('Email Template Integration Tests - Resend with Brevo Fallback', () => {
+describe('Email Template Integration Tests - Resend with Brevo SMTP Fallback', () => {
     let mockResendEmails;
+    let mockSendMail;
+    let mockNodemailer;
 
     beforeEach(() => {
         jest.clearAllMocks();
         jest.resetModules(); // Clear the module cache
-        global.fetch = jest.fn();
         
         // Setup Resend mock BEFORE importing emailTemplate
         const { Resend } = require('resend');
@@ -19,13 +21,19 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
         Resend.mockImplementation(() => ({
             emails: mockResendEmails
         }));
+
+        // Setup nodemailer mock BEFORE importing emailTemplate
+        mockSendMail = jest.fn();
+        mockNodemailer = require('nodemailer');
+        mockNodemailer.createTransport.mockReturnValue({
+            sendMail: mockSendMail
+        });
         
-        // Now import emailTemplate AFTER setting up the mock
+        // Now import emailTemplate AFTER setting up the mocks
         emailTemplate = require('../../../middleware/email/emailTemplate');
     });
 
     afterEach(() => {
-        delete global.fetch;
         jest.resetModules();
     });
 
@@ -68,15 +76,14 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
             });
         });
 
-        it('should fallback to Brevo when Resend fails during signup', async () => {
-            // Resend fails, Brevo succeeds
+        it('should fallback to Brevo SMTP when Resend fails during signup', async () => {
+            // Resend fails, Brevo SMTP succeeds
             mockResendEmails.send.mockResolvedValue({
                 error: new Error('Resend rate limited'),
                 data: null
             });
-            global.fetch.mockResolvedValue({
-                ok: true,
-                json: async () => ({ messageId: 'brevo-123' })
+            mockSendMail.mockResolvedValue({
+                messageId: 'brevo-123'
             });
 
             const result = await emailTemplate.sendSignupVerification(
@@ -87,7 +94,7 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
             );
 
             expect(result).toBe(true);
-            expect(global.fetch).toHaveBeenCalled();
+            expect(mockSendMail).toHaveBeenCalled();
         });
 
         it('should send approval notification after admin approves', async () => {
@@ -267,20 +274,19 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
     });
 
     describe('Error Recovery Integration', () => {
-        it('should handle Resend failure and fallback to Brevo in sequence', async () => {
+        it('should handle Resend failure and fallback to Brevo SMTP in sequence', async () => {
             // First email succeeds with Resend
             mockResendEmails.send.mockResolvedValueOnce({
                 error: null,
                 data: { id: 'email-123' }
             });
-            // Second email fails on Resend, succeeds on Brevo fallback
+            // Second email fails on Resend, succeeds on Brevo SMTP fallback
             mockResendEmails.send.mockResolvedValueOnce({
                 error: new Error('Rate limit exceeded'),
                 data: null
             });
-            global.fetch.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ messageId: 'brevo-msg' })
+            mockSendMail.mockResolvedValueOnce({
+                messageId: 'brevo-msg'
             });
 
             const result1 = await emailTemplate.sendSignupVerification(
@@ -299,12 +305,12 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
 
             expect(result1).toBe(true);
             expect(result2).toBe(true);
-            expect(global.fetch).toHaveBeenCalled();
+            expect(mockSendMail).toHaveBeenCalled();
         });
 
         it('should handle both provider failures gracefully', async () => {
             mockResendEmails.send.mockRejectedValue(new Error('Resend timeout'));
-            global.fetch.mockRejectedValue(new Error('Brevo timeout'));
+            mockSendMail.mockRejectedValue(new Error('Brevo SMTP timeout'));
 
             const result = await emailTemplate.sendSignupVerification(
                 'test@test.com',
@@ -316,7 +322,7 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
             expect(result).toBe(false);
         });
 
-        it('should handle various SendGrid-like error scenarios', async () => {
+        it('should handle various error scenarios with SMTP fallback', async () => {
             const errorScenarios = [
                 { error: new Error('Invalid API key'), shouldFallback: true },
                 { error: new Error('Network timeout'), shouldFallback: true },
@@ -325,12 +331,9 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
 
             for (const scenario of errorScenarios) {
                 jest.clearAllMocks();
-                global.fetch = jest.fn();
-                
                 mockResendEmails.send.mockRejectedValue(scenario.error);
-                global.fetch.mockResolvedValue({
-                    ok: true,
-                    json: async () => ({ messageId: 'brevo-msg' })
+                mockSendMail.mockResolvedValue({
+                    messageId: 'brevo-msg'
                 });
 
                 const result = await emailTemplate.sendSignupVerification(
@@ -445,14 +448,13 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
                 error: null,
                 data: { id: 'email-1' }
             });
-            // Second email: Resend fails, Brevo succeeds
+            // Second email: Resend fails, Brevo SMTP succeeds
             mockResendEmails.send.mockResolvedValueOnce({
                 error: new Error('Service unavailable'),
                 data: null
             });
-            global.fetch.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ messageId: 'brevo-1' })
+            mockSendMail.mockResolvedValueOnce({
+                messageId: 'brevo-1'
             });
             // Third email: Resend succeeds
             mockResendEmails.send.mockResolvedValueOnce({
@@ -467,7 +469,7 @@ describe('Email Template Integration Tests - Resend with Brevo Fallback', () => 
             expect(result1).toBe(true);
             expect(result2).toBe(true);
             expect(result3).toBe(true);
-            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(mockSendMail).toHaveBeenCalledTimes(1);
         });
     });
 });
