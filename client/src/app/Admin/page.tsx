@@ -6,24 +6,25 @@ import componentStyles from '../../styles/components.module.scss';
 import Header from '../../components/header';
 import Link from '../../components/Link';
 import Loading from '../../components/loading';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../function/VerificationCheck';
+import { useAuth } from '../../hooks/useAuth';
 
 const Admin: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);        
         }
-        else if (!userIsAdmin) {
+        else if (!isAdmin) {
             navigate.push('/');        
         }
         setIsLoading(false);
-    }, [userLoggedIn]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     return (
         <>

@@ -10,15 +10,14 @@ import InputFields from '../../../../components/Inputfield';
 import Datefield from '../../../../components/Datefield';
 import Selectdropdown from '../../../../components/Selectdropdown';
 import TextareaInput from '../../../../components/TextareaInput';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../../../function/VerificationCheck';
+import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { CreateClientRequest, CreateClientResponse } from '../../../../dto';
 
 const AddClient: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
     const [homes, setHomes] = useState<{value: number; label: string}[]>([]);
@@ -38,15 +37,18 @@ const AddClient: React.FC = () => {
     });
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        // Wait for auth to be ready before checking login status
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else {
             fetchHomes();
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const fetchHomes = async () => {
         try {

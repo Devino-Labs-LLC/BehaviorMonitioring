@@ -8,16 +8,14 @@ import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
 import Link from '../../../components/Link';
 import EmptyStatePrompt from '../../../components/EmptyStatePrompt';
-import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
+import { useAuth } from '../../../hooks/useAuth';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
 import type { GetAllClientsResponse, DeleteClientResponse, Client, ArchiveClientResponse } from '../../../dto';
 
 const ManageClients: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
-    const loggedInUser = GetLoggedInUser();
+    const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [statusMessage, setStatusMessage] = useState<React.ReactNode>('');
     const [clients, setClients] = useState<Client[]>([]);
@@ -26,15 +24,17 @@ const ManageClients: React.FC = () => {
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else {
             debounceAsync(fetchClients, 300)();
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     useEffect(() => {
         if (timerCount > 0) {
@@ -51,7 +51,7 @@ const ManageClients: React.FC = () => {
         setIsLoading(true);
         try {
             const response = await api<GetAllClientsResponse>('post', '/aba/getAllClientInfo', {
-                employeeUsername: loggedInUser
+                employeeUsername: username
             });
             
             if (response.statusCode === 200) {
@@ -79,7 +79,7 @@ const ManageClients: React.FC = () => {
         try {
             const response = await api<DeleteClientResponse>('post', '/admin/deleteClient', {
                 clientID: client.clientID,
-                employeeUsername: loggedInUser
+                employeeUsername: username
             });
             
             if (response.statusCode === 200) {
@@ -111,7 +111,7 @@ const ManageClients: React.FC = () => {
         try {
             const response = await api<ArchiveClientResponse>('post', '/admin/archiveClient', {
                 clientID: client.clientID,
-                employeeUsername: loggedInUser
+                employeeUsername: username
             });
             
             if (response.statusCode === 200) {
