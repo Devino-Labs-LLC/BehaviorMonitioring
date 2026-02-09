@@ -42,7 +42,7 @@ jobs:
       continue-on-error: true
     
     - name: Run unit tests only
-      run: npm test -- --testPathPattern=tests/unit --coverage --watchAll=false
+      run: npm test -- --testPathPatterns=tests/unit --coverage --watchAll=false
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
