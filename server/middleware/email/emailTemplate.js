@@ -82,16 +82,44 @@ async function sendEmailWithFallback(emailData) {
  * Send verification email to new signup users
  */
 async function sendSignupVerification(email, firstName, lastName, verificationToken) {
+    const verificationLink = `${process.env.ClientHost}/verify-email?token=${verificationToken}`;
+    
     const emailData = {
         to: email,
         from: { name: 'BMetrics', email: businessEmail },
         subject: 'BMetrics - Verify Your Account',
         html: `
-            <h1 style="font-size: 22px; font-family: Arial, sans-serif;">Hello ${firstName} ${lastName},</h1>
-            <p style="font-size: 16px; font-family: Arial, sans-serif;">Thank you for registering with BMetrics.</p>
-            <p style="font-size: 16px; font-family: Arial, sans-serif;">Your account has been created and is pending admin approval.</p>
-            <p style="font-size: 16px; font-family: Arial, sans-serif;">Once approved, you will receive a confirmation email and can begin using BMetrics.</p>
-            <p style="font-size: 16px; font-family: Arial, sans-serif;">If you did not create this account, please ignore this email.</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1 style="font-size: 24px; color: #333; margin-bottom: 20px;">Welcome to BMetrics, ${firstName}!</h1>
+                
+                <p style="font-size: 16px; color: #555; line-height: 1.6;">
+                    Thank you for registering with BMetrics. To complete your account setup, please verify your email address by clicking the button below:
+                </p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${verificationLink}" 
+                       style="background-color: #4F46E5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 16px; font-weight: 600;">
+                        Verify Email Address
+                    </a>
+                </div>
+                
+                <p style="font-size: 14px; color: #777; line-height: 1.6;">
+                    Or copy and paste this link into your browser:<br>
+                    <a href="${verificationLink}" style="color: #4F46E5; word-break: break-all;">${verificationLink}</a>
+                </p>
+                
+                <p style="font-size: 14px; color: #777; line-height: 1.6; margin-top: 30px;">
+                    <strong>Note:</strong> This link will expire in 24 hours for security reasons.
+                </p>
+                
+                <p style="font-size: 14px; color: #777; line-height: 1.6;">
+                    Once your email is verified, your account will be pending admin approval. You'll receive another email once approved.
+                </p>
+                
+                <p style="font-size: 14px; color: #999; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
+                    If you didn't create this account, please ignore this email or contact support if you have concerns.
+                </p>
+            </div>
         `
     };
 

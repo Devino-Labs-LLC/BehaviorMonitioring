@@ -27,7 +27,7 @@ async function employeeDataByUsername(uName) {
     try {
         const employee = await Employee.findOne({
             where: { username: uName },
-            attributes: ['employeeID', 'fName', 'lName', 'username', 'email', 'phone_number', 'role', 'account_status', 'companyID', 'companyName']
+            attributes: ['employeeID', 'fName', 'lName', 'username', 'email', 'phone_number', 'role', 'account_status', 'companyID', 'companyName', 'email_verified']
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
@@ -39,7 +39,7 @@ async function employeeDataById(uID) {
     try {
         const employee = await Employee.findOne({
             where: { employeeID: uID },
-            attributes: ['employeeID', 'fName', 'lName', 'username', 'email', 'phone_number', 'role', 'account_status', 'companyID', 'companyName']
+            attributes: ['employeeID', 'fName', 'lName', 'username', 'email', 'phone_number', 'role', 'account_status', 'companyID', 'companyName', 'email_verified']
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
