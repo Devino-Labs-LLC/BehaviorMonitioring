@@ -97,6 +97,12 @@ const AddClient: React.FC = () => {
         setStatusMessage('');
 
         try {
+            if (!username) {
+                setStatusMessage('Unable to identify the current user. Please log in again.');
+                setIsLoading(false);
+                return;
+            }
+
             // Find the home name from the homeID
             const selectedHome = homes.find(h => h.value === formData.homeID);
             const groupHomeName = selectedHome ? selectedHome.label : '';
