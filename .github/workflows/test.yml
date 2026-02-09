@@ -261,7 +261,7 @@ jobs:
     
     - name: Generate client coverage
       working-directory: ./client
-      run: npm test -- --testPathPattern=unit --coverage --watchAll=false
+      run: npm test -- --testPathPatterns=unit --coverage --watchAll=false
       continue-on-error: true
     
     - name: Generate server coverage
