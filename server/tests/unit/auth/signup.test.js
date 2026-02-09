@@ -13,6 +13,10 @@ jest.mock('../../../models/Employee');
 jest.mock('../../../models/CompanyData');
 jest.mock('../../../middleware/helpers/authLog');
 jest.mock('bcryptjs');
+jest.mock('../../../middleware/email/emailTemplate', () => ({
+    sendSignupVerification: jest.fn().mockResolvedValue(true),
+    sendNewSignupNotificationToAdmin: jest.fn().mockResolvedValue(true)
+}));
 
 describe('AuthController - signUpEmployee', () => {
     let app;
