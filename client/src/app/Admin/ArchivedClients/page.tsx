@@ -17,7 +17,7 @@ import type {
 
 const ArchivedClients: React.FC = () => {
     const navigate = useRouter();
-    const { isReady, isLoggedIn, isAdmin } = useAuth();
+    const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [archivedClients, setArchivedClients] = useState<ArchivedClient[]>([]);
     const [selectedClient, setSelectedClient] = useState<ArchivedClient | null>(null);
@@ -43,7 +43,9 @@ const ArchivedClients: React.FC = () => {
             setIsLoading(true);
             setError('');
             
-               const response: GetArchivedClientsResponse = await api('POST', '/api/admin/getArchivedClients', {});
+               const response: GetArchivedClientsResponse = await api('POST', '/admin/getArchivedClients', {
+                employeeUsername: username
+            });
             
             if (response.statusCode === 200) {
                 setArchivedClients(response.archivedClients);
@@ -76,8 +78,11 @@ const ArchivedClients: React.FC = () => {
 
             const response: UnarchiveClientResponse = await api(
                 'POST',
-                '/api/admin/unarchiveClient',
-                { clientID: selectedClient.clientID },
+                '/admin/unarchiveClient',
+                { 
+                    clientID: selectedClient.clientID,
+                    employeeUsername: username
+                },
             );
 
             if (response.statusCode === 200) {
@@ -107,8 +112,11 @@ const ArchivedClients: React.FC = () => {
 
             const response: DeleteArchivedClientResponse = await api(
                 'POST',
-                '/api/admin/deleteArchivedClient',
-                { clientID: selectedClient.clientID },
+                '/admin/deleteArchivedClient',
+                { 
+                    clientID: selectedClient.clientID,
+                    employeeUsername: username
+                },
             );
 
             if (response.statusCode === 200) {

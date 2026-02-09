@@ -22,12 +22,12 @@ class ABAController {
             let behaviorPlanDueDate = await formatDateString(await addDays(intakeDate, 90));
 
             if (!behaviorProvided) {
-                if (await abaQueries.abaAddClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                if (await abaQueries.abaAddClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                     return res.json({ statusCode: 200, clientAdded: true });
                 }
             } else {
                 behaviorPlanDueDate = await formatDateString(await addYears(intakeDate, 1));
-                if (await abaQueries.abaAddClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                if (await abaQueries.abaAddClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                     return res.json({ statusCode: 200, clientAdded: true });
                 }
             }
@@ -130,7 +130,7 @@ class ABAController {
                     const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
 
                     if (clientData) {
-                        if (!await abaQueries.abaAddBehaviorOrSkill(name, def, meas, cat, type, cID, clientData.fName + " " + clientData.lName, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                        if (!await abaQueries.abaAddBehaviorOrSkill(name, def, meas, cat, type, cID, clientData.fName + " " + clientData.lName, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                             failedBehaviors.push({ name, def, meas, cat, type, cID, clientName });
                         }
                     } else {
@@ -374,17 +374,17 @@ class ABAController {
 
                         switch (selectedMeasurementTypes[i]) {
                             case "Frequency":
-                                if (!await abaQueries.abaAddFrequencyBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], count[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                                if (!await abaQueries.abaAddFrequencyBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], count[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                                     addedSuccessfully = false;
                                 }
                                 break;    
                             case "Duration":
-                                if (!await abaQueries.abaAddDurationBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], duration[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                                if (!await abaQueries.abaAddDurationBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], duration[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                                     addedSuccessfully = false;
                                 }
                                 break;
                             case "Rate":
-                                if (!await abaQueries.abaAddRateBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], count[i], duration[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                                if (!await abaQueries.abaAddRateBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], count[i], duration[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                                     addedSuccessfully = false;
                                 }
                                 break; 
@@ -642,7 +642,7 @@ class ABAController {
             if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
                 const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
 
-                if (await abaQueries.abaAddSessionNoteData(cID, clientData.fName + " " + clientData.lName, await formatDateString(sessionDate), await formatTimeString(sessionTime), sessionNotes, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime() + " EST")) {
+                if (await abaQueries.abaAddSessionNoteData(cID, clientData.fName + " " + clientData.lName, await formatDateString(sessionDate), await formatTimeString(sessionTime), sessionNotes, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
                     return res.json({ statusCode: 201, behaviorAdded: true, serverMessage: 'All submission notes stored' });
                 }
                 return res.json({ statusCode: 400, behaviorAdded: false, serverMessage: 'Unable to store notes' });

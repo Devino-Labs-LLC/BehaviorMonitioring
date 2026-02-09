@@ -1,9 +1,9 @@
 export interface CreateHomeRequest {
-    homeName: string;
-    address: string;
+    name: string;
+    streetAddress: string;
     city: string;
     state: string;
-    zip: string;
+    zipCode: string;
     capacity: number;
-    companyID: number;
+    employeeUsername: string;
 }

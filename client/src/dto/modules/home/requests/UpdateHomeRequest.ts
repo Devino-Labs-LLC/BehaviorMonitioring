@@ -1,10 +1,10 @@
 export interface UpdateHomeRequest {
     homeID: number;
-    homeName: string;
-    address: string;
+    name: string;
+    streetAddress: string;
     city: string;
     state: string;
-    zip: string;
+    zipCode: string;
     capacity: number;
-    isActive: boolean;
+    employeeUsername: string;
 }

@@ -17,7 +17,7 @@ const EditHomeContent: React.FC = () => {
     const navigate = useRouter();
     const searchParams = useSearchParams();
     const homeID = searchParams.get('homeID');
-    const { isReady, isLoggedIn, isAdmin } = useAuth();
+    const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [statusMessage, setStatusMessage] = useState<string>('');
     
@@ -50,7 +50,14 @@ const EditHomeContent: React.FC = () => {
     const fetchHomeData = async () => {
         setIsLoading(true);
         try {
-            const response = await api<GetHomesResponse>('post', '/admin/getAllHomes', {});
+            if (!username) {
+                setStatusMessage('Unable to identify the current user. Please log in again.');
+                return;
+            }
+
+            const response = await api<GetHomesResponse>('post', '/admin/getAllHomes', {
+                employeeUsername: username
+            });
             if ((response as any).statusCode === 200) {
                 const home = response.homes.find(h => h.homeID === parseInt(homeID!));
                 if (home) {
@@ -104,21 +111,27 @@ const EditHomeContent: React.FC = () => {
         setIsLoading(true);
         setStatusMessage('');
 
-        try {
-            const requestData: UpdateHomeRequest = {
-                homeID: formData.homeID,
-                homeName: formData.homeName.trim(),
-                address: formData.address.trim(),
-                city: formData.city.trim(),
-                state: formData.state.trim(),
-                zip: formData.zip.trim(),
-                capacity: parseInt(formData.capacity),
-                isActive: formData.isActive
-            };
+        if (!username) {
+            setStatusMessage('Unable to identify the current user. Please log in again.');
+            setIsLoading(false);
+            return;
+        }
 
-            const response = await api<UpdateHomeResponse>('post', '/admin/updateHome', requestData);
+        try {
+                const requestData = {
+                    homeID: formData.homeID,
+                    name: formData.homeName.trim(),
+                    streetAddress: formData.address.trim(),
+                    city: formData.city.trim(),
+                    state: formData.state.trim(),
+                    zipCode: formData.zip.trim(),
+                    capacity: parseInt(formData.capacity),
+                    employeeUsername: username
+                };
+
+            const response = await api<UpdateHomeResponse>('post', '/admin/updateAHome', requestData);
             
-            if ((response as any).statusCode === 200) {
+                if ((response as any).statusCode === 201) {
                 setStatusMessage('Home updated successfully!');
                 setTimeout(() => navigate.push('/Admin/manageHomes'), 2000);
             } else {

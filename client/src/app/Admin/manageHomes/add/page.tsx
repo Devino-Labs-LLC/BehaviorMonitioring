@@ -14,7 +14,7 @@ import type { CreateHomeRequest, CreateHomeResponse } from '../../../../dto';
 
 const AddHome: React.FC = () => {
     const navigate = useRouter();
-    const { isReady, isLoggedIn, isAdmin } = useAuth();
+    const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
     
@@ -66,20 +66,26 @@ const AddHome: React.FC = () => {
         setIsLoading(true);
         setStatusMessage('');
 
+        if (!username) {
+            setStatusMessage('Unable to identify the current user. Please log in again.');
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const requestData: CreateHomeRequest = {
-                homeName: formData.homeName.trim(),
-                address: formData.address.trim(),
+            const requestData = {
+                name: formData.homeName.trim(),
+                streetAddress: formData.address.trim(),
                 city: formData.city.trim(),
                 state: formData.state.trim(),
-                zip: formData.zip.trim(),
+                zipCode: formData.zip.trim(),
                 capacity: parseInt(formData.capacity),
-                companyID: formData.companyID
+                employeeUsername: username
             };
 
-            const response = await api<CreateHomeResponse>('post', '/admin/createHome', requestData);
+            const response = await api<CreateHomeResponse>('post', '/admin/addNewHome', requestData);
             
-            if ((response as any).statusCode === 200) {
+            if ((response as any).statusCode === 201) {
                 setStatusMessage('Home created successfully!');
                 setTimeout(() => navigate.push('/Admin/manageHomes'), 2000);
             } else {

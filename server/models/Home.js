@@ -25,6 +25,16 @@ Home.init({
   zip_code: {
     type: DataTypes.STRING(10)
   },
+  capacity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+  current_occupancy: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
   entered_by: {
     type: DataTypes.STRING(100)
   },

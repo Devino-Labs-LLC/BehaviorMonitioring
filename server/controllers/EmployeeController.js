@@ -102,7 +102,7 @@ class EmployeeController {
                             duration, 
                             employeeData.fName + " " + employeeData.lName, 
                             await formatDateString(await currentDateTime.getCurrentDate()), 
-                            await currentDateTime.getCurrentTime() + " EST"
+                            await currentDateTime.getCurrentTime()
                         )) {
                             return res.json({ statusCode: 200, behaviorAdded: true });
                         }
@@ -119,7 +119,7 @@ class EmployeeController {
                         count, 
                         employeeData.fName + " " + employeeData.lName, 
                         await formatDateString(await currentDateTime.getCurrentDate()), 
-                        await currentDateTime.getCurrentTime() + " EST"
+                        await currentDateTime.getCurrentTime()
                     )) {
                         return res.json({ statusCode: 200, behaviorAdded: true });
                     }
@@ -137,7 +137,7 @@ class EmployeeController {
                         trial, 
                         employeeData.fName + " " + employeeData.lName, 
                         await formatDateString(await currentDateTime.getCurrentDate()), 
-                        await currentDateTime.getCurrentTime() + " EST"
+                        await currentDateTime.getCurrentTime()
                     )) {
                         return res.json({ statusCode: 200, behaviorAdded: true });
                     }

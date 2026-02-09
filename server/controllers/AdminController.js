@@ -38,7 +38,7 @@ class AdminController {
                 employeeData.companyID,
                 employeeData.companyName,
                 await formatDateString(await currentDateTime.getCurrentDate()), 
-                await currentDateTime.getCurrentTime() + " EST"
+                await currentDateTime.getCurrentTime()
             )) {
                 // Send appropriate verification email based on role
                 if (role.toLowerCase() === 'root' || role.toLowerCase() === 'admin') {
@@ -152,18 +152,21 @@ class AdminController {
             const city = req.body.city;
             const state = req.body.state;
             const zipCode = req.body.zipCode;
+            const capacity = req.body.capacity;
 
             if (await adminQueries.adminAddNewHome(
                 name, 
                 streetAddress, 
                 city, 
                 state, 
-                zipCode, 
+                zipCode,
+                capacity,
+                0,
                 employeeData.fName + " " + employeeData.lName,
                 employeeData.companyID,
                 employeeData.companyName,
                 await formatDateString(await currentDateTime.getCurrentDate()), 
-                await currentDateTime.getCurrentTime() + " EST"
+                await currentDateTime.getCurrentTime()
             )) {
                 return res.json({ statusCode: 201, serverMessage: 'New home added' });
             }
@@ -206,8 +209,9 @@ class AdminController {
             const city = req.body.city;
             const state = req.body.state;
             const zipCode = req.body.zipCode;
+            const capacity = req.body.capacity;
 
-            if (await adminQueries.adminUpdateHomeByID(name, streetAddress, city, state, zipCode, hID, employeeData.companyID)) {
+            if (await adminQueries.adminUpdateHomeByID(name, streetAddress, city, state, zipCode, capacity, hID, employeeData.companyID)) {
                 return res.json({ statusCode: 201, serverMessage: 'Home has been updated' });
             }
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred' });
@@ -276,8 +280,8 @@ class AdminController {
                 state: home.state,
                 zip: home.zip_code,
                 zip_code: home.zip_code, // Keep both for compatibility
-                capacity: 0, // Default value - update if column exists
-                currentOccupancy: 0, // Default value - update if column exists
+                capacity: home.capacity ?? 0,
+                currentOccupancy: home.current_occupancy ?? 0,
                 companyID: home.companyID,
                 companyName: home.companyName,
                 dateCreated: home.date_entered,
@@ -320,7 +324,7 @@ class AdminController {
                 employeeData.companyID,
                 employeeData.companyName,
                 await formatDateString(await currentDateTime.getCurrentDate()),
-                await currentDateTime.getCurrentTime() + " EST"
+                await currentDateTime.getCurrentTime()
             );
 
             return res.json({ 

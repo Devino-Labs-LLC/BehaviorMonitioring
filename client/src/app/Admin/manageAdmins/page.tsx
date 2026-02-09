@@ -78,7 +78,7 @@ const ManageAdmins: React.FC = () => {
                 employeeUsername: loggedInUser
             });
             
-            if (response.statusCode === 200) {
+            if (response.statusCode === 201) {
                 setStatusMessage(`Admin "${admin.username}" has been deleted successfully.`);
                 setTimerCount(3);
                 setClearMessageStatus(true);

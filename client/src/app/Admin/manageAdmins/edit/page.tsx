@@ -55,7 +55,9 @@ function EditClientContent() {
     const fetchAdminData = async () => {
         setIsLoading(true);
         try {
-            const response = await api<GetAdminsResponse>('post', '/admin/getAllAdmins', {});
+            const response = await api<GetAdminsResponse>('post', '/admin/getAllAdmins', {
+                employeeUsername: GetLoggedInUser()
+            });
             if (response.statusCode === 200) {
                 const admin = response.admins.find(a => a.adminID === parseInt(clientID!));
                 if (admin) {

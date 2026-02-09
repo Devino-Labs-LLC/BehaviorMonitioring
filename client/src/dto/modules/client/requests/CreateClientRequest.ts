@@ -1,13 +1,10 @@
 export type CreateClientRequest = {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  homeID: number;
-  guardianName?: string;
-  guardianPhone?: string;
-  guardianEmail?: string;
-  allergies?: string;
-  medications?: string;
-  notes?: string;
-  companyID: number;
+  fName: string;
+  lName: string;
+  DOB: string;
+  intakeDate: string;
+  groupHomeName: string;
+  medicaidIdNumber: string;
+  behaviorPlanDueDate: string;
+  employeeUsername: string;
 };

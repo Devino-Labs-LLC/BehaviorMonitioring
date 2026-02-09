@@ -13,7 +13,7 @@ import type { GetHomesResponse, DeleteHomeResponse } from '../../../dto';
 
 const ManageHomes: React.FC = () => {
     const navigate = useRouter();
-    const { isReady, isLoggedIn, isAdmin } = useAuth();
+    const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [homes, setHomes] = useState<any[]>([]);
     const [statusMessage, setStatusMessage] = useState<string>('');
@@ -34,7 +34,14 @@ const ManageHomes: React.FC = () => {
     const fetchHomes = async () => {
         setIsLoading(true);
         try {
-            const response = await api<GetHomesResponse>('post', '/admin/getAllHomes', {});
+            if (!username) {
+                setStatusMessage('Unable to identify the current user. Please log in again.');
+                return;
+            }
+
+            const response = await api<GetHomesResponse>('post', '/admin/getAllHomes', {
+                employeeUsername: username
+            });
             if ((response as any).statusCode === 200) {
                 setHomes(response.homes || []);
             } else {
@@ -55,7 +62,16 @@ const ManageHomes: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await api<DeleteHomeResponse>('post', '/admin/deleteHome', { homeID });
+            if (!username) {
+                setStatusMessage('Unable to identify the current user. Please log in again.');
+                setTimeout(() => setStatusMessage(''), 3000);
+                return;
+            }
+
+            const response = await api<DeleteHomeResponse>('post', '/admin/deleteHome', {
+                homeID,
+                employeeUsername: username
+            });
             if ((response as any).statusCode === 200) {
                 setStatusMessage('Home deleted successfully');
                 setTimeout(() => setStatusMessage(''), 3000);

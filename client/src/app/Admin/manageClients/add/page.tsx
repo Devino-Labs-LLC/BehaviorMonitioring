@@ -17,7 +17,7 @@ import type { CreateClientRequest, CreateClientResponse } from '../../../../dto'
 
 const AddClient: React.FC = () => {
     const navigate = useRouter();
-    const { isReady, isLoggedIn, isAdmin } = useAuth();
+    const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
     const [homes, setHomes] = useState<{value: number; label: string}[]>([]);
@@ -27,6 +27,9 @@ const AddClient: React.FC = () => {
         lastName: '',
         dateOfBirth: '',
         homeID: 0,
+        intakeDate: '',
+        medicaidIdNumber: '',
+        behaviorPlanDueDate: '',
         guardianName: '',
         guardianPhone: '',
         guardianEmail: '',
@@ -77,6 +80,9 @@ const AddClient: React.FC = () => {
         if (!formData.lastName.trim()) return 'Last name is required';
         if (!formData.dateOfBirth) return 'Date of birth is required';
         if (!formData.homeID || formData.homeID === 0) return 'Please select a home';
+        if (!formData.intakeDate) return 'Intake date is required';
+        if (!formData.medicaidIdNumber.trim()) return 'Medicaid ID is required';
+        if (!formData.behaviorPlanDueDate) return 'Behavior plan due date is required';
         return null;
     };
 
@@ -91,23 +97,24 @@ const AddClient: React.FC = () => {
         setStatusMessage('');
 
         try {
+            // Find the home name from the homeID
+            const selectedHome = homes.find(h => h.value === formData.homeID);
+            const groupHomeName = selectedHome ? selectedHome.label : '';
+
             const requestData: CreateClientRequest = {
-                firstName: formData.firstName.trim(),
-                lastName: formData.lastName.trim(),
-                dateOfBirth: formData.dateOfBirth,
-                homeID: formData.homeID,
-                guardianName: formData.guardianName.trim() || undefined,
-                guardianPhone: formData.guardianPhone.trim() || undefined,
-                guardianEmail: formData.guardianEmail.trim() || undefined,
-                allergies: formData.allergies.trim() || undefined,
-                medications: formData.medications.trim() || undefined,
-                notes: formData.notes.trim() || undefined,
-                companyID: formData.companyID
+                fName: formData.firstName.trim(),
+                lName: formData.lastName.trim(),
+                DOB: formData.dateOfBirth,
+                intakeDate: formData.intakeDate,
+                groupHomeName: groupHomeName,
+                medicaidIdNumber: formData.medicaidIdNumber.trim(),
+                behaviorPlanDueDate: formData.behaviorPlanDueDate,
+                employeeUsername: username
             };
 
             const response = await api<CreateClientResponse>('post', '/admin/createClient', requestData);
             
-            if (response.statusCode === 200) {
+            if (response.statusCode === 201) {
                 setStatusMessage('Client created successfully!');
                 setTimeout(() => navigate.push('/Admin/manageClients'), 2000);
             } else {
@@ -171,6 +178,29 @@ const AddClient: React.FC = () => {
                                     value={formData.homeID}
                                     onChange={(e) => handleInputChange('homeID', parseInt(e.target.value))}
                                     requiring={true}
+                                />
+                                
+                                <Datefield
+                                    name="intakeDate"
+                                    requiring={true}
+                                    value={formData.intakeDate}
+                                    onChange={(e) => handleInputChange('intakeDate', e.target.value)}
+                                />
+                                
+                                <InputFields
+                                    name="medicaidIdNumber"
+                                    type="text"
+                                    placeholder="Medicaid ID Number"
+                                    requiring={true}
+                                    value={formData.medicaidIdNumber}
+                                    onChange={(e) => handleInputChange('medicaidIdNumber', e.target.value)}
+                                />
+                                
+                                <Datefield
+                                    name="behaviorPlanDueDate"
+                                    requiring={true}
+                                    value={formData.behaviorPlanDueDate}
+                                    onChange={(e) => handleInputChange('behaviorPlanDueDate', e.target.value)}
                                 />
                                 
                                 <h2 className={componentStyles.sectionHeader}>Guardian Information</h2>

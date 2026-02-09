@@ -157,7 +157,7 @@ async function adminGetAllHomes(compID) {
     try {
         const homes = await Home.findAll({
             where: { companyID: compID },
-            attributes: ['homeID', 'name', 'street_address', 'city', 'state', 'zip_code', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered'],
+            attributes: ['homeID', 'name', 'street_address', 'city', 'state', 'zip_code', 'capacity', 'current_occupancy', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered'],
             order: [['name', 'ASC']]
         });
         return homes.map(home => home.get({ plain: true }));
@@ -192,7 +192,7 @@ async function homeDataByName(name, compID) {
     try {
         const home = await Home.findOne({
             where: { name, companyID: compID },
-            attributes: ['homeID', 'name', 'street_address', 'city', 'state', 'zip_code', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered']
+            attributes: ['homeID', 'name', 'street_address', 'city', 'state', 'zip_code', 'capacity', 'current_occupancy', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered']
         });
         return home ? home.get({ plain: true }) : null;
     } catch (err) {
@@ -204,7 +204,7 @@ async function homeDataById(hID, compID) {
     try {
         const home = await Home.findOne({
             where: { homeID: hID, companyID: compID },
-            attributes: ['homeID', 'name', 'street_address', 'city', 'state', 'zip_code', 'entered_by', 'date_entered', 'companyID', 'companyName', 'time_entered']
+            attributes: ['homeID', 'name', 'street_address', 'city', 'state', 'zip_code', 'capacity', 'current_occupancy', 'entered_by', 'date_entered', 'companyID', 'companyName', 'time_entered']
         });
         return home ? home.get({ plain: true }) : null;
     } catch (err) {
@@ -212,14 +212,16 @@ async function homeDataById(hID, compID) {
     }
 }
 
-async function adminAddNewHome(name, streetAddress, city, state, zipCode, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function adminAddNewHome(name, streetAddress, city, state, zipCode, capacity, currentOccupancy, enteredBy, compID, compName, dateEntered, timeEntered) {
     try {
         await Home.create({
             name, 
             street_address: streetAddress, 
             city, 
             state, 
-            zip_code: zipCode, 
+            zip_code: zipCode,
+            capacity,
+            current_occupancy: currentOccupancy,
             entered_by: enteredBy, 
             companyID: compID, 
             companyName: compName, 
@@ -266,10 +268,10 @@ async function adminUpdateHomeByName(name, streetAddress, city, state, zipCode, 
     }
 }
 
-async function adminUpdateHomeByID(name, streetAddress, city, state, zipCode, hID, compID) {
+async function adminUpdateHomeByID(name, streetAddress, city, state, zipCode, capacity, hID, compID) {
     try {
         const [rowsUpdated] = await Home.update(
-            { name, street_address: streetAddress, city, state, zip_code: zipCode },
+            { name, street_address: streetAddress, city, state, zip_code: zipCode, capacity },
             { where: { homeID: hID, companyID: compID } }
         );
         return rowsUpdated > 0;
