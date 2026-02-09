@@ -648,70 +648,6 @@
         }
     }
 
-    .popoutMenu {
-        position: absolute;
-        background-color: $color6;
-        border: 1px solid $border-light;
-        box-shadow: $shadow-md;
-        border-radius: $radius-sm;
-        z-index: 1000;
-        padding: 10px;
-        min-width: 170px;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .popoutMenu ul {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .popoutMenu li {
-        padding: 10px 12px;
-        border-radius: 10px;
-        cursor: pointer;
-        white-space: nowrap;
-        color: $font-color;
-
-        &:hover {
-            background-color: rgba(59, 130, 246, 0.10);
-            color: $font-color;
-        }
-    }
-
-    .popupOverlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    }
-
-    .popupContent {
-        background: $color6;
-        padding: 20px;
-        border-radius: $radius-md;
-        width: min(420px, 92vw);
-        box-shadow: $shadow-md;
-        border: 1px solid $border-light;
-    }
-
-    .popupDropdown {
-        width: 100%;
-        margin-bottom: 20px;
-    }
-
-    .popupActions {
-        display: flex;
-        justify-content: space-between;
-    }
-
     .innerForm {
         clear: both;
         background-color: $color3;
@@ -2017,6 +1953,98 @@
             }
         }
     }
+}
+
+/* Popout/Popup Menu & Modal Styles (Top-level for use anywhere) */
+.popoutMenu {
+    position: absolute;
+    background-color: $color6;
+    border: 1px solid $border-light;
+    box-shadow: $shadow-md;
+    border-radius: $radius-sm;
+    z-index: 1000;
+    padding: 10px;
+    min-width: 170px;
+    display: flex;
+    flex-direction: column;
+
+    ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    li {
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        white-space: nowrap;
+        color: $font-color;
+
+        &:hover {
+            background-color: rgba(59, 130, 246, 0.10);
+            color: $font-color;
+        }
+    }
+}
+
+.popupOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001; // Higher than header to ensure it overlays everything
+}
+
+.popupContent {
+    background: $color6;
+    padding: 2em;
+    border-radius: $radius-md;
+    width: min(420px, 92vw);
+    box-shadow: $shadow-md;
+    border: 1px solid $border-light;
+    
+    h2 {
+        color: $font-color;
+        margin-top: 0;
+        margin-bottom: 0.5em;
+        font-size: 1.5em;
+    }
+    
+    p {
+        color: $font-color;
+        margin: 1em 0;
+        line-height: 1.6;
+    }
+    
+    button {
+        @extend %buttonPrimary;
+        padding: 0.75em 1.5em;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        
+        &:hover {
+            @extend %buttonPrimaryHover;
+        }
+    }
+}
+
+.popupDropdown {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.popupActions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1em;
+    margin-top: 1.5em;
 }
 
 /* Email Verification Page Styles */
