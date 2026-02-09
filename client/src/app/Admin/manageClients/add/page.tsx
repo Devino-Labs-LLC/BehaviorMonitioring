@@ -236,7 +236,7 @@ const AddClient: React.FC = () => {
                                     placeholder='Create Client' 
                                     btnType='submit' 
                                     isLoading={isLoading}
-                                    onClick={(e) => { e.preventDefault(); }}
+                                    onClick={() => {}}
                                 />
                                 
                                 <p className={componentStyles.statusMessage}>{statusMessage}</p>

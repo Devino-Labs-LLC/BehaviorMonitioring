@@ -288,7 +288,7 @@ const EditClientContent: React.FC = () => {
                                     placeholder='Update Client' 
                                     btnType='submit' 
                                     isLoading={isLoading}
-                                    onClick={(e) => { e.preventDefault(); }}
+                                    onClick={() => {}}
                                 />
                                 
                                 <p className={componentStyles.statusMessage}>{statusMessage}</p>

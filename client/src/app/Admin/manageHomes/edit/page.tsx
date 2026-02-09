@@ -221,7 +221,7 @@ const EditHomeContent: React.FC = () => {
                                     placeholder='Update Home' 
                                     btnType='submit' 
                                     isLoading={isLoading}
-                                    onClick={(e) => { e.preventDefault(); }}
+                                    onClick={() => {}}
                                 />
                                 
                                 <p className={componentStyles.statusMessage}>{statusMessage}</p>

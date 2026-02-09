@@ -216,7 +216,7 @@ function EditClientContent() {
                                     placeholder='Update Admin' 
                                     btnType='submit' 
                                     isLoading={isLoading}
-                                    onClick={(e) => { e.preventDefault(); }}
+                                    onClick={() => {}}
                                 />
                                 
                                 <p className={componentStyles.statusMessage}>{statusMessage}</p>
