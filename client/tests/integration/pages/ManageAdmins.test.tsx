@@ -4,11 +4,21 @@ import userEvent from '@testing-library/user-event';
 import ManageAdmins from '../../../src/app/Admin/manageAdmins/page';
 import { api } from '../../../src/lib/Api';
 
-jest.mock('../../../src/lib/Api');
+jest.mock('../../../src/lib/Api', () => ({
+  api: jest.fn(),
+}));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUserStatus: () => true,
   GetAdminStatus: () => true,
   GetLoggedInUser: () => 'testuser',
+}));
+jest.mock('../../../src/hooks/useAuth', () => ({
+  useAuth: () => ({
+    isReady: true,
+    isLoggedIn: true,
+    isAdmin: true,
+    username: 'testuser',
+  }),
 }));
 
 const mockApi = api as jest.MockedFunction<typeof api>;
@@ -42,10 +52,12 @@ describe('ManageAdmins Page Integration', () => {
       },
     ];
 
-    mockApi.mockResolvedValueOnce({
-      statusCode: 200,
-      admins: mockAdmins,
-    } as any);
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        admins: mockAdmins,
+      } as any)
+    );
 
     render(<ManageAdmins />);
 

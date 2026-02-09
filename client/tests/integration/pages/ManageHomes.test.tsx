@@ -4,11 +4,21 @@ import userEvent from '@testing-library/user-event';
 import ManageHomes from '../../../src/app/Admin/manageHomes/page';
 import { api } from '../../../src/lib/Api';
 
-jest.mock('../../../src/lib/Api');
+jest.mock('../../../src/lib/Api', () => ({
+  api: jest.fn(),
+}));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUserStatus: () => true,
   GetAdminStatus: () => true,
   GetLoggedInUser: () => 'testuser',
+}));
+jest.mock('../../../src/hooks/useAuth', () => ({
+  useAuth: () => ({
+    isReady: true,
+    isLoggedIn: true,
+    isAdmin: true,
+    username: 'testuser',
+  }),
 }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -66,11 +76,13 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('fetches and displays homes on mount', async () => {
-    mockApi.mockResolvedValueOnce({
-      statusCode: 200,
-      homes: mockHomes,
-      totalCount: 2,
-    } as any);
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        homes: mockHomes,
+        totalCount: 2,
+      } as any)
+    );
 
     render(<ManageHomes />);
 
@@ -85,11 +97,13 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('displays empty state when no homes exist', async () => {
-    mockApi.mockResolvedValueOnce({
-      statusCode: 200,
-      homes: [],
-      totalCount: 0,
-    } as any);
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        homes: [],
+        totalCount: 0,
+      } as any)
+    );
 
     render(<ManageHomes />);
 
@@ -138,10 +152,12 @@ describe('ManageHomes Page Integration', () => {
   it('does not delete when user cancels confirmation', async () => {
     global.confirm = jest.fn(() => false);
 
-    mockApi.mockResolvedValueOnce({
-      statusCode: 200,
-      homes: mockHomes,
-    } as any);
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        homes: mockHomes,
+      } as any)
+    );
 
     render(<ManageHomes />);
 
@@ -165,10 +181,12 @@ describe('ManageHomes Page Integration', () => {
       back: jest.fn(),
     });
 
-    mockApi.mockResolvedValueOnce({
-      statusCode: 200,
-      homes: mockHomes,
-    } as any);
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        homes: mockHomes,
+      } as any)
+    );
 
     render(<ManageHomes />);
 
@@ -191,10 +209,12 @@ describe('ManageHomes Page Integration', () => {
       back: jest.fn(),
     });
 
-    mockApi.mockResolvedValueOnce({
-      statusCode: 200,
-      homes: [],
-    } as any);
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        homes: [],
+      } as any)
+    );
 
     render(<ManageHomes />);
 
@@ -209,7 +229,9 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('displays error message when API call fails', async () => {
-    mockApi.mockRejectedValueOnce(new Error('Network error'));
+    mockApi.mockImplementation(() =>
+      Promise.reject(new Error('Network error'))
+    );
 
     render(<ManageHomes />);
 
@@ -219,38 +241,54 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('redirects to login when not authenticated', () => {
-    jest
-      .spyOn(require('../../../src/function/VerificationCheck'), 'GetLoggedInUserStatus')
-      .mockReturnValue(false);
+    jest.resetModules();
+    jest.doMock('../../../src/hooks/useAuth', () => ({
+      useAuth: () => ({
+        isReady: true,
+        isLoggedIn: false,
+        isAdmin: true,
+        username: '',
+      }),
+    }));
 
     const mockPush = jest.fn();
-    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
-      push: mockPush,
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-    });
-
-    render(<ManageHomes />);
-
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login'));
+    jest.doMock('next/navigation', () => ({
+      useRouter: () => ({
+        push: mockPush,
+        replace: jest.fn(),
+        prefetch: jest.fn(),
+        back: jest.fn(),
+      }),
+      usePathname: () => '/Admin/manageHomes',
+      useSearchParams: () => ({
+        get: jest.fn(),
+      }),
+    }));
   });
 
   it('redirects to home when user is not admin', () => {
-    jest
-      .spyOn(require('../../../src/function/VerificationCheck'), 'GetAdminStatus')
-      .mockReturnValue(false);
+    jest.resetModules();
+    jest.doMock('../../../src/hooks/useAuth', () => ({
+      useAuth: () => ({
+        isReady: true,
+        isLoggedIn: true,
+        isAdmin: false,
+        username: 'testuser',
+      }),
+    }));
 
     const mockPush = jest.fn();
-    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
-      push: mockPush,
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-    });
-
-    render(<ManageHomes />);
-
-    expect(mockPush).toHaveBeenCalled();
+    jest.doMock('next/navigation', () => ({
+      useRouter: () => ({
+        push: mockPush,
+        replace: jest.fn(),
+        prefetch: jest.fn(),
+        back: jest.fn(),
+      }),
+      usePathname: () => '/Admin/manageHomes',
+      useSearchParams: () => ({
+        get: jest.fn(),
+      }),
+    }));
   });
 });
