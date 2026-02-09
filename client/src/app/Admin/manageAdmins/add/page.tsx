@@ -8,15 +8,15 @@ import Loading from '../../../../components/loading';
 import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
 import Selectdropdown from '../../../../components/Selectdropdown';
-import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../../function/VerificationCheck';
+import { GetLoggedInUser } from '../../../../function/VerificationCheck';
+import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { CreateAdminRequest, CreateAdminResponse } from '../../../../dto';
 
 const AddAdmin: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const loggedInUser = GetLoggedInUser();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
@@ -30,13 +30,14 @@ const AddAdmin: React.FC = () => {
     });
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));

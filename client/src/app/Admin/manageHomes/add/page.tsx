@@ -7,15 +7,14 @@ import Header from '../../../../components/header';
 import Loading from '../../../../components/loading';
 import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../../../function/VerificationCheck';
+import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { CreateHomeRequest, CreateHomeResponse } from '../../../../dto';
 
 const AddHome: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
     
@@ -30,13 +29,15 @@ const AddHome: React.FC = () => {
     });
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));

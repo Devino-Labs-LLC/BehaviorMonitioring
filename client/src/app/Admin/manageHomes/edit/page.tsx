@@ -8,7 +8,7 @@ import Loading from '../../../../components/loading';
 import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
 import Checkbox from '../../../../components/Checkbox';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../../../function/VerificationCheck';
+import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { UpdateHomeRequest, UpdateHomeResponse, GetHomesResponse } from '../../../../dto';
@@ -17,8 +17,7 @@ const EditHomeContent: React.FC = () => {
     const navigate = useRouter();
     const searchParams = useSearchParams();
     const homeID = searchParams.get('homeID');
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [statusMessage, setStatusMessage] = useState<string>('');
     
@@ -34,17 +33,19 @@ const EditHomeContent: React.FC = () => {
     });
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else if (homeID) {
             fetchHomeData();
         } else {
             navigate.push('/Admin/manageHomes');
         }
-    }, [userLoggedIn, userIsAdmin, homeID]);
+    }, [isReady, isLoggedIn, isAdmin, homeID, navigate]);
 
     const fetchHomeData = async () => {
         setIsLoading(true);

@@ -6,29 +6,30 @@ import componentStyles from '../../../styles/components.module.scss';
 import Header from '../../../components/header';
 import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../../function/VerificationCheck';
+import { useAuth } from '../../../hooks/useAuth';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
 import type { GetHomesResponse, DeleteHomeResponse } from '../../../dto';
 
 const ManageHomes: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [homes, setHomes] = useState<any[]>([]);
     const [statusMessage, setStatusMessage] = useState<string>('');
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else {
             fetchHomes();
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const fetchHomes = async () => {
         setIsLoading(true);

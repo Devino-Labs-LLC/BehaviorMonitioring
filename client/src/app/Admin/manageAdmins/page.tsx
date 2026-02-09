@@ -7,15 +7,15 @@ import Header from '../../../components/header';
 import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
 import Link from '../../../components/Link';
-import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
+import { GetLoggedInUser } from '../../../function/VerificationCheck';
+import { useAuth } from '../../../hooks/useAuth';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
 import type { GetAdminsResponse, DeleteAdminResponse, AdminEmployee } from '../../../dto';
 
 const ManageAdmins: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const loggedInUser = GetLoggedInUser();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [statusMessage, setStatusMessage] = useState<React.ReactNode>('');
@@ -24,15 +24,16 @@ const ManageAdmins: React.FC = () => {
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else {
             debounceAsync(fetchAdmins, 300)();
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     useEffect(() => {
         if (timerCount > 0) {

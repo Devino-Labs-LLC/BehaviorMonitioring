@@ -8,7 +8,8 @@ import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
 import Selectdropdown from '../../../../components/Selectdropdown';
 import Checkbox from '../../../../components/Checkbox';
-import { GetLoggedInUserStatus, GetAdminStatus, GetLoggedInUser } from '../../../../function/VerificationCheck';
+import { GetLoggedInUser } from '../../../../function/VerificationCheck';
+import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { UpdateAdminRequest, UpdateAdminResponse, GetAdminsResponse } from '../../../../dto';
@@ -17,8 +18,7 @@ function EditClientContent() {
     const navigate = useRouter();
     const searchParams = useSearchParams();
     const clientID = searchParams.get('clientID');
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [statusMessage, setStatusMessage] = useState<string>('');
     
@@ -39,17 +39,18 @@ function EditClientContent() {
     ];
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else if (clientID) {
             fetchAdminData();
         } else {
             navigate.push('/Admin/manageAdmins');
         }
-    }, [userLoggedIn, userIsAdmin, clientID]);
+    }, [isReady, isLoggedIn, isAdmin, clientID, navigate]);
 
     const fetchAdminData = async () => {
         setIsLoading(true);

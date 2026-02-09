@@ -6,7 +6,7 @@ import componentStyles from '../../../styles/components.module.scss';
 import Header from '../../../components/header';
 import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
-import { GetLoggedInUserStatus, GetAdminStatus } from '../../../function/VerificationCheck';
+import { useAuth } from '../../../hooks/useAuth';
 import { api } from '../../../lib/Api';
 import type { 
     ArchivedClient, 
@@ -17,8 +17,7 @@ import type {
 
 const ArchivedClients: React.FC = () => {
     const navigate = useRouter();
-    const userLoggedIn = GetLoggedInUserStatus();
-    const userIsAdmin = GetAdminStatus();
+    const { isReady, isLoggedIn, isAdmin } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [archivedClients, setArchivedClients] = useState<ArchivedClient[]>([]);
     const [selectedClient, setSelectedClient] = useState<ArchivedClient | null>(null);
@@ -28,15 +27,16 @@ const ArchivedClients: React.FC = () => {
     const [success, setSuccess] = useState<string>('');
 
     useEffect(() => {
-        if (!userLoggedIn) {
+        if (!isReady) return;
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!userIsAdmin) {
+        } else if (!isAdmin) {
             navigate.push('/');
         } else {
             loadArchivedClients();
         }
-    }, [userLoggedIn, userIsAdmin]);
+    }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const loadArchivedClients = async () => {
         try {
