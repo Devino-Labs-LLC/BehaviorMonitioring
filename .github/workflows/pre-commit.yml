@@ -31,11 +31,11 @@ jobs:
     
     - name: Run client unit tests
       working-directory: ./client
-      run: npm test -- --testPathPattern=tests/unit --watchAll=false
+      run: npm test -- --testPathPatterns=tests/unit --watchAll=false
     
     - name: Run server unit tests
       working-directory: ./server
-      run: npm test -- --testPathPattern=tests/unit --watchAll=false
+      run: npm test -- --testPathPatterns=tests/unit --watchAll=false
       env:
         NODE_ENV: test
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
