@@ -17,6 +17,7 @@ const Header: React.FC = () => {
     let phoneMenu = null;
     const [buttonLabel, setButtonLabel] = useState<string>('Login');
     const [links, setLinks] = useState<JSX.Element[]>([]);
+    const [mobileLinks, setMobileLinks] = useState<JSX.Element[]>([]);
     const [showMenu, setShowMenu] = useState<boolean>(false);
     
     useEffect(() => {
@@ -33,12 +34,22 @@ const Header: React.FC = () => {
                 userLinks.push(<li key="admin"><Link href='/Admin' hrefType='link' placeholder="Admin" /></li>);
             }
             setLinks(userLinks);
+            setMobileLinks([
+                ...userLinks,
+                <li key="logout"><Link href='/Logout' hrefType='link' placeholder="Logout" /></li>
+            ]);
         } else {
             setButtonLabel('Login');
-            setLinks([
+            const guestLinks = [
                 <li key="home"><Link href='/' hrefType='link' placeholder="Home"/></li>,
                 <li key="about"><Link href='/About' hrefType='link' placeholder="About us"/></li>,
                 <li key="contact"><Link href='/Contact' hrefType='link' placeholder="Contact us"/></li>
+            ];
+            setLinks(guestLinks);
+            setMobileLinks([
+                ...guestLinks,
+                <li key="login"><Link href='/Login' hrefType='link' placeholder="Login" /></li>,
+                <li key="signup"><Link href='/SignUp' hrefType='link' placeholder="Sign Up" /></li>
             ]);
         }
     }, [userIsLoggedIn]);
@@ -65,7 +76,7 @@ const Header: React.FC = () => {
         phoneMenu = 
         <nav className={componentStyles.mobileNav}>
             <ul>
-                {links}
+                {mobileLinks}
             </ul>
         </nav>
     }

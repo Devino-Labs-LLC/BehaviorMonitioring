@@ -179,7 +179,7 @@ const EditClientContent: React.FC = () => {
                             </div>
                             
                             <div className={componentStyles.innerForm}>
-                                <h2>Client Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Client Information</h2>
                                 
                                 <InputFields
                                     name="firstName"
@@ -214,7 +214,7 @@ const EditClientContent: React.FC = () => {
                                     requiring={true}
                                 />
                                 
-                                <h2>Guardian Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Guardian Information</h2>
                                 
                                 <InputFields
                                     name="guardianName"

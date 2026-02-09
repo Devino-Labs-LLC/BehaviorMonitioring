@@ -153,7 +153,7 @@ function EditClientContent() {
                             </div>
                             
                             <div className={componentStyles.innerForm}>
-                                <h2>Admin Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Admin Information</h2>
                                 
                                 <InputFields
                                     name="firstName"

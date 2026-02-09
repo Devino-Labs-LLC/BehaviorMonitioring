@@ -43,7 +43,7 @@ const ArchivedClients: React.FC = () => {
             setIsLoading(true);
             setError('');
             
-            const response: GetArchivedClientsResponse = await api('/api/admin/getArchivedClients', {}, 'POST');
+               const response: GetArchivedClientsResponse = await api('POST', '/api/admin/getArchivedClients', {});
             
             if (response.statusCode === 200) {
                 setArchivedClients(response.archivedClients);
@@ -75,9 +75,9 @@ const ArchivedClients: React.FC = () => {
             setSuccess('');
 
             const response: UnarchiveClientResponse = await api(
+                'POST',
                 '/api/admin/unarchiveClient',
                 { clientID: selectedClient.clientID },
-                'POST'
             );
 
             if (response.statusCode === 200) {
@@ -106,9 +106,9 @@ const ArchivedClients: React.FC = () => {
             setSuccess('');
 
             const response: DeleteArchivedClientResponse = await api(
+                'POST',
                 '/api/admin/deleteArchivedClient',
                 { clientID: selectedClient.clientID },
-                'POST'
             );
 
             if (response.statusCode === 200) {

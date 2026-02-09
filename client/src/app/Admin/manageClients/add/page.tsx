@@ -138,7 +138,7 @@ const AddClient: React.FC = () => {
                             </div>
                             
                             <div className={componentStyles.innerForm}>
-                                <h2>Client Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Client Information</h2>
                                 
                                 <InputFields
                                     name="firstName"
@@ -173,7 +173,7 @@ const AddClient: React.FC = () => {
                                     requiring={true}
                                 />
                                 
-                                <h2>Guardian Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Guardian Information</h2>
                                 
                                 <InputFields
                                     name="guardianName"
@@ -202,7 +202,7 @@ const AddClient: React.FC = () => {
                                     onChange={(e) => handleInputChange('guardianEmail', e.target.value)}
                                 />
                                 
-                                <h2>Medical & Additional Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Medical & Additional Information</h2>
                                 
                                 <TextareaInput
                                     name="allergies"

@@ -148,7 +148,7 @@ const EditHomeContent: React.FC = () => {
                             </div>
                             
                             <div className={componentStyles.innerForm}>
-                                <h2>Home Information</h2>
+                                <h2 className={componentStyles.sectionHeader}>Home Information</h2>
                                 
                                 <InputFields
                                     name="homeName"
