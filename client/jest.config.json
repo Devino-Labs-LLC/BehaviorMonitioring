@@ -10,6 +10,9 @@
     "<rootDir>/tests/**/*.test.{ts,tsx}",
     "<rootDir>/tests/**/*.spec.{ts,tsx}"
   ],
+  "testPathIgnorePatterns": [
+    "<rootDir>/tests/e2e/"
+  ],
   "collectCoverageFrom": [
     "src/**/*.{ts,tsx}",
     "!src/**/*.d.ts",

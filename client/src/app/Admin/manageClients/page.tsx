@@ -55,9 +55,12 @@ const ManageClients: React.FC = () => {
             });
             
             if (response.statusCode === 200) {
-                setClients(response.clientData);
-                if (response.clientData.length === 0) {
+                const nextClients = Array.isArray(response.clientData) ? response.clientData : [];
+                setClients(nextClients);
+                if (nextClients.length === 0) {
                     setShowNoClientsPrompt(true);
+                } else {
+                    setShowNoClientsPrompt(false);
                 }
             } else {
                 throw new Error(response.serverMessage || 'Failed to fetch clients');
@@ -185,12 +188,13 @@ const ManageClients: React.FC = () => {
                                                     <td><div>{client.companyName}</div></td>
                                                     <td>
                                                         <div>
-                                                            <button onClick={() => handleEditClick(client.clientID)}>✏️</button>
+                                                            <button aria-label={`Edit client ${client.fName} ${client.lName}`} onClick={() => handleEditClick(client.clientID)}>✏️</button>
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div>
                                                             <button 
+                                                                aria-label={`Archive client ${client.fName} ${client.lName}`}
                                                                 onClick={() => handleArchiveClick(client)}
                                                                 title="Archive client (7-year retention)"
                                                             >
@@ -200,7 +204,7 @@ const ManageClients: React.FC = () => {
                                                     </td>
                                                     <td>
                                                         <div>
-                                                            <button onClick={() => handleDeleteClick(client)}>🗑️</button>
+                                                            <button aria-label={`Delete client ${client.fName} ${client.lName}`} onClick={() => handleDeleteClick(client)}>🗑️</button>
                                                         </div>
                                                     </td>
                                                 </tr>

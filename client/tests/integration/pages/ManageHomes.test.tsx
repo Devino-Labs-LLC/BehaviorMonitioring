@@ -93,7 +93,9 @@ describe('ManageHomes Page Integration', () => {
       expect(screen.getByText('Riverside')).toBeInTheDocument();
     });
 
-    expect(mockApi).toHaveBeenCalledWith('post', '/admin/getAllHomes', {});
+    expect(mockApi).toHaveBeenCalledWith('post', '/admin/getAllHomes', {
+      employeeUsername: 'testuser',
+    });
   });
 
   it('displays empty state when no homes exist', async () => {
@@ -115,19 +117,19 @@ describe('ManageHomes Page Integration', () => {
   it('handles delete home with confirmation', async () => {
     global.confirm = jest.fn(() => true);
 
-    mockApi
-      .mockResolvedValueOnce({
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/deleteHome') {
+        return Promise.resolve({
+          statusCode: 200,
+          serverMessage: 'Home deleted successfully',
+        } as any);
+      }
+
+      return Promise.resolve({
         statusCode: 200,
         homes: mockHomes,
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        serverMessage: 'Home deleted successfully',
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        homes: [mockHomes[1]],
       } as any);
+    });
 
     render(<ManageHomes />);
 
@@ -135,7 +137,7 @@ describe('ManageHomes Page Integration', () => {
       expect(screen.getByText('Sunrise Home')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByText('Delete');
+    const deleteButtons = await screen.findAllByRole('button', { name: 'Delete button' });
     await userEvent.click(deleteButtons[0]);
 
     expect(global.confirm).toHaveBeenCalledWith(
@@ -145,6 +147,7 @@ describe('ManageHomes Page Integration', () => {
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith('post', '/admin/deleteHome', {
         homeID: 1,
+        employeeUsername: 'testuser',
       });
     });
   });
@@ -165,11 +168,11 @@ describe('ManageHomes Page Integration', () => {
       expect(screen.getByText('Sunrise Home')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByText('Delete');
+    const deleteButtons = await screen.findAllByRole('button', { name: 'Delete button' });
     await userEvent.click(deleteButtons[0]);
 
     expect(global.confirm).toHaveBeenCalled();
-    expect(mockApi).toHaveBeenCalledTimes(1); // Only initial fetch
+    expect(mockApi.mock.calls.filter(([, path]) => path === '/admin/deleteHome')).toHaveLength(0);
   });
 
   it('navigates to edit page when edit button clicked', async () => {
@@ -194,7 +197,7 @@ describe('ManageHomes Page Integration', () => {
       expect(screen.getByText('Sunrise Home')).toBeInTheDocument();
     });
 
-    const editButtons = screen.getAllByText('Edit');
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit button' });
     await userEvent.click(editButtons[0]);
 
     expect(mockPush).toHaveBeenCalledWith('/Admin/manageHomes/edit?homeID=1');

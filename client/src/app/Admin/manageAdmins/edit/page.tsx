@@ -161,6 +161,7 @@ function EditClientContent() {
                                 <InputFields
                                     name="firstName"
                                     type="text"
+                                    label="First Name"
                                     placeholder="First Name"
                                     requiring={true}
                                     value={formData.firstName}
@@ -170,6 +171,7 @@ function EditClientContent() {
                                 <InputFields
                                     name="lastName"
                                     type="text"
+                                    label="Last Name"
                                     placeholder="Last Name"
                                     requiring={true}
                                     value={formData.lastName}
@@ -179,6 +181,7 @@ function EditClientContent() {
                                 <InputFields
                                     name="email"
                                     type="email"
+                                    label="Email"
                                     placeholder="Email"
                                     requiring={true}
                                     value={formData.email}
@@ -188,6 +191,7 @@ function EditClientContent() {
                                 <InputFields
                                     name="phone"
                                     type="tel"
+                                    label="Phone"
                                     placeholder="Phone (Optional)"
                                     requiring={false}
                                     value={formData.phone}
@@ -196,6 +200,7 @@ function EditClientContent() {
                                 
                                 <Selectdropdown
                                     name="role"
+                                    label="Role"
                                     options={roleOptions}
                                     value={formData.role}
                                     onChange={(e) => handleInputChange('role', e.target.value)}

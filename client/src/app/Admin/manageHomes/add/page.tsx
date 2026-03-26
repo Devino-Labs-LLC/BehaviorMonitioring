@@ -7,16 +7,23 @@ import Header from '../../../../components/header';
 import Loading from '../../../../components/loading';
 import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
+import ConfirmActionModal from '../../../../components/ConfirmActionModal';
 import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { CreateHomeRequest, CreateHomeResponse } from '../../../../dto';
+
+const getErrorMessage = (error: unknown): string => {
+    const e = error as any;
+    return e?.response?.data?.serverMessage || e?.response?.data?.message || (error instanceof Error ? error.message : String(error));
+};
 
 const AddHome: React.FC = () => {
     const navigate = useRouter();
     const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
+    const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
     
     const [formData, setFormData] = useState({
         homeName: '',
@@ -48,12 +55,24 @@ const AddHome: React.FC = () => {
         if (!formData.address.trim()) return 'Address is required';
         if (!formData.city.trim()) return 'City is required';
         if (!formData.state.trim()) return 'State is required';
+        if (!/^[a-zA-Z]{2}$/.test(formData.state.trim())) return 'State must be a 2-letter code (for example, NY)';
         if (!formData.zip.trim()) return 'ZIP code is required';
-        if (formData.zip.trim().length < 5) return 'ZIP code must be at least 5 characters';
+        if (!/^\d{5}(-\d{4})?$/.test(formData.zip.trim())) return 'ZIP code must be 5 digits or ZIP+4 format';
         if (!formData.capacity.trim()) return 'Capacity is required';
         const capacity = parseInt(formData.capacity);
         if (isNaN(capacity) || capacity <= 0) return 'Capacity must be a positive number';
         return null;
+    };
+
+    const handlePreSubmit = () => {
+        const validationError = validateForm();
+        if (validationError) {
+            setStatusMessage(validationError);
+            return;
+        }
+
+        setStatusMessage('');
+        setShowConfirmModal(true);
     };
 
     const handleSubmit = async () => {
@@ -77,7 +96,7 @@ const AddHome: React.FC = () => {
                 name: formData.homeName.trim(),
                 streetAddress: formData.address.trim(),
                 city: formData.city.trim(),
-                state: formData.state.trim(),
+                state: formData.state.trim().toUpperCase(),
                 zipCode: formData.zip.trim(),
                 capacity: parseInt(formData.capacity),
                 employeeUsername: username
@@ -92,9 +111,10 @@ const AddHome: React.FC = () => {
                 throw new Error((response as any).serverMessage || 'Failed to create home');
             }
         } catch (error) {
-            setStatusMessage(String(error));
+            setStatusMessage(getErrorMessage(error));
         } finally {
             setIsLoading(false);
+            setShowConfirmModal(false);
         }
     };
 
@@ -109,7 +129,7 @@ const AddHome: React.FC = () => {
                     {isLoading ? (
                         <Loading />
                     ) : (
-                        <form className={componentStyles.bodyBlock} onSubmit={(e) => { e.preventDefault(); debounceAsync(handleSubmit, 300)(); }}>
+                        <form className={componentStyles.bodyBlock} onSubmit={(e) => { e.preventDefault(); debounceAsync(handlePreSubmit, 300)(); }}>
                             <h1 className={componentStyles.pageHeader}>Add New Home</h1>
                             <div className={componentStyles.tbHRSButtons}>
                                 <Button nameOfClass='tbBackButton' placeholder='Back' btnType='button' isLoading={isLoading} onClick={() => navigate.back()} />
@@ -121,6 +141,7 @@ const AddHome: React.FC = () => {
                                 <InputFields
                                     name="homeName"
                                     type="text"
+                                    label="Home Name"
                                     placeholder="Home Name"
                                     requiring={true}
                                     value={formData.homeName}
@@ -130,6 +151,7 @@ const AddHome: React.FC = () => {
                                 <InputFields
                                     name="address"
                                     type="text"
+                                    label="Street Address"
                                     placeholder="Street Address"
                                     requiring={true}
                                     value={formData.address}
@@ -139,6 +161,7 @@ const AddHome: React.FC = () => {
                                 <InputFields
                                     name="city"
                                     type="text"
+                                    label="City"
                                     placeholder="City"
                                     requiring={true}
                                     value={formData.city}
@@ -148,7 +171,8 @@ const AddHome: React.FC = () => {
                                 <InputFields
                                     name="state"
                                     type="text"
-                                    placeholder="State"
+                                    label="State"
+                                    placeholder="State (2-letter code)"
                                     requiring={true}
                                     value={formData.state}
                                     onChange={(e) => handleInputChange('state', e.target.value)}
@@ -157,6 +181,7 @@ const AddHome: React.FC = () => {
                                 <InputFields
                                     name="zip"
                                     type="text"
+                                    label="ZIP Code"
                                     placeholder="ZIP Code"
                                     requiring={true}
                                     value={formData.zip}
@@ -166,6 +191,7 @@ const AddHome: React.FC = () => {
                                 <InputFields
                                     name="capacity"
                                     type="number"
+                                    label="Capacity"
                                     placeholder="Capacity"
                                     requiring={true}
                                     value={formData.capacity}
@@ -186,6 +212,16 @@ const AddHome: React.FC = () => {
                     )}
                 </main>
             </div>
+            <ConfirmActionModal
+                isVisible={showConfirmModal}
+                title="Create Home"
+                message="Please confirm the home details are correct before creating this home."
+                confirmLabel="Create Home"
+                cancelLabel="Review"
+                isSubmitting={isLoading}
+                onConfirm={handleSubmit}
+                onCancel={() => setShowConfirmModal(false)}
+            />
         </>
     );
 };

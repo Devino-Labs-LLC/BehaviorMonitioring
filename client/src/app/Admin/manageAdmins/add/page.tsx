@@ -114,6 +114,7 @@ const AddAdmin: React.FC = () => {
                                 <InputFields
                                     name="firstName"
                                     type="text"
+                                    label="First Name"
                                     placeholder="First Name"
                                     requiring={false}
                                     value={formData.firstName}
@@ -123,6 +124,7 @@ const AddAdmin: React.FC = () => {
                                 <InputFields
                                     name="lastName"
                                     type="text"
+                                    label="Last Name"
                                     placeholder="Last Name"
                                     requiring={false}
                                     value={formData.lastName}
@@ -132,6 +134,7 @@ const AddAdmin: React.FC = () => {
                                 <InputFields
                                     name="email"
                                     type="text"
+                                    label="Email Address"
                                     placeholder="Email Address"
                                     requiring={false}
                                     value={formData.email}
@@ -141,6 +144,7 @@ const AddAdmin: React.FC = () => {
                                 <InputFields
                                     name="phone"
                                     type="tel"
+                                    label="Phone Number"
                                     placeholder="Phone Number (Optional)"
                                     requiring={false}
                                     value={formData.phone}
@@ -149,6 +153,7 @@ const AddAdmin: React.FC = () => {
                                 
                                 <Selectdropdown
                                     name="role"
+                                    label="Role"
                                     options={roleOptions}
                                     value={formData.role}
                                     onChange={(e) => handleInputChange('role', e.target.value)}

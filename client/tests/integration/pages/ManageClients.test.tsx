@@ -111,19 +111,19 @@ describe('ManageClients Page Integration', () => {
   it('handles delete client with confirmation', async () => {
     global.confirm = jest.fn(() => true);
 
-    mockApi
-      .mockResolvedValueOnce({
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/deleteClient') {
+        return Promise.resolve({
+          statusCode: 200,
+          serverMessage: 'Client deleted successfully',
+        } as any);
+      }
+
+      return Promise.resolve({
         statusCode: 200,
         clientData: mockClients,
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        serverMessage: 'Client deleted successfully',
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        clientData: [mockClients[1]],
       } as any);
+    });
 
     render(<ManageClients />);
 
@@ -131,8 +131,7 @@ describe('ManageClients Page Integration', () => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByText('🗑️');
-    await userEvent.click(deleteButtons[0]);
+    await userEvent.click(screen.getByLabelText('Delete client John Doe'));
 
     expect(global.confirm).toHaveBeenCalledWith(
       expect.stringContaining('John Doe')
@@ -162,11 +161,10 @@ describe('ManageClients Page Integration', () => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByText('🗑️');
-    await userEvent.click(deleteButtons[0]);
+    await userEvent.click(screen.getByLabelText('Delete client John Doe'));
 
     expect(global.confirm).toHaveBeenCalled();
-    expect(mockApi).toHaveBeenCalledTimes(1);
+    expect(mockApi.mock.calls.filter(([, path]) => path === '/admin/deleteClient')).toHaveLength(0);
   });
 
   it('navigates to edit page when edit button clicked', async () => {
@@ -189,8 +187,7 @@ describe('ManageClients Page Integration', () => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
-    const editButtons = screen.getAllByText('✏️');
-    await userEvent.click(editButtons[0]);
+    await userEvent.click(screen.getByLabelText('Edit client John Doe'));
 
     expect(mockPush).toHaveBeenCalledWith('/Admin/manageClients/edit?id=1');
   });
@@ -198,19 +195,19 @@ describe('ManageClients Page Integration', () => {
   it('displays success message after deletion', async () => {
     global.confirm = jest.fn(() => true);
 
-    mockApi
-      .mockResolvedValueOnce({
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/deleteClient') {
+        return Promise.resolve({
+          statusCode: 200,
+          serverMessage: 'Client deleted successfully',
+        } as any);
+      }
+
+      return Promise.resolve({
         statusCode: 200,
         clientData: mockClients,
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        serverMessage: 'Client deleted successfully',
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        clientData: [mockClients[1]],
       } as any);
+    });
 
     render(<ManageClients />);
 
@@ -218,8 +215,7 @@ describe('ManageClients Page Integration', () => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByText('🗑️');
-    await userEvent.click(deleteButtons[0]);
+    await userEvent.click(screen.getByLabelText('Delete client John Doe'));
 
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith('post', '/admin/deleteClient', {

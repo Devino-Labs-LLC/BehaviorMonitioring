@@ -75,7 +75,7 @@ const ManageHomes: React.FC = () => {
             if ((response as any).statusCode === 200) {
                 setStatusMessage('Home deleted successfully');
                 setTimeout(() => setStatusMessage(''), 3000);
-                fetchHomes();
+                await fetchHomes();
             } else {
                 throw new Error((response as any).serverMessage || 'Failed to delete home');
             }

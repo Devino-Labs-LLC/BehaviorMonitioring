@@ -147,12 +147,32 @@ class AdminController {
             const employeeData = await verifyAdminAuthorization(req, res);
             if (!employeeData) return;
 
-            const name = req.body.name;
-            const streetAddress = req.body.streetAddress;
-            const city = req.body.city;
-            const state = req.body.state;
-            const zipCode = req.body.zipCode;
-            const capacity = req.body.capacity;
+            const name = String(req.body.name || '').trim();
+            const streetAddress = String(req.body.streetAddress || '').trim();
+            const city = String(req.body.city || '').trim();
+            const state = String(req.body.state || '').trim().toUpperCase();
+            const zipCode = String(req.body.zipCode || '').trim();
+            const capacity = Number(req.body.capacity);
+
+            if (!name || !streetAddress || !city || !state || !zipCode || !Number.isFinite(capacity)) {
+                return res.json({ statusCode: 400, serverMessage: 'All required home fields must be provided' });
+            }
+
+            if (!/^[A-Z]{2}$/.test(state)) {
+                return res.json({ statusCode: 400, serverMessage: 'State must be a 2-letter code' });
+            }
+
+            if (!/^\d{5}(-\d{4})?$/.test(zipCode)) {
+                return res.json({ statusCode: 400, serverMessage: 'ZIP code must be 5 digits or ZIP+4 format' });
+            }
+
+            if (!Number.isInteger(capacity) || capacity <= 0) {
+                return res.json({ statusCode: 400, serverMessage: 'Capacity must be a positive whole number' });
+            }
+
+            if (await adminQueries.homeExistByName(name, employeeData.companyID)) {
+                return res.json({ statusCode: 409, serverMessage: 'A home with this name already exists' });
+            }
 
             if (await adminQueries.adminAddNewHome(
                 name, 
@@ -204,12 +224,28 @@ class AdminController {
             if (!employeeData) return;
 
             const hID = req.body.homeID;
-            const name = req.body.name;
-            const streetAddress = req.body.streetAddress;
-            const city = req.body.city;
-            const state = req.body.state;
-            const zipCode = req.body.zipCode;
-            const capacity = req.body.capacity;
+            const name = String(req.body.name || '').trim();
+            const streetAddress = String(req.body.streetAddress || '').trim();
+            const city = String(req.body.city || '').trim();
+            const state = String(req.body.state || '').trim().toUpperCase();
+            const zipCode = String(req.body.zipCode || '').trim();
+            const capacity = Number(req.body.capacity);
+
+            if (!hID || !name || !streetAddress || !city || !state || !zipCode || !Number.isFinite(capacity)) {
+                return res.json({ statusCode: 400, serverMessage: 'All required home fields must be provided' });
+            }
+
+            if (!/^[A-Z]{2}$/.test(state)) {
+                return res.json({ statusCode: 400, serverMessage: 'State must be a 2-letter code' });
+            }
+
+            if (!/^\d{5}(-\d{4})?$/.test(zipCode)) {
+                return res.json({ statusCode: 400, serverMessage: 'ZIP code must be 5 digits or ZIP+4 format' });
+            }
+
+            if (!Number.isInteger(capacity) || capacity <= 0) {
+                return res.json({ statusCode: 400, serverMessage: 'Capacity must be a positive whole number' });
+            }
 
             if (await adminQueries.adminUpdateHomeByID(name, streetAddress, city, state, zipCode, capacity, hID, employeeData.companyID)) {
                 return res.json({ statusCode: 201, serverMessage: 'Home has been updated' });

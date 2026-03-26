@@ -61,13 +61,22 @@ const EditClientContent: React.FC = () => {
 
     const fetchHomes = async () => {
         try {
-            const response = await api<any>('post', '/admin/getAllHomes', {});
+            if (!username) {
+                setStatusMessage('Unable to load homes until the current user is available.');
+                return;
+            }
+
+            const response = await api<any>('post', '/admin/getAllHomes', {
+                employeeUsername: username
+            });
             if (response.statusCode === 200) {
                 const homeOptions = response.homes.map((home: any) => ({
                     value: home.homeID,
                     label: home.homeName
                 }));
                 setHomes(homeOptions);
+            } else {
+                throw new Error(response.serverMessage || 'Failed to fetch homes');
             }
         } catch (error) {
             console.error('Failed to fetch homes:', error);
@@ -201,6 +210,7 @@ const EditClientContent: React.FC = () => {
                                 <InputFields
                                     name="firstName"
                                     type="text"
+                                    label="First Name"
                                     placeholder="First Name"
                                     requiring={true}
                                     value={formData.firstName}
@@ -210,6 +220,7 @@ const EditClientContent: React.FC = () => {
                                 <InputFields
                                     name="lastName"
                                     type="text"
+                                    label="Last Name"
                                     placeholder="Last Name"
                                     requiring={true}
                                     value={formData.lastName}
@@ -218,6 +229,7 @@ const EditClientContent: React.FC = () => {
                                 
                                 <Datefield
                                     name="dateOfBirth"
+                                    label="Date of Birth"
                                     requiring={true}
                                     value={formData.dateOfBirth}
                                     onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
@@ -225,6 +237,7 @@ const EditClientContent: React.FC = () => {
                                 
                                 <Selectdropdown
                                     name="homeID"
+                                    label="Home"
                                     options={homes}
                                     value={formData.homeID}
                                     onChange={(e) => handleInputChange('homeID', parseInt(e.target.value))}
@@ -233,6 +246,7 @@ const EditClientContent: React.FC = () => {
                                 
                                 <Datefield
                                     name="intakeDate"
+                                    label="Intake Date"
                                     requiring={true}
                                     value={formData.intakeDate}
                                     onChange={(e) => handleInputChange('intakeDate', e.target.value)}
@@ -241,6 +255,7 @@ const EditClientContent: React.FC = () => {
                                 <InputFields
                                     name="medicaidIdNumber"
                                     type="text"
+                                    label="Medicaid ID Number"
                                     placeholder="Medicaid ID Number"
                                     requiring={true}
                                     value={formData.medicaidIdNumber}
@@ -249,6 +264,7 @@ const EditClientContent: React.FC = () => {
                                 
                                 <Datefield
                                     name="behaviorPlanDueDate"
+                                    label="Behavior Plan Due Date"
                                     requiring={true}
                                     value={formData.behaviorPlanDueDate}
                                     onChange={(e) => handleInputChange('behaviorPlanDueDate', e.target.value)}
@@ -259,6 +275,7 @@ const EditClientContent: React.FC = () => {
                                 <InputFields
                                     name="guardianName"
                                     type="text"
+                                    label="Guardian Name"
                                     placeholder="Guardian Name (Optional)"
                                     requiring={false}
                                     value={formData.guardianName}
@@ -268,6 +285,7 @@ const EditClientContent: React.FC = () => {
                                 <InputFields
                                     name="guardianPhone"
                                     type="tel"
+                                    label="Guardian Phone"
                                     placeholder="Guardian Phone (Optional)"
                                     requiring={false}
                                     value={formData.guardianPhone}
@@ -277,6 +295,7 @@ const EditClientContent: React.FC = () => {
                                 <InputFields
                                     name="guardianEmail"
                                     type="email"
+                                    label="Guardian Email"
                                     placeholder="Guardian Email (Optional)"
                                     requiring={false}
                                     value={formData.guardianEmail}
@@ -288,6 +307,7 @@ const EditClientContent: React.FC = () => {
                                 <TextareaInput
                                     name="allergies"
                                     nameOfClass=""
+                                    label="Allergies"
                                     placeholder="Allergies (Optional)"
                                     requiring={false}
                                     value={formData.allergies}
@@ -297,6 +317,7 @@ const EditClientContent: React.FC = () => {
                                 <TextareaInput
                                     name="medications"
                                     nameOfClass=""
+                                    label="Medications"
                                     placeholder="Medications (Optional)"
                                     requiring={false}
                                     value={formData.medications}
@@ -306,6 +327,7 @@ const EditClientContent: React.FC = () => {
                                 <TextareaInput
                                     name="notes"
                                     nameOfClass=""
+                                    label="Additional Notes"
                                     placeholder="Additional Notes (Optional)"
                                     requiring={false}
                                     value={formData.notes}

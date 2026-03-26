@@ -104,19 +104,19 @@ describe('ManageAdmins Page Integration', () => {
       expect(screen.getByText('admin1')).toBeInTheDocument();
     });
 
-    const deleteButton = screen.getByText('🗑️');
+    const deleteButton = screen.getByLabelText('Delete admin admin1');
     await userEvent.click(deleteButton);
 
     expect(global.confirm).toHaveBeenCalled();
   });
 
   it('displays error message on fetch failure', async () => {
-    mockApi.mockRejectedValueOnce(new Error('Network error'));
+    mockApi.mockRejectedValue(new Error('Network error'));
 
     render(<ManageAdmins />);
 
     await waitFor(() => {
-      expect(screen.getByText(/error/i)).toBeInTheDocument();
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
     });
   });
 });

@@ -97,6 +97,7 @@ class AuthController {
             let role = 'employee';
             let accountStatus = 'Pending';
             let companyID = 0;
+            let shouldBootstrapAdmin = false;
 
             // If company doesn't exist, create it and make this user the admin
             if (!companyRecord) {
@@ -113,12 +114,31 @@ class AuthController {
                     time_entered: timeEntered
                 });
 
-                // First user of a new company becomes admin
-                role = 'admin';
-                accountStatus = 'Active';
+                // First user of a new company becomes admin.
+                shouldBootstrapAdmin = true;
                 companyID = companyRecord.companyDataID;
             } else {
                 companyID = companyRecord.companyDataID;
+
+                // Safety net: if company exists but has no privileged account yet,
+                // elevate the first registrant so the tenant can be managed.
+                const existingCompanyUsers = await Employee.findAll({
+                    where: { companyID },
+                    attributes: ['role']
+                });
+
+                const hasPrivilegedUser = existingCompanyUsers.some((employee) =>
+                    ['admin', 'root'].includes(String(employee.role || '').toLowerCase())
+                );
+
+                if (existingCompanyUsers.length === 0 || !hasPrivilegedUser) {
+                    shouldBootstrapAdmin = true;
+                }
+            }
+
+            if (shouldBootstrapAdmin) {
+                role = 'admin';
+                accountStatus = 'Active';
             }
 
             // Create new employee
@@ -716,14 +736,23 @@ class AuthController {
             }
 
             // Verify the email
-            await Employee.update(
-                { 
-                    email_verified: true, 
-                    verification_token: null, 
-                    verification_token_expires: null 
-                },
-                { where: { employeeID: employee.employeeID } }
-            );
+            const shouldActivateAccount =
+                ['admin', 'root'].includes(String(employee.role || '').toLowerCase()) ||
+                String(employee.account_status || '').toLowerCase() === 'in verification';
+
+            const updatePayload = {
+                email_verified: true,
+                verification_token: null,
+                verification_token_expires: null
+            };
+
+            if (shouldActivateAccount) {
+                updatePayload.account_status = 'Active';
+            }
+
+            await Employee.update(updatePayload, {
+                where: { employeeID: employee.employeeID }
+            });
 
             await logAuthEvent("EMAIL_VERIFICATION_SUCCESS", { 
                 userId: employee.employeeID,

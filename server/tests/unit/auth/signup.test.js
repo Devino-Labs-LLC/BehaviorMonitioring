@@ -188,6 +188,7 @@ describe('AuthController - signUpEmployee', () => {
                 companyDataID: 1,
                 companyName: 'Test Company'
             });
+            Employee.findAll.mockResolvedValue([]);
             bcrypt.hash.mockResolvedValue('hashed_password');
             Employee.create.mockResolvedValue({
                 employeeID: 1,
@@ -260,6 +261,9 @@ describe('AuthController - signUpEmployee', () => {
                 companyDataID: 7,
                 companyName: 'Test Company'
             });
+            Employee.findAll.mockResolvedValue([
+                { role: 'admin' }
+            ]);
 
             await authController.signUpEmployee(req, res);
 

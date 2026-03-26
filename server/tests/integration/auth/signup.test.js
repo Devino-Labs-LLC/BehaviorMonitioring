@@ -50,6 +50,7 @@ describe('SignUp API Integration Tests', () => {
                 companyDataID: 1,
                 companyName: 'Acme Corporation'
             });
+            Employee.findAll = jest.fn().mockResolvedValue([]);
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe',
@@ -209,6 +210,13 @@ describe('SignUp API Integration Tests', () => {
             
             employeeQueries.employeeExistByUsername = jest.fn().mockResolvedValue(false);
             Employee.findOne = jest.fn().mockResolvedValue(null);
+            const CompanyData = require('../../../models/CompanyData');
+            CompanyData.findOne = jest.fn().mockResolvedValue(null);
+            CompanyData.create = jest.fn().mockResolvedValue({
+                companyDataID: 1,
+                companyName: 'Acme Corporation'
+            });
+            Employee.findAll = jest.fn().mockResolvedValue([]);
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe'
@@ -239,6 +247,9 @@ describe('SignUp API Integration Tests', () => {
                 companyDataID: 1,
                 companyName: 'Acme Corporation'
             }); // Existing company
+            Employee.findAll = jest.fn().mockResolvedValue([
+                { role: 'admin' }
+            ]);
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe'
@@ -265,6 +276,13 @@ describe('SignUp API Integration Tests', () => {
             
             employeeQueries.employeeExistByUsername = jest.fn().mockResolvedValue(false);
             Employee.findOne = jest.fn().mockResolvedValue(null);
+            const CompanyData = require('../../../models/CompanyData');
+            CompanyData.findOne = jest.fn().mockResolvedValue(null);
+            CompanyData.create = jest.fn().mockResolvedValue({
+                companyDataID: 1,
+                companyName: 'Acme Corporation'
+            });
+            Employee.findAll = jest.fn().mockResolvedValue([]);
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe'
@@ -290,6 +308,13 @@ describe('SignUp API Integration Tests', () => {
             
             employeeQueries.employeeExistByUsername = jest.fn().mockResolvedValue(false);
             Employee.findOne = jest.fn().mockResolvedValue(null);
+            const CompanyData = require('../../../models/CompanyData');
+            CompanyData.findOne = jest.fn().mockResolvedValue(null);
+            CompanyData.create = jest.fn().mockResolvedValue({
+                companyDataID: 1,
+                companyName: 'Acme Corporation'
+            });
+            Employee.findAll = jest.fn().mockResolvedValue([]);
             Employee.create = jest.fn().mockResolvedValue({
                 employeeID: 1,
                 username: 'johndoe'

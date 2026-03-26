@@ -41,6 +41,9 @@
 /client/*.tsbuildinfo
 /client/next-env.d.ts
 
+# playwright
+/client/test-results
+
 # CRA Dependencies
 /client/.pnp
 /client/.pnp.js

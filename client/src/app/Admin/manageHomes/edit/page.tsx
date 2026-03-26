@@ -93,6 +93,7 @@ const EditHomeContent: React.FC = () => {
         if (!formData.address.trim()) return 'Address is required';
         if (!formData.city.trim()) return 'City is required';
         if (!formData.state.trim()) return 'State is required';
+        if (!/^[a-zA-Z]{2}$/.test(formData.state.trim())) return 'State must be a 2-letter code (for example, NY)';
         if (!formData.zip.trim()) return 'ZIP code is required';
         if (formData.zip.trim().length < 5) return 'ZIP code must be at least 5 characters';
         if (!formData.capacity.trim()) return 'Capacity is required';
@@ -123,7 +124,7 @@ const EditHomeContent: React.FC = () => {
                     name: formData.homeName.trim(),
                     streetAddress: formData.address.trim(),
                     city: formData.city.trim(),
-                    state: formData.state.trim(),
+                    state: formData.state.trim().toUpperCase(),
                     zipCode: formData.zip.trim(),
                     capacity: parseInt(formData.capacity),
                     employeeUsername: username
@@ -167,6 +168,7 @@ const EditHomeContent: React.FC = () => {
                                 <InputFields
                                     name="homeName"
                                     type="text"
+                                    label="Home Name"
                                     placeholder="Home Name"
                                     requiring={true}
                                     value={formData.homeName}
@@ -176,6 +178,7 @@ const EditHomeContent: React.FC = () => {
                                 <InputFields
                                     name="address"
                                     type="text"
+                                    label="Street Address"
                                     placeholder="Street Address"
                                     requiring={true}
                                     value={formData.address}
@@ -185,6 +188,7 @@ const EditHomeContent: React.FC = () => {
                                 <InputFields
                                     name="city"
                                     type="text"
+                                    label="City"
                                     placeholder="City"
                                     requiring={true}
                                     value={formData.city}
@@ -194,7 +198,8 @@ const EditHomeContent: React.FC = () => {
                                 <InputFields
                                     name="state"
                                     type="text"
-                                    placeholder="State"
+                                    label="State"
+                                    placeholder="State (2-letter code)"
                                     requiring={true}
                                     value={formData.state}
                                     onChange={(e) => handleInputChange('state', e.target.value)}
@@ -203,6 +208,7 @@ const EditHomeContent: React.FC = () => {
                                 <InputFields
                                     name="zip"
                                     type="text"
+                                    label="ZIP Code"
                                     placeholder="ZIP Code"
                                     requiring={true}
                                     value={formData.zip}
@@ -212,6 +218,7 @@ const EditHomeContent: React.FC = () => {
                                 <InputFields
                                     name="capacity"
                                     type="number"
+                                    label="Capacity"
                                     placeholder="Capacity"
                                     requiring={true}
                                     value={formData.capacity}

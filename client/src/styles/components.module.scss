@@ -2055,6 +2055,19 @@
     margin-top: 1.5em;
 }
 
+.formFieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    margin-bottom: 0.9em;
+}
+
+.formFieldLabel {
+    color: $font-color;
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
 /* Email Verification Page Styles */
 .verificationWrapper {
     min-height: calc(100vh - 200px);

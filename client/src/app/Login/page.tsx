@@ -9,7 +9,7 @@ import InputFields from '../../components/Inputfield';
 import Button from '../../components/Button';
 import Loading from '../../components/loading';
 import { GetLoggedInUserStatus } from '../../function/VerificationCheck'
-import { CheckUsername, CheckPassword } from '../../function/EntryCheck';
+import { CheckUsername } from '../../function/EntryCheck';
 import { SetLoggedInUser } from '../../function/VerificationCheck';
 import { debounceAsync } from '../../function/debounce';
 import { api } from '../../lib/Api';
@@ -42,10 +42,6 @@ const LoginContent: React.FC = () => {
         else if (!CheckUsername(uName)) {
             setIsLoading(false);
             return setStatusMessage('Username is not valid')
-        }
-        else if (!CheckPassword(pWord)) {
-            setIsLoading(false);
-            return setStatusMessage('Password is incorrect')  
         }
 
         try {

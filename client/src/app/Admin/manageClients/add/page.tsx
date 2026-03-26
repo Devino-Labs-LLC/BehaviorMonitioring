@@ -10,16 +10,23 @@ import InputFields from '../../../../components/Inputfield';
 import Datefield from '../../../../components/Datefield';
 import Selectdropdown from '../../../../components/Selectdropdown';
 import TextareaInput from '../../../../components/TextareaInput';
+import ConfirmActionModal from '../../../../components/ConfirmActionModal';
 import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
 import type { CreateClientRequest, CreateClientResponse } from '../../../../dto';
+
+const getErrorMessage = (error: unknown): string => {
+    const e = error as any;
+    return e?.response?.data?.serverMessage || e?.response?.data?.message || (error instanceof Error ? error.message : String(error));
+};
 
 const AddClient: React.FC = () => {
     const navigate = useRouter();
     const { isReady, isLoggedIn, isAdmin, username } = useAuth();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [statusMessage, setStatusMessage] = useState<string>('');
+    const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
     const [homes, setHomes] = useState<{value: number; label: string}[]>([]);
     
     const [formData, setFormData] = useState({
@@ -55,18 +62,25 @@ const AddClient: React.FC = () => {
 
     const fetchHomes = async () => {
         try {
-            // Template API call - implement on server
-            const response = await api<any>('post', '/admin/getAllHomes', {});
+            if (!username) {
+                setStatusMessage('Unable to load homes until the current user is available.');
+                return;
+            }
+
+            const response = await api<any>('post', '/admin/getAllHomes', {
+                employeeUsername: username
+            });
             if (response.statusCode === 200) {
                 const homeOptions = response.homes.map((home: any) => ({
                     value: home.homeID,
                     label: home.homeName
                 }));
                 setHomes(homeOptions);
+            } else {
+                throw new Error(response.serverMessage || 'Failed to fetch homes');
             }
         } catch (error) {
             console.error('Failed to fetch homes:', error);
-            // Set default home options for testing
             setHomes([{ value: 1, label: 'Main Home' }]);
         }
     };
@@ -127,10 +141,22 @@ const AddClient: React.FC = () => {
                 throw new Error(response.serverMessage || 'Failed to create client');
             }
         } catch (error) {
-            setStatusMessage(String(error));
+            setStatusMessage(getErrorMessage(error));
         } finally {
             setIsLoading(false);
+            setShowConfirmModal(false);
         }
+    };
+
+    const handlePreSubmit = async () => {
+        const validationError = validateForm();
+        if (validationError) {
+            setStatusMessage(validationError);
+            return;
+        }
+
+        setStatusMessage('');
+        setShowConfirmModal(true);
     };
 
     return (
@@ -144,7 +170,7 @@ const AddClient: React.FC = () => {
                     {isLoading ? (
                         <Loading />
                     ) : (
-                        <form className={componentStyles.bodyBlock} onSubmit={(e) => { e.preventDefault(); debounceAsync(handleSubmit, 300)(); }}>
+                        <form className={componentStyles.bodyBlock} onSubmit={(e) => { e.preventDefault(); debounceAsync(handlePreSubmit, 300)(); }}>
                             <h1 className={componentStyles.pageHeader}>Add New Client</h1>
                             <div className={componentStyles.tbHRSButtons}>
                                 <Button nameOfClass='tbBackButton' placeholder='Back' btnType='button' isLoading={isLoading} onClick={() => navigate.back()} />
@@ -156,6 +182,7 @@ const AddClient: React.FC = () => {
                                 <InputFields
                                     name="firstName"
                                     type="text"
+                                    label="First Name"
                                     placeholder="First Name"
                                     requiring={true}
                                     value={formData.firstName}
@@ -165,6 +192,7 @@ const AddClient: React.FC = () => {
                                 <InputFields
                                     name="lastName"
                                     type="text"
+                                    label="Last Name"
                                     placeholder="Last Name"
                                     requiring={true}
                                     value={formData.lastName}
@@ -173,6 +201,7 @@ const AddClient: React.FC = () => {
                                 
                                 <Datefield
                                     name="dateOfBirth"
+                                    label="Date of Birth"
                                     requiring={true}
                                     value={formData.dateOfBirth}
                                     onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
@@ -180,6 +209,7 @@ const AddClient: React.FC = () => {
                                 
                                 <Selectdropdown
                                     name="homeID"
+                                    label="Home"
                                     options={homes}
                                     value={formData.homeID}
                                     onChange={(e) => handleInputChange('homeID', parseInt(e.target.value))}
@@ -188,6 +218,7 @@ const AddClient: React.FC = () => {
                                 
                                 <Datefield
                                     name="intakeDate"
+                                    label="Intake Date"
                                     requiring={true}
                                     value={formData.intakeDate}
                                     onChange={(e) => handleInputChange('intakeDate', e.target.value)}
@@ -196,6 +227,7 @@ const AddClient: React.FC = () => {
                                 <InputFields
                                     name="medicaidIdNumber"
                                     type="text"
+                                    label="Medicaid ID Number"
                                     placeholder="Medicaid ID Number"
                                     requiring={true}
                                     value={formData.medicaidIdNumber}
@@ -204,6 +236,7 @@ const AddClient: React.FC = () => {
                                 
                                 <Datefield
                                     name="behaviorPlanDueDate"
+                                    label="Behavior Plan Due Date"
                                     requiring={true}
                                     value={formData.behaviorPlanDueDate}
                                     onChange={(e) => handleInputChange('behaviorPlanDueDate', e.target.value)}
@@ -214,6 +247,7 @@ const AddClient: React.FC = () => {
                                 <InputFields
                                     name="guardianName"
                                     type="text"
+                                    label="Guardian Name"
                                     placeholder="Guardian Name (Optional)"
                                     requiring={false}
                                     value={formData.guardianName}
@@ -223,6 +257,7 @@ const AddClient: React.FC = () => {
                                 <InputFields
                                     name="guardianPhone"
                                     type="tel"
+                                    label="Guardian Phone"
                                     placeholder="Guardian Phone (Optional)"
                                     requiring={false}
                                     value={formData.guardianPhone}
@@ -232,6 +267,7 @@ const AddClient: React.FC = () => {
                                 <InputFields
                                     name="guardianEmail"
                                     type="email"
+                                    label="Guardian Email"
                                     placeholder="Guardian Email (Optional)"
                                     requiring={false}
                                     value={formData.guardianEmail}
@@ -243,6 +279,7 @@ const AddClient: React.FC = () => {
                                 <TextareaInput
                                     name="allergies"
                                     nameOfClass=""
+                                    label="Allergies"
                                     placeholder="Allergies (Optional)"
                                     requiring={false}
                                     value={formData.allergies}
@@ -252,6 +289,7 @@ const AddClient: React.FC = () => {
                                 <TextareaInput
                                     name="medications"
                                     nameOfClass=""
+                                    label="Medications"
                                     placeholder="Medications (Optional)"
                                     requiring={false}
                                     value={formData.medications}
@@ -261,6 +299,7 @@ const AddClient: React.FC = () => {
                                 <TextareaInput
                                     name="notes"
                                     nameOfClass=""
+                                    label="Additional Notes"
                                     placeholder="Additional Notes (Optional)"
                                     requiring={false}
                                     value={formData.notes}
@@ -281,6 +320,16 @@ const AddClient: React.FC = () => {
                     )}
                 </main>
             </div>
+            <ConfirmActionModal
+                isVisible={showConfirmModal}
+                title="Create Client"
+                message="Please confirm the client details are correct before creating this client record."
+                confirmLabel="Create Client"
+                cancelLabel="Review"
+                isSubmitting={isLoading}
+                onConfirm={handleSubmit}
+                onCancel={() => setShowConfirmModal(false)}
+            />
         </>
     );
 };

@@ -54,7 +54,7 @@ const ManageAdmins: React.FC = () => {
             });
             
             if (response.statusCode === 200) {
-                setAdmins(response.admins);
+                setAdmins(Array.isArray(response.admins) ? response.admins : []);
             } else {
                 throw new Error(response.serverMessage || 'Failed to fetch admins');
             }
@@ -145,12 +145,12 @@ const ManageAdmins: React.FC = () => {
                                                     <td><div>{admin.lastLogin || 'Never'}</div></td>
                                                     <td>
                                                         <div>
-                                                            <button onClick={() => handleEditClick(admin.adminID)}>✏️</button>
+                                                            <button aria-label={`Edit admin ${admin.username}`} onClick={() => handleEditClick(admin.adminID)}>✏️</button>
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div>
-                                                            <button onClick={() => handleDeleteClick(admin)}>🗑️</button>
+                                                            <button aria-label={`Delete admin ${admin.username}`} onClick={() => handleDeleteClick(admin)}>🗑️</button>
                                                         </div>
                                                     </td>
                                                 </tr>
