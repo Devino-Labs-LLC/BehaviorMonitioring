@@ -236,6 +236,121 @@ jobs:
       env:
         API_URL: http://localhost:5000
 
+  e2e-tests:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    needs: [client-tests, server-tests]
+    environment: stellar-reverence / production
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install client dependencies
+      working-directory: ./client
+      run: npm ci
+
+    - name: Install server dependencies
+      working-directory: ./server
+      run: npm ci
+
+    - name: Install Playwright browsers
+      working-directory: ./client
+      run: npx playwright install --with-deps chromium
+
+    - name: Wait for MySQL
+      run: |
+        until mysqladmin ping -h"127.0.0.1" -P"3306" --silent; do
+          echo 'waiting for mysql...'
+          sleep 1
+        done
+
+    - name: Setup database
+      working-directory: ./server
+      run: |
+        node -e "
+        const { sequelize } = require('./models');
+        sequelize.sync({ force: true }).then(() => {
+          console.log('Database synced');
+          process.exit(0);
+        }).catch(err => {
+          console.error('Database sync failed:', err);
+          process.exit(1);
+        });
+        "
+      env:
+        NODE_ENV: test
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_PORT: 3306
+        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
+        MYSQL_USER: ${{ vars.MYSQL_USER }}
+        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+
+    - name: Start server
+      working-directory: ./server
+      run: npm start &
+      env:
+        NODE_ENV: test
+        PORT: 3001
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_PORT: 3306
+        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
+        MYSQL_USER: ${{ vars.MYSQL_USER }}
+        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+
+    - name: Start client
+      working-directory: ./client
+      run: npm run dev &
+      env:
+        NODE_ENV: test
+        NEXT_PUBLIC_BACKEND_URL: http://localhost:3001
+
+    - name: Wait for server and client
+      run: npx wait-on http://localhost:3001 http://localhost:3000 -t 60000
+
+    - name: Run Playwright tests
+      working-directory: ./client
+      run: npm run e2e -- --reporter=list
+      env:
+        NODE_ENV: test
+        ClientHost: http://localhost:3000
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_PORT: 3306
+        MYSQL_USER: ${{ vars.MYSQL_USER }}
+        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
+
+    - name: Upload Playwright artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: |
+          ./client/playwright-report/
+          ./client/test-results/
+        retention-days: 30
+
   coverage-report:
     name: Coverage Report
     runs-on: ubuntu-latest
