@@ -71,6 +71,8 @@ describe('Admin API Integration Tests', () => {
         role: 'admin',
         fName: 'Test',
         lName: 'Admin',
+        companyID: 1,
+        companyName: 'Acme Corporation',
       });
       adminQueries.adminExistByUsername.mockResolvedValue(false);
       adminQueries.adminAddNewEmployee.mockResolvedValue(true);
@@ -97,6 +99,7 @@ describe('Admin API Integration Tests', () => {
       employeeQueries.employeeExistByUsername.mockResolvedValue(true);
       employeeQueries.employeeDataByUsername.mockResolvedValue({
         role: 'admin',
+        companyID: 1,
       });
       adminQueries.adminDeleteAnEmployeeByID.mockResolvedValue(true);
 
@@ -117,6 +120,7 @@ describe('Admin API Integration Tests', () => {
       employeeQueries.employeeExistByUsername.mockResolvedValue(true);
       employeeQueries.employeeDataByUsername.mockResolvedValue({
         role: 'admin',
+        companyID: 1,
       });
       adminQueries.adminUpdateEmployeeAccountByID.mockResolvedValue(true);
 
