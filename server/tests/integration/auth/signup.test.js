@@ -253,7 +253,8 @@ describe('SignUp API Integration Tests', () => {
                 expect.objectContaining({
                     account_status: 'Pending',
                     entered_by: 'self-registration',
-                    role: 'employee'
+                    role: 'employee',
+                    companyID: 1
                 })
             );
         });

@@ -1,7 +1,7 @@
 import axios, { AxiosRequestConfig, Method } from 'axios';
 import { getAccessToken, setAccessToken, clearAccessToken } from "./tokenStore";
 import { ClearLoggedInUser } from '../function/VerificationCheck';
-import { scheduleSilentRefresh } from './authScheduler';
+import { clearScheduledRefresh, scheduleSilentRefresh } from './authScheduler';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -19,6 +19,7 @@ async function refreshAccessToken(): Promise<string | null> {
         scheduleSilentRefresh(accessToken);
         return accessToken;
     } catch {
+        clearScheduledRefresh();
         clearAccessToken();
         return null;
     }

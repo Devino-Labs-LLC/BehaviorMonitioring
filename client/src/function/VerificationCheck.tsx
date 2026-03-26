@@ -1,5 +1,6 @@
 import { getAccessToken } from '../lib/tokenStore';
 import { getBootstrapStatus } from '../components/AuthBootstrap';
+import { clearScheduledRefresh } from '../lib/authScheduler';
 
 export const SetLoggedInUser = (loginSuccessful: boolean, user: { uName: string, compID: string | number, compName: string, isAdmin: boolean }) => {
     if (typeof window === 'undefined') return true;
@@ -23,6 +24,7 @@ export const SetLoggedInUser = (loginSuccessful: boolean, user: { uName: string,
 export const ClearLoggedInUser = () => {
     if (typeof window === 'undefined') return true;
 
+    clearScheduledRefresh();
     localStorage.removeItem('bmUserData');
 }
 

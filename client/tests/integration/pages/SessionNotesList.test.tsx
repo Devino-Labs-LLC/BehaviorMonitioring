@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import SessionNotesPage from '../../../src/app/SessionNotes/page';
 import { api } from '../../../src/lib/Api';
 
@@ -82,6 +83,36 @@ describe('SessionNotes List Page Integration', () => {
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith('post', '/aba/getSessionNotes', {
         clientID: 1,
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('requests session notes for the newly selected client', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockSessionNotes,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: [],
+      } as any);
+
+    render(<SessionNotesPage />);
+
+    const clientSelect = await screen.findByDisplayValue('John Doe');
+    await user.selectOptions(clientSelect, '2');
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getSessionNotes', {
+        clientID: 2,
         employeeUsername: 'testuser',
       });
     });

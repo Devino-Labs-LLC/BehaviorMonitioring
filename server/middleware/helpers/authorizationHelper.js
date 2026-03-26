@@ -21,9 +21,16 @@ async function getAuthenticatedUser(username) {
  * @param {string[]} allowedRoles - Array of allowed roles
  * @returns {boolean} True if user has one of the allowed roles
  */
-function hasRole(employeeData, allowedRoles = ['root', 'admin', 'Admin']) {
+function hasRole(employeeData, allowedRoles = ['root', 'admin']) {
     if (!employeeData || !employeeData.role) return false;
-    return allowedRoles.includes(employeeData.role);
+    const normalizedRole = String(employeeData.role).toLowerCase();
+    const normalizedAllowedRoles = allowedRoles.map((role) => String(role).toLowerCase());
+    return normalizedAllowedRoles.includes(normalizedRole);
+}
+
+function hasValidCompanyScope(employeeData) {
+    if (!employeeData) return false;
+    return Number(employeeData.companyID) > 0;
 }
 
 /**
@@ -33,13 +40,18 @@ function hasRole(employeeData, allowedRoles = ['root', 'admin', 'Admin']) {
  * @param {string[]} allowedRoles - Array of allowed roles (default: ['root', 'admin', 'Admin'])
  * @returns {Promise<Object|null>} Employee data if authorized, null otherwise (response already sent)
  */
-async function verifyAuthorization(req, res, allowedRoles = ['root', 'admin', 'Admin']) {
+async function verifyAuthorization(req, res, allowedRoles = ['root', 'admin']) {
     const { employeeUsername } = req.body;
     
     const employeeData = await getAuthenticatedUser(employeeUsername);
     
     if (!employeeData) {
         res.json({ statusCode: 401, serverMessage: 'Unauthorized user' });
+        return null;
+    }
+
+    if (!hasValidCompanyScope(employeeData)) {
+        res.json({ statusCode: 403, serverMessage: 'User is not assigned to a valid company' });
         return null;
     }
     
@@ -66,18 +78,23 @@ async function verifyBasicAuthentication(req, res) {
         res.json({ statusCode: 401, serverMessage: 'Unauthorized user' });
         return null;
     }
+
+    if (!hasValidCompanyScope(employeeData)) {
+        res.json({ statusCode: 403, serverMessage: 'User is not assigned to a valid company' });
+        return null;
+    }
     
     return employeeData;
 }
 
 /**
- * Verify user authorization for ABA operations (requires root or Admin role)
+ * Verify user authorization for ABA operations (requires root or admin role)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @returns {Promise<Object|null>} Employee data if authorized, null otherwise
  */
 async function verifyABAAuthorization(req, res) {
-    return verifyAuthorization(req, res, ['root', 'Admin']);
+    return verifyAuthorization(req, res, ['root', 'admin']);
 }
 
 /**
@@ -93,6 +110,7 @@ async function verifyAdminAuthorization(req, res) {
 module.exports = {
     getAuthenticatedUser,
     hasRole,
+    hasValidCompanyScope,
     verifyAuthorization,
     verifyBasicAuthentication,
     verifyABAAuthorization,

@@ -46,7 +46,8 @@ async function abaGetClientDataByID(cID) {
 
 async function abaGetAllClientData(companyID = null) {
     try {
-        const whereClause = companyID ? { companyID } : {};
+        const hasCompanyScope = companyID !== null && companyID !== undefined;
+        const whereClause = hasCompanyScope ? { companyID } : { companyID: null };
         const clients = await Client.findAll({
             attributes: ['clientID', 'fName', 'lName', 'DOB', 'intake_Date', 'group_home_name', 'medicaid_id_number', 'behavior_plan_due_date', 'entered_by', 'companyID', 'companyName', 'date_entered', 'time_entered'],
             where: whereClause

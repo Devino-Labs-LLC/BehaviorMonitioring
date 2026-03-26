@@ -102,6 +102,36 @@ describe('Behavior List Page Integration', () => {
     });
   });
 
+  it('requests behaviors for the newly selected client', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: mockBehaviors,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<BehaviorPage />);
+
+    const clientSelect = await screen.findByDisplayValue('John Doe');
+    await user.selectOptions(clientSelect, '2');
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getClientTargetBehavior', {
+        clientID: 2,
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
   it('redirects to login when not authenticated', async () => {
     const mockPush = jest.fn();
     

@@ -179,7 +179,7 @@ class ABAController {
      */
     async getTargetBehavior(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, behaviorID: bID } = req.body;
@@ -202,7 +202,7 @@ class ABAController {
      */
     async getClientTargetBehavior(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID } = req.body;
@@ -225,7 +225,7 @@ class ABAController {
      */
     async getAClientTargetBehavior(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, behaviorID: bsID } = req.body;
@@ -252,7 +252,7 @@ class ABAController {
      */
     async getArchivedBehavior(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, behaviorID: bID } = req.body;
@@ -275,7 +275,7 @@ class ABAController {
      */
     async getClientArchivedBehavior(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID } = req.body;
@@ -302,7 +302,7 @@ class ABAController {
      */
     async getAClientArchivedBehavior(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, behaviorID: bsID } = req.body;
@@ -329,7 +329,7 @@ class ABAController {
      */
     async getAArchivedBehaviorData(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, behaviorID: bID } = req.body;
@@ -658,7 +658,7 @@ class ABAController {
      */
     async getSessionNotes(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID } = req.body;
@@ -683,7 +683,7 @@ class ABAController {
      */
     async getASessionNote(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, sessionNoteId } = req.body;
@@ -729,7 +729,7 @@ class ABAController {
      */
     async getArchivedSessionNotes(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID } = req.body;
@@ -753,7 +753,7 @@ class ABAController {
      */
     async getAArchivedSessionNote(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID, sessionNoteId } = req.body;
@@ -847,7 +847,7 @@ class ABAController {
      */
     async getClientSkillAquisition(req, res) {
         try {
-            const employeeData = await verifyABAAuthorization(req, res);
+            const employeeData = await verifyBasicAuthentication(req, res);
             if (!employeeData) return;
 
             const { clientID: cID } = req.body;

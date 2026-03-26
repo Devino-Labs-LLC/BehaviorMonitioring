@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { setAccessToken, clearAccessToken } from "@/lib/tokenStore";
-import { scheduleSilentRefresh } from "../lib/authScheduler";
+import { clearScheduledRefresh, scheduleSilentRefresh } from "../lib/authScheduler";
 import { ClearLoggedInUser } from "../function/VerificationCheck";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -31,6 +31,20 @@ function notifyBootstrapComplete() {
     bootstrapListeners = [];
 }
 
+function hasStoredUserSession() {
+    if (typeof window === "undefined") return false;
+
+    const storedUserData = localStorage.getItem('bmUserData');
+    if (!storedUserData) return false;
+
+    try {
+        const parsed = JSON.parse(storedUserData);
+        return Boolean(parsed?.bmLoggedInStatus && parsed?.bmUsername);
+    } catch {
+        return false;
+    }
+}
+
 export default function AuthBootstrap() {
     const [, setReady] = useState(false);
 
@@ -38,6 +52,16 @@ export default function AuthBootstrap() {
         if (isBootstrapping || isBootstrapped) return;
         
         isBootstrapping = true;
+
+        if (!hasStoredUserSession()) {
+            clearScheduledRefresh();
+            clearAccessToken();
+            isBootstrapped = true;
+            isBootstrapping = false;
+            setReady(true);
+            notifyBootstrapComplete();
+            return;
+        }
         
         (async () => {
             try {
@@ -48,6 +72,7 @@ export default function AuthBootstrap() {
                 scheduleSilentRefresh(res.data.accessToken);
             } catch (error) {
                 // If refresh fails and user data exists, clear it
+                clearScheduledRefresh();
                 clearAccessToken();
                 ClearLoggedInUser();
             } finally {

@@ -254,6 +254,24 @@ describe('AuthController - signUpEmployee', () => {
                 })
             );
         });
+
+        it('should assign the existing company ID for pending employee signups', async () => {
+            CompanyData.findOne.mockResolvedValue({
+                companyDataID: 7,
+                companyName: 'Test Company'
+            });
+
+            await authController.signUpEmployee(req, res);
+
+            expect(Employee.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    role: 'employee',
+                    account_status: 'Pending',
+                    companyID: 7,
+                    companyName: 'Test Company'
+                })
+            );
+        });
     });
 
     describe('Error Handling', () => {

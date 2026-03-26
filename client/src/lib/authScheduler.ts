@@ -5,12 +5,22 @@ const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
 
+export function clearScheduledRefresh() {
+    if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+        refreshTimeout = null;
+    }
+}
+
 export function scheduleSilentRefresh(accessToken: string) {
-    if (refreshTimeout) clearTimeout(refreshTimeout);
+    clearScheduledRefresh();
 
     const payload = JSON.parse(atob(accessToken.split(".")[1]));
+    const issuedAtMs = payload.iat ? payload.iat * 1000 : Date.now();
     const expMs = payload.exp * 1000;
-    const refreshAt = expMs - 30_000; // 30s early
+    const ttlMs = Math.max(expMs - issuedAtMs, 1000);
+    const earlyRefreshMs = Math.min(30_000, Math.max(Math.floor(ttlMs * 0.25), 1000));
+    const refreshAt = expMs - earlyRefreshMs;
     const delay = Math.max(refreshAt - Date.now(), 1000);
 
     refreshTimeout = setTimeout(async () => {
@@ -19,6 +29,7 @@ export function scheduleSilentRefresh(accessToken: string) {
         setAccessToken(res.data.accessToken);
         scheduleSilentRefresh(res.data.accessToken);
         } catch {
+        clearScheduledRefresh();
         clearAccessToken();
         }
     }, delay);

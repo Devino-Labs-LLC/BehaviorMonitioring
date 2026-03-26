@@ -117,6 +117,8 @@ class AuthController {
                 role = 'admin';
                 accountStatus = 'Active';
                 companyID = companyRecord.companyDataID;
+            } else {
+                companyID = companyRecord.companyDataID;
             }
 
             // Create new employee
@@ -294,6 +296,22 @@ class AuthController {
                             });
                         }
 
+                        if (employeeData.account_status !== 'Active') {
+                            await logAuthEvent("EMPLOYEE_LOGIN_BLOCKED_PENDING_APPROVAL", {
+                                userId: employeeData.employeeID,
+                                email: employeeData.email,
+                                ip: req.ip,
+                                userAgent: req.headers['user-agent'],
+                                details: `Login blocked - account status is ${employeeData.account_status}`
+                            });
+
+                            return res.json({
+                                statusCode: 403,
+                                loginStatus: false,
+                                serverMessage: 'Your account is pending approval. Please contact your company administrator.'
+                            });
+                        }
+
                         const accessPayload = {
                             sub: employeeData.employeeID,
                             email: employeeData.email,
@@ -330,7 +348,7 @@ class AuthController {
                                 uName: uName.toLowerCase(), 
                                 compName: employeeData.companyName, 
                                 compID: employeeData.companyID, 
-                                isAdmin: employeeData.role === "root" || employeeData.role === "admin" 
+                                isAdmin: ["root", "admin"].includes(String(employeeData.role).toLowerCase()) 
                             } 
                         });
                     }

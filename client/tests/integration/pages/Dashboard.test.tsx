@@ -48,6 +48,10 @@ describe('Dashboard Page Integration', () => {
       statusCode: 200,
       clientData: mockClients,
     } as any);
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      behaviorSkillData: [],
+    } as any);
 
     render(<Dashboard />);
 
@@ -55,6 +59,67 @@ describe('Dashboard Page Integration', () => {
       expect(mockApi).toHaveBeenCalledWith('post', '/aba/getAllClientInfo', {
         employeeUsername: 'testuser',
       });
+    });
+  });
+
+  it('loads dashboard entries through behavior list and behavior-data calls', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          { bsID: 10, name: 'Aggression', measurement: 'Frequency' },
+          { bsID: 11, name: 'Elopement', measurement: 'Duration' },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          { behaviorDataID: 'a', bsID: 10, clientID: 1, clientName: 'John Doe', sessionDate: '2026-03-20', count: 2, duration: 0 },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          { behaviorDataID: 'b', bsID: 11, clientID: 1, clientName: 'John Doe', sessionDate: '2026-03-21', count: 0, duration: 5 },
+        ],
+      } as any);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getClientTargetBehavior', {
+        clientID: '1',
+        employeeUsername: 'testuser',
+      });
+    });
+
+    expect(mockApi).toHaveBeenCalledWith('post', '/aba/getTargetBehavior', {
+      clientID: '1',
+      behaviorID: 10,
+      employeeUsername: 'testuser',
+    });
+
+    expect(mockApi).toHaveBeenCalledWith('post', '/aba/getTargetBehavior', {
+      clientID: '1',
+      behaviorID: 11,
+      employeeUsername: 'testuser',
+    });
+  });
+
+  it('shows invalid company scope message from the API', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 403,
+      serverMessage: 'User is not assigned to a valid company',
+    } as any);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('User is not assigned to a valid company')).toBeInTheDocument();
     });
   });
 

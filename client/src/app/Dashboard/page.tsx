@@ -29,6 +29,8 @@ import {
 } from 'recharts';
 import type { Client } from '../../dto/common/entities/Client';
 import type { GetAllClientsResponse } from '../../dto/modules/client/GetAllClientsResponse';
+import type { GetBehaviorResponse } from '../../dto/modules/behavior/responses/GetBehaviorResponse';
+import type { GetBehaviorDataResponse } from '../../dto/modules/behavior/responses/GetBehaviorDataResponse';
 
 function isoDateOnly(d: Date) {
     return d.toISOString().slice(0, 10);
@@ -128,19 +130,59 @@ export default function DashboardClient() {
 
                 const { start, end } = getRangeDates(range);
                 
-                const data = await api<BehaviorEntry[]>('post', '/aba/getTargetBehavior', {
+                const behaviorListResponse = await api<GetBehaviorResponse>('post', '/aba/getClientTargetBehavior', {
                     clientID,
-                    startDate: start,
-                    endDate: end,
                     employeeUsername: username
                 });
 
+                if (behaviorListResponse.statusCode !== 200) {
+                    throw new Error(behaviorListResponse.serverMessage || 'Failed to load behaviors');
+                }
+
+                const behaviors = behaviorListResponse.behaviorSkillData || [];
+
+                if (behaviors.length === 0) {
+                    if (!mounted) return;
+                    setEntries([]);
+                    return;
+                }
+
+                const behaviorDataResponses = await Promise.all(
+                    behaviors.map(async (behavior) => {
+                        const behaviorDataResponse = await api<GetBehaviorDataResponse>('post', '/aba/getTargetBehavior', {
+                            clientID,
+                            behaviorID: behavior.bsID,
+                            employeeUsername: username
+                        });
+
+                        if (behaviorDataResponse.statusCode !== 200) {
+                            return [];
+                        }
+
+                        return behaviorDataResponse.behaviorSkillData.map((entry) => ({
+                            id: entry.behaviorDataID,
+                            bsID: entry.bsID,
+                            clientID: entry.clientID,
+                            clientName: entry.clientName,
+                            behaviorName: behavior.name,
+                            sessionDate: entry.sessionDate,
+                            measurementType: behavior.measurement,
+                            count: entry.count,
+                            duration: entry.duration,
+                            trial: entry.trial ?? null,
+                        }));
+                    })
+                );
+
                 if (!mounted) return;
-                setEntries(Array.isArray(data) ? data : []);
+                const normalizedEntries = behaviorDataResponses.flat().filter((entry) => {
+                    return entry.sessionDate >= start && entry.sessionDate <= end;
+                });
+                setEntries(normalizedEntries);
             } catch (e: any) {
                 if (!mounted) return;
                 setEntries([]);
-                setErr(e?.message || 'Failed to load behavior entries.');
+                setErr(e?.response?.data?.serverMessage || e?.message || 'Failed to load behavior entries.');
             } finally {
                 if (mounted) setLoading(false);
             }
