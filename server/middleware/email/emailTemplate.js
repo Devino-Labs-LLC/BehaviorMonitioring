@@ -15,7 +15,14 @@ function getResendClient() {
 }
 
 function shouldBypassEmailDelivery() {
-    return process.env.NODE_ENV === 'test' && process.env.GITHUB_ACTIONS === 'true';
+    const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
+    const isTestEnv = process.env.NODE_ENV === 'test';
+    const isJestRuntime = typeof process.env.JEST_WORKER_ID !== 'undefined';
+
+    // In CI runtime flows (e.g., Playwright-backed server startup), bypass external
+    // email providers to avoid network/provider delays. Keep real provider paths
+    // active for Jest, where tests assert provider call behavior via mocks.
+    return isGithubActions && isTestEnv && !isJestRuntime;
 }
 
 // Lazy initialize Brevo SMTP transporter
