@@ -21,8 +21,9 @@ async function getVerificationTokenByEmail(email: string): Promise<string | null
   });
 
   try {
+    // Sequelize maps this model to the lowercase `employee` table, which matters on Linux CI.
     const [rows] = await connection.query(
-      'SELECT verification_token FROM Employee WHERE email = ? ORDER BY employeeID DESC LIMIT 1',
+      'SELECT verification_token FROM employee WHERE email = ? ORDER BY employeeID DESC LIMIT 1',
       [email]
     );
 
