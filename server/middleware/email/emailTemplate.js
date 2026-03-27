@@ -14,6 +14,10 @@ function getResendClient() {
     return resend;
 }
 
+function shouldBypassEmailDelivery() {
+    return process.env.NODE_ENV === 'test' && process.env.GITHUB_ACTIONS === 'true';
+}
+
 // Lazy initialize Brevo SMTP transporter
 let brevoTransporter = null;
 function getBrevoTransporter() {
@@ -36,6 +40,11 @@ function getBrevoTransporter() {
  * Send email using Resend with Brevo SMTP fallback
  */
 async function sendEmailWithFallback(emailData) {
+    if (shouldBypassEmailDelivery()) {
+        console.log('Skipping outbound email delivery during GitHub Actions test run.');
+        return { success: true, provider: 'bypass', id: 'github-actions-test-bypass' };
+    }
+
     try {
         // Ensure 'from' is a string for Resend
         let resendEmailData = { ...emailData };

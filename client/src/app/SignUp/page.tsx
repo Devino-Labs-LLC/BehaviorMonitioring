@@ -258,7 +258,7 @@ const SignUpPage: React.FC = () => {
                             <Button 
                                 nameOfClass="submitButton" 
                                 placeholder="Sign Up" 
-                                btnType="submit"
+                                btnType="button"
                                 isLoading={isLoading}
                                 onClick={handleSubmit}
                                 data-testid="signup-submit-button"
