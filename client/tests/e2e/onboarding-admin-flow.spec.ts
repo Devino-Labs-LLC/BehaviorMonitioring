@@ -71,9 +71,17 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await page.locator('input[name="companyField"]').fill(company);
   await page.locator('input[name="passwordField"]').fill(password);
   await page.locator('input[name="confirmPasswordField"]').fill(password);
+  const signupResponsePromise = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && response.url().includes('/auth/signup')
+  );
   await page.getByTestId('signup-submit-button').click();
 
-  await expect(page.getByText(/Registration Successful!/i)).toBeVisible();
+  const signupResponse = await signupResponsePromise;
+  const signupPayload = await signupResponse.json();
+
+  expect(signupPayload?.signupSuccess, `Signup failed: ${JSON.stringify(signupPayload)}`).toBe(true);
+
+  await expect(page.getByText(/Registration Successful!/i)).toBeVisible({ timeout: 20_000 });
 
   const verificationToken = await waitForVerificationToken(email);
   await page.goto(`/verify-email?token=${verificationToken}`);
