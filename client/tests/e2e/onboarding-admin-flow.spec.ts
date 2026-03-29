@@ -72,6 +72,49 @@ async function fillInputWithRetry(page: Page, name: string, value: string, attem
   throw new Error(`Failed to fill input "${name}" after ${attempts} attempts: ${String(lastError)}`);
 }
 
+async function waitForAdminSession(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const userData = window.localStorage.getItem('bmUserData');
+    if (!userData) return false;
+
+    try {
+      const parsed = JSON.parse(userData);
+      return Boolean(parsed?.bmLoggedInStatus && parsed?.bmAdmin);
+    } catch {
+      return false;
+    }
+  }, { timeout: 20_000 });
+}
+
+async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await page.goto('/Admin/manageHomes/add');
+      await page.waitForLoadState('domcontentloaded');
+
+      const currentUrl = new URL(page.url());
+      if (currentUrl.pathname.endsWith('/Login')) {
+        throw new Error(`Redirected to login while opening Add Home page (attempt ${attempt}).`);
+      }
+
+      await expect(page.getByRole('heading', { name: /Add New Home/i })).toBeVisible({ timeout: 20_000 });
+      await page.locator('input[name="homeName"]').waitFor({ state: 'visible', timeout: 20_000 });
+      await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < attempts) {
+        await page.waitForTimeout(1_000);
+      }
+    }
+  }
+
+  throw new Error(`Unable to open Add Home form after ${attempts} attempts: ${String(lastError)}`);
+}
+
 test('account signup -> verify -> login -> add home -> add client', async ({ page }) => {
   test.skip(
     !E2E_DB_HOST || !E2E_DB_USER || !E2E_DB_NAME,
@@ -116,11 +159,9 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await page.locator('input[name="passwordField"]').fill(password);
   await page.getByRole('main').getByRole('button', { name: 'Login' }).click();
   await page.waitForURL((url) => !url.pathname.endsWith('/Login'), { timeout: 15_000 });
+  await waitForAdminSession(page);
 
-  await page.goto('/Admin/manageHomes/add');
-  await page.waitForURL(/\/Admin\/manageHomes\/add/, { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: /Add New Home/i })).toBeVisible({ timeout: 20_000 });
-  await page.waitForLoadState('networkidle');
+  await openAddHomeFormWithRetry(page);
 
   const homeName = `E2E Home ${nonce}`;
   await fillInputWithRetry(page, 'homeName', homeName);

@@ -60,6 +60,8 @@ const AddClient: React.FC = () => {
         }
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 
+    const canRenderForm = isReady && isLoggedIn && isAdmin;
+
     const fetchHomes = async () => {
         try {
             if (!username) {
@@ -167,7 +169,7 @@ const AddClient: React.FC = () => {
             </Head>
             <div className={componentStyles.pageBody}>
                 <main>
-                    {isLoading ? (
+                    {!canRenderForm || isLoading ? (
                         <Loading />
                     ) : (
                         <form className={componentStyles.bodyBlock} onSubmit={(e) => { e.preventDefault(); debounceAsync(handlePreSubmit, 300)(); }}>

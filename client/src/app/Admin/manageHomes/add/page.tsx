@@ -46,6 +46,8 @@ const AddHome: React.FC = () => {
         }
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 
+    const canRenderForm = isReady && isLoggedIn && isAdmin;
+
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -126,7 +128,7 @@ const AddHome: React.FC = () => {
             </Head>
             <div className={componentStyles.pageBody}>
                 <main>
-                    {isLoading ? (
+                    {!canRenderForm || isLoading ? (
                         <Loading />
                     ) : (
                         <form className={componentStyles.bodyBlock} onSubmit={(e) => { e.preventDefault(); debounceAsync(handlePreSubmit, 300)(); }}>
