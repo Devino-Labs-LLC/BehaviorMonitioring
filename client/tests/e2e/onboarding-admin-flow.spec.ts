@@ -110,7 +110,8 @@ async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void>
     try {
       await dismissNoClientsPromptIfPresent(page);
       await page.getByRole('link', { name: 'Admin link' }).click();
-      await expect(page.getByRole('heading', { name: /Admin/i })).toBeVisible({ timeout: 20_000 });
+      await page.waitForURL('**/Admin', { timeout: 20_000 });
+      await expect(page.getByRole('link', { name: 'Manage homes link' })).toBeVisible({ timeout: 20_000 });
       await page.getByRole('link', { name: 'Manage homes link' }).click();
       await expect(page.getByRole('heading', { name: /Manage Homes/i })).toBeVisible({ timeout: 20_000 });
       await page.getByRole('button', { name: 'Add Home button' }).click();
@@ -137,7 +138,8 @@ async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<voi
     try {
       await dismissNoClientsPromptIfPresent(page);
       await page.getByRole('link', { name: 'Admin link' }).click();
-      await expect(page.getByRole('heading', { name: /Admin/i })).toBeVisible({ timeout: 20_000 });
+      await page.waitForURL('**/Admin', { timeout: 20_000 });
+      await expect(page.getByRole('link', { name: 'Manage clients link' })).toBeVisible({ timeout: 20_000 });
       await page.getByRole('link', { name: 'Manage clients link' }).click();
 
       const noClientsPrompt = page.getByRole('heading', { name: /No Clients Found/i });
