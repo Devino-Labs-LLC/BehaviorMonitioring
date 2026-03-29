@@ -55,10 +55,10 @@ const AddClient: React.FC = () => {
             navigate.push(`/Login?previousUrl=${previousUrl}`);
         } else if (!isAdmin) {
             navigate.push('/');
-        } else {
+        } else if (username) {
             fetchHomes();
         }
-    }, [isReady, isLoggedIn, isAdmin, navigate]);
+    }, [isReady, isLoggedIn, isAdmin, username, navigate]);
 
     const canRenderForm = isReady && isLoggedIn && isAdmin;
 
@@ -78,12 +78,14 @@ const AddClient: React.FC = () => {
                     label: home.homeName
                 }));
                 setHomes(homeOptions);
+                setStatusMessage('');
             } else {
                 throw new Error(response.serverMessage || 'Failed to fetch homes');
             }
         } catch (error) {
             console.error('Failed to fetch homes:', error);
-            setHomes([{ value: 1, label: 'Main Home' }]);
+            setHomes([]);
+            setStatusMessage(getErrorMessage(error));
         }
     };
 

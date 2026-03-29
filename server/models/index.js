@@ -23,6 +23,42 @@ const models = {
   AuthLog
 };
 
+const normalizeTableNames = (tables) =>
+  tables.map((table) => {
+    if (typeof table === 'string') {
+      return table;
+    }
+
+    if (table && typeof table === 'object') {
+      return table.tableName || table.TABLE_NAME || Object.values(table)[0];
+    }
+
+    return table;
+  });
+
+const ensureHomeCapacityColumns = async (queryInterface, existingTables) => {
+  if (!existingTables.includes(Home.tableName)) {
+    return;
+  }
+
+  const existingColumns = await queryInterface.describeTable(Home.tableName);
+
+  for (const columnName of ['capacity', 'current_occupancy']) {
+    if (existingColumns[columnName]) {
+      continue;
+    }
+
+    const attribute = Home.rawAttributes[columnName];
+    console.log(`  -> Adding missing Home column: ${columnName}`);
+
+    await queryInterface.addColumn(Home.tableName, columnName, {
+      type: attribute.type,
+      allowNull: attribute.allowNull,
+      defaultValue: attribute.defaultValue
+    });
+  }
+};
+
 // Define associations here if needed
 // Example:
 // Client.hasMany(BehaviorAndSkill, { foreignKey: 'clientID' });
@@ -40,7 +76,7 @@ const syncDatabase = async () => {
       // In production, only create tables that don't exist
       // This avoids "Too many keys" errors when trying to alter existing tables
       const queryInterface = sequelize.getQueryInterface();
-      const existingTables = await queryInterface.showAllTables();
+      const existingTables = normalizeTableNames(await queryInterface.showAllTables());
       
       let tablesCreated = 0;
       let tablesSkipped = 0;
@@ -57,6 +93,8 @@ const syncDatabase = async () => {
           tablesSkipped++;
         }
       }
+
+      await ensureHomeCapacityColumns(queryInterface, existingTables);
       
       if (tablesCreated > 0) {
         console.log(`✓ Created ${tablesCreated} new table(s)`);

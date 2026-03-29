@@ -53,6 +53,31 @@ async function pause(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function selectHomeOptionWithRetry(page: Page, homeName: string, attempts = 5): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const homeSelect = page.locator('select[name="homeID"]');
+      const matchingOption = page.locator('select[name="homeID"] option').filter({ hasText: homeName });
+
+      await homeSelect.waitFor({ state: 'visible', timeout: 10_000 });
+      await expect(matchingOption).toHaveCount(1, { timeout: 15_000 });
+      await homeSelect.selectOption({ label: homeName });
+      await expect(homeSelect).not.toHaveValue('0', { timeout: 10_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < attempts) {
+        await pause(500);
+      }
+    }
+  }
+
+  throw new Error(`Failed to select home "${homeName}" after ${attempts} attempts: ${String(lastError)}`);
+}
+
 async function dismissSetupPromptIfPresent(page: Page): Promise<void> {
   const modalHeading = page.getByRole('heading', { name: /No (Clients|Homes) Found/i });
 
@@ -257,7 +282,7 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await expect(page.locator('input[name="firstName"]')).toHaveValue('Test');
   await page.locator('input[name="lastName"]').fill('Client');
   await page.locator('input[name="dateOfBirth"]').fill('1990-01-01');
-  await page.locator('select[name="homeID"]').selectOption({ label: homeName });
+  await selectHomeOptionWithRetry(page, homeName);
   await page.locator('input[name="intakeDate"]').fill('2025-01-01');
   await page.locator('input[name="medicaidIdNumber"]').fill(`MD${nonce}`);
   await page.locator('input[name="behaviorPlanDueDate"]').fill('2025-01-31');
