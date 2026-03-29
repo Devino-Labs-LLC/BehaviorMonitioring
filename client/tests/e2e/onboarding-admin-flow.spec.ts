@@ -53,6 +53,17 @@ async function pause(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function dismissNoClientsPromptIfPresent(page: Page): Promise<void> {
+  const modalHeading = page.getByRole('heading', { name: /No Clients Found/i });
+
+  if (!(await modalHeading.isVisible().catch(() => false))) {
+    return;
+  }
+
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(modalHeading).toHaveCount(0, { timeout: 10_000 });
+}
+
 async function fillInputWithRetry(page: Page, name: string, value: string, attempts = 5): Promise<void> {
   let lastError: unknown;
 
@@ -68,7 +79,7 @@ async function fillInputWithRetry(page: Page, name: string, value: string, attem
       lastError = error;
 
       if (attempt < attempts) {
-        await page.waitForTimeout(500);
+        await pause(500);
       }
     }
   }
@@ -97,6 +108,7 @@ async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void>
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      await dismissNoClientsPromptIfPresent(page);
       await page.getByRole('link', { name: 'Admin link' }).click();
       await expect(page.getByRole('heading', { name: /Admin/i })).toBeVisible({ timeout: 20_000 });
       await page.getByRole('link', { name: 'Manage homes link' }).click();
@@ -123,11 +135,19 @@ async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<voi
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      await dismissNoClientsPromptIfPresent(page);
       await page.getByRole('link', { name: 'Admin link' }).click();
       await expect(page.getByRole('heading', { name: /Admin/i })).toBeVisible({ timeout: 20_000 });
       await page.getByRole('link', { name: 'Manage clients link' }).click();
-      await expect(page.getByRole('link', { name: 'Add Client link' })).toBeVisible({ timeout: 20_000 });
-      await page.getByRole('link', { name: 'Add Client link' }).click();
+
+      const noClientsPrompt = page.getByRole('heading', { name: /No Clients Found/i });
+      if (await noClientsPrompt.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: 'Add New Client' }).click();
+      } else {
+        await expect(page.getByRole('link', { name: 'Add Client link' })).toBeVisible({ timeout: 20_000 });
+        await page.getByRole('link', { name: 'Add Client link' }).click();
+      }
+
       await page.locator('input[name="firstName"]').waitFor({ state: 'visible', timeout: 20_000 });
       await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
       return;
@@ -190,6 +210,7 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await page.getByRole('main').getByRole('button', { name: 'Login' }).click();
   await page.waitForURL((url) => !url.pathname.endsWith('/Login'), { timeout: 15_000 });
   await waitForAdminSession(page);
+  await dismissNoClientsPromptIfPresent(page);
 
   await openAddHomeFormWithRetry(page);
 
