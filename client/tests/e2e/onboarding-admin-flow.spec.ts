@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import mysql from 'mysql2/promise';
 
 const E2E_DB_HOST = process.env.E2E_DB_HOST || process.env.MYSQL_HOST;
@@ -49,6 +49,29 @@ async function waitForVerificationToken(email: string): Promise<string> {
   throw new Error('Verification token was not found in time.');
 }
 
+async function fillInputWithRetry(page: Page, name: string, value: string, attempts = 5): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const input = page.locator(`input[name="${name}"]`);
+
+    try {
+      await input.waitFor({ state: 'visible', timeout: 10_000 });
+      await input.fill(value, { timeout: 10_000 });
+      await expect(input).toHaveValue(value, { timeout: 10_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < attempts) {
+        await page.waitForTimeout(500);
+      }
+    }
+  }
+
+  throw new Error(`Failed to fill input "${name}" after ${attempts} attempts: ${String(lastError)}`);
+}
+
 test('account signup -> verify -> login -> add home -> add client', async ({ page }) => {
   test.skip(
     !E2E_DB_HOST || !E2E_DB_USER || !E2E_DB_NAME,
@@ -95,15 +118,17 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await page.waitForURL((url) => !url.pathname.endsWith('/Login'), { timeout: 15_000 });
 
   await page.goto('/Admin/manageHomes/add');
+  await page.waitForURL(/\/Admin\/manageHomes\/add/, { timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: /Add New Home/i })).toBeVisible({ timeout: 20_000 });
+  await page.waitForLoadState('networkidle');
+
   const homeName = `E2E Home ${nonce}`;
-  await page.locator('input[name="homeName"]').click();
-  await page.locator('input[name="homeName"]').pressSequentially(homeName);
-  await expect(page.locator('input[name="homeName"]')).toHaveValue(homeName);
-  await page.locator('input[name="address"]').fill('123 Test Street');
-  await page.locator('input[name="city"]').fill('Orlando');
-  await page.locator('input[name="state"]').fill('FL');
-  await page.locator('input[name="zip"]').fill('32801');
-  await page.locator('input[name="capacity"]').fill('4');
+  await fillInputWithRetry(page, 'homeName', homeName);
+  await fillInputWithRetry(page, 'address', '123 Test Street');
+  await fillInputWithRetry(page, 'city', 'Orlando');
+  await fillInputWithRetry(page, 'state', 'FL');
+  await fillInputWithRetry(page, 'zip', '32801');
+  await fillInputWithRetry(page, 'capacity', '4');
   await page.getByRole('button', { name: 'Create Home' }).click();
   await page.getByTestId('confirm-action-button').click();
   await expect(page.getByText(/Home created successfully!/i)).toBeVisible();
