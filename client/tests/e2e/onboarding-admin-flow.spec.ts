@@ -53,8 +53,8 @@ async function pause(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function dismissNoClientsPromptIfPresent(page: Page): Promise<void> {
-  const modalHeading = page.getByRole('heading', { name: /No Clients Found/i });
+async function dismissSetupPromptIfPresent(page: Page): Promise<void> {
+  const modalHeading = page.getByRole('heading', { name: /No (Clients|Homes) Found/i });
 
   if (!(await modalHeading.isVisible().catch(() => false))) {
     return;
@@ -108,13 +108,24 @@ async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void>
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      await dismissNoClientsPromptIfPresent(page);
-      await page.getByRole('link', { name: 'Admin link' }).click();
-      await page.waitForURL('**/Admin', { timeout: 20_000 });
-      await expect(page.getByRole('link', { name: 'Manage homes link' })).toBeVisible({ timeout: 20_000 });
-      await page.getByRole('link', { name: 'Manage homes link' }).click();
-      await expect(page.getByRole('heading', { name: /Manage Homes/i })).toBeVisible({ timeout: 20_000 });
-      await page.getByRole('button', { name: 'Add Home button' }).click();
+      const addNewHomeButton = page.getByRole('button', { name: 'Add New Home' });
+      const addHomePromptAppeared =
+        (await addNewHomeButton.isVisible().catch(() => false)) ||
+        (await addNewHomeButton.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true).catch(() => false));
+
+      if (addHomePromptAppeared) {
+        await addNewHomeButton.click();
+      } else {
+        await dismissSetupPromptIfPresent(page);
+        await page.getByRole('link', { name: 'Admin link' }).click();
+        await page.waitForURL('**/Admin', { timeout: 20_000 });
+        await expect(page.getByRole('link', { name: 'Manage homes link' })).toBeVisible({ timeout: 20_000 });
+        await page.getByRole('link', { name: 'Manage homes link' }).click();
+        await expect(page.getByRole('heading', { name: /Manage Homes/i })).toBeVisible({ timeout: 20_000 });
+        await page.getByRole('button', { name: 'Add Home button' }).click();
+      }
+
+      await page.waitForURL('**/Admin/manageHomes/add', { timeout: 20_000 });
       await expect(page.getByRole('heading', { name: /Add New Home/i })).toBeVisible({ timeout: 20_000 });
       await page.locator('input[name="homeName"]').waitFor({ state: 'visible', timeout: 20_000 });
       await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
@@ -136,7 +147,7 @@ async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<voi
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      await dismissNoClientsPromptIfPresent(page);
+      await dismissSetupPromptIfPresent(page);
 
       const manageHomesHeading = page.getByRole('heading', { name: /Manage Homes/i });
       if (await manageHomesHeading.isVisible().catch(() => false)) {
@@ -226,7 +237,6 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await page.getByRole('main').getByRole('button', { name: 'Login' }).click();
   await page.waitForURL((url) => !url.pathname.endsWith('/Login'), { timeout: 15_000 });
   await waitForAdminSession(page);
-  await dismissNoClientsPromptIfPresent(page);
 
   await openAddHomeFormWithRetry(page);
 

@@ -7,7 +7,7 @@ import Header from '../../../components/header';
 import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
 import Link from '../../../components/Link';
-import EmptyStatePrompt from '../../../components/EmptyStatePrompt';
+import NoClientsPrompt from '../../../components/NoClientsPrompt';
 import { useAuth } from '../../../hooks/useAuth';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
@@ -144,12 +144,8 @@ const ManageClients: React.FC = () => {
             <Head>
                 <title>Manage Clients - BMetrics</title>
             </Head>
-            <EmptyStatePrompt
-                title="No Clients Found"
-                message="You don't have any clients yet. Would you like to add a new client to get started?"
+            <NoClientsPrompt
                 isVisible={showNoClientsPrompt}
-                navigationPath="/Admin/manageClients/add"
-                navigationLabel="Add New Client"
                 onClose={() => setShowNoClientsPrompt(false)}
             />
             <div className={componentStyles.pageBody}>
@@ -167,7 +163,7 @@ const ManageClients: React.FC = () => {
                                 <p className={componentStyles.statusMessage}>{statusMessage ? <b>{statusMessage}</b> : null}</p>
                                 
                                 {clients.length === 0 ? (
-                                    <p>Click "Add Client" above to create your first client.</p>
+                                    <p>Use the setup prompt above to create your first record.</p>
                                 ) : (
                                     <table className={componentStyles.tbClientTable}>
                                         <thead>

@@ -19,7 +19,7 @@ import type {
 } from '../../../dto';
 import Button from '../../../components/Button';
 import PopoutPrompt from '../../../components/PopoutPrompt';
-import EmptyStatePrompt from '../../../components/EmptyStatePrompt';
+import NoClientsPrompt from '../../../components/NoClientsPrompt';
 
 
 const Archive: React.FC = () => {
@@ -239,12 +239,8 @@ const Archive: React.FC = () => {
         <Head>
             <title>Archived Behavior - BMetrics</title>
         </Head>
-        <EmptyStatePrompt
-            title="No Clients Found"
-            message="You don't have any clients yet. Would you like to add a new client to get started?"
+        <NoClientsPrompt
             isVisible={showNoClientsPrompt}
-            navigationPath="/Admin/manageClients/add"
-            navigationLabel="Add New Client"
             onClose={() => setShowNoClientsPrompt(false)}
         />
         <div className={componentStyles.pageBody}>

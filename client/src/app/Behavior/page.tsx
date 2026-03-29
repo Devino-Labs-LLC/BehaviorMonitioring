@@ -24,7 +24,7 @@ import type {
 import Button from '../../components/Button';
 import PromptForMerge from '../../components/PromptForMerge';
 import PopoutPrompt from '../../components/PopoutPrompt';
-import EmptyStatePrompt from '../../components/EmptyStatePrompt';
+import NoClientsPrompt from '../../components/NoClientsPrompt';
 
 const TargetBehavior: React.FC = () => {
     const navigate = useRouter();
@@ -386,12 +386,8 @@ const TargetBehavior: React.FC = () => {
             <Header />
             <Head>
                 <title>Behaviors - BMetrics</title>
-            </Head>            <EmptyStatePrompt
-                title="No Clients Found"
-                message="You don't have any clients yet. Would you like to add a new client to get started?"
+            </Head>            <NoClientsPrompt
                 isVisible={showNoClientsPrompt}
-                navigationPath="/Admin/manageClients/add"
-                navigationLabel="Add New Client"
                 onClose={() => setShowNoClientsPrompt(false)}
             />            <div className={componentStyles.pageBody}>
                 <main>

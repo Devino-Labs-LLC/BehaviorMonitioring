@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from '../../styles/Dashboard.module.scss';
 import KpiCard from '../../components/KpiCard';
 import AlertList from '../../components/AlertList';
-import EmptyStatePrompt from '../../components/EmptyStatePrompt';
+import NoClientsPrompt from '../../components/NoClientsPrompt';
 import Loading from '../../components/loading';
 import {
     buildDashboardView,
@@ -219,12 +219,8 @@ export default function DashboardClient() {
         <Head>
             <title>Dashboard - BMetrics</title>
         </Head>
-        <EmptyStatePrompt
-            title="No Clients Found"
-            message="You don't have any clients yet. Would you like to add a new client to get started?"
+        <NoClientsPrompt
             isVisible={showNoClientsPrompt}
-            navigationPath="/Admin/manageClients/add"
-            navigationLabel="Add New Client"
             onClose={() => setShowNoClientsPrompt(false)}
         />
         <div className={styles.dashboardPage}>
