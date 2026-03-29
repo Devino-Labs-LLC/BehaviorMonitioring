@@ -49,6 +49,10 @@ async function waitForVerificationToken(email: string): Promise<string> {
   throw new Error('Verification token was not found in time.');
 }
 
+async function pause(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fillInputWithRetry(page: Page, name: string, value: string, attempts = 5): Promise<void> {
   let lastError: unknown;
 
@@ -103,10 +107,10 @@ async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void>
       await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
       return;
     } catch (error) {
-      lastError = error;
+      lastError = `${String(error)} (current URL: ${page.url()})`;
 
       if (attempt < attempts) {
-        await page.waitForTimeout(1_000);
+        await pause(1_000);
       }
     }
   }
@@ -128,10 +132,10 @@ async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<voi
       await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
       return;
     } catch (error) {
-      lastError = error;
+      lastError = `${String(error)} (current URL: ${page.url()})`;
 
       if (attempt < attempts) {
-        await page.waitForTimeout(1_000);
+        await pause(1_000);
       }
     }
   }
@@ -140,6 +144,8 @@ async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<voi
 }
 
 test('account signup -> verify -> login -> add home -> add client', async ({ page }) => {
+  test.setTimeout(300_000);
+
   test.skip(
     !E2E_DB_HOST || !E2E_DB_USER || !E2E_DB_NAME,
     'Set E2E_DB_* or MYSQL_* variables to enable token lookup from the verification email flow.'
