@@ -84,6 +84,8 @@ async function waitForAdminSession(page: Page): Promise<void> {
       return false;
     }
   }, { timeout: 20_000 });
+
+  await expect(page.getByRole('link', { name: 'Admin link' })).toBeVisible({ timeout: 20_000 });
 }
 
 async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void> {
@@ -91,14 +93,11 @@ async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void>
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      await page.goto('/Admin/manageHomes/add');
-      await page.waitForLoadState('domcontentloaded');
-
-      const currentUrl = new URL(page.url());
-      if (currentUrl.pathname.endsWith('/Login')) {
-        throw new Error(`Redirected to login while opening Add Home page (attempt ${attempt}).`);
-      }
-
+      await page.getByRole('link', { name: 'Admin link' }).click();
+      await expect(page.getByRole('heading', { name: /Admin/i })).toBeVisible({ timeout: 20_000 });
+      await page.getByRole('link', { name: 'Manage homes link' }).click();
+      await expect(page.getByRole('heading', { name: /Manage Homes/i })).toBeVisible({ timeout: 20_000 });
+      await page.getByRole('button', { name: 'Add Home button' }).click();
       await expect(page.getByRole('heading', { name: /Add New Home/i })).toBeVisible({ timeout: 20_000 });
       await page.locator('input[name="homeName"]').waitFor({ state: 'visible', timeout: 20_000 });
       await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
@@ -113,6 +112,31 @@ async function openAddHomeFormWithRetry(page: Page, attempts = 3): Promise<void>
   }
 
   throw new Error(`Unable to open Add Home form after ${attempts} attempts: ${String(lastError)}`);
+}
+
+async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await page.getByRole('link', { name: 'Admin link' }).click();
+      await expect(page.getByRole('heading', { name: /Admin/i })).toBeVisible({ timeout: 20_000 });
+      await page.getByRole('link', { name: 'Manage clients link' }).click();
+      await expect(page.getByRole('link', { name: 'Add Client link' })).toBeVisible({ timeout: 20_000 });
+      await page.getByRole('link', { name: 'Add Client link' }).click();
+      await page.locator('input[name="firstName"]').waitFor({ state: 'visible', timeout: 20_000 });
+      await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < attempts) {
+        await page.waitForTimeout(1_000);
+      }
+    }
+  }
+
+  throw new Error(`Unable to open Add Client form after ${attempts} attempts: ${String(lastError)}`);
 }
 
 test('account signup -> verify -> login -> add home -> add client', async ({ page }) => {
@@ -174,7 +198,7 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await page.getByTestId('confirm-action-button').click();
   await expect(page.getByText(/Home created successfully!/i)).toBeVisible();
 
-  await page.goto('/Admin/manageClients/add');
+  await openAddClientFormWithRetry(page);
   await page.locator('input[name="firstName"]').click();
   await page.locator('input[name="firstName"]').pressSequentially('Test');
   await expect(page.locator('input[name="firstName"]')).toHaveValue('Test');
