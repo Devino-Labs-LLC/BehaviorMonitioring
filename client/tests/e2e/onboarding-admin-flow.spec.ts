@@ -137,19 +137,33 @@ async function openAddClientFormWithRetry(page: Page, attempts = 3): Promise<voi
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       await dismissNoClientsPromptIfPresent(page);
-      await page.getByRole('link', { name: 'Admin link' }).click();
+
+      const manageHomesHeading = page.getByRole('heading', { name: /Manage Homes/i });
+      if (await manageHomesHeading.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: 'Back button' }).click();
+      } else {
+        await page.getByRole('link', { name: 'Admin link' }).click();
+      }
+
       await page.waitForURL('**/Admin', { timeout: 20_000 });
       await expect(page.getByRole('link', { name: 'Manage clients link' })).toBeVisible({ timeout: 20_000 });
       await page.getByRole('link', { name: 'Manage clients link' }).click();
+      await page.waitForURL('**/Admin/manageClients', { timeout: 20_000 });
+      await expect(page.getByRole('heading', { name: /Manage Clients/i })).toBeVisible({ timeout: 20_000 });
 
       const noClientsPrompt = page.getByRole('heading', { name: /No Clients Found/i });
-      if (await noClientsPrompt.isVisible().catch(() => false)) {
+      const modalAppeared =
+        (await noClientsPrompt.isVisible().catch(() => false)) ||
+        (await noClientsPrompt.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true).catch(() => false));
+
+      if (modalAppeared) {
         await page.getByRole('button', { name: 'Add New Client' }).click();
       } else {
         await expect(page.getByRole('link', { name: 'Add Client link' })).toBeVisible({ timeout: 20_000 });
         await page.getByRole('link', { name: 'Add Client link' }).click();
       }
 
+      await page.waitForURL('**/Admin/manageClients/add', { timeout: 20_000 });
       await page.locator('input[name="firstName"]').waitFor({ state: 'visible', timeout: 20_000 });
       await expect(page.getByText('Loading...')).toHaveCount(0, { timeout: 20_000 });
       return;
