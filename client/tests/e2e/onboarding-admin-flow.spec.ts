@@ -78,6 +78,13 @@ async function selectHomeOptionWithRetry(page: Page, homeName: string, attempts 
   throw new Error(`Failed to select home "${homeName}" after ${attempts} attempts: ${String(lastError)}`);
 }
 
+async function expectHomeSelectionRequired(page: Page): Promise<void> {
+  const homeSelect = page.locator('select[name="homeID"]');
+  await homeSelect.waitFor({ state: 'visible', timeout: 10_000 });
+  await expect(homeSelect).toHaveValue('', { timeout: 10_000 });
+  await expect(page.locator('select[name="homeID"] option').first()).toHaveText('Select a home', { timeout: 10_000 });
+}
+
 async function dismissSetupPromptIfPresent(page: Page): Promise<void> {
   const modalHeading = page.getByRole('heading', { name: /No (Clients|Homes) Found/i });
 
@@ -282,6 +289,7 @@ test('account signup -> verify -> login -> add home -> add client', async ({ pag
   await expect(page.locator('input[name="firstName"]')).toHaveValue('Test');
   await page.locator('input[name="lastName"]').fill('Client');
   await page.locator('input[name="dateOfBirth"]').fill('1990-01-01');
+  await expectHomeSelectionRequired(page);
   await selectHomeOptionWithRetry(page, homeName);
   await page.locator('input[name="intakeDate"]').fill('2025-01-01');
   await page.locator('input[name="medicaidIdNumber"]').fill(`MD${nonce}`);

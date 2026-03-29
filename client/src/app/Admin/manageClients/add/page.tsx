@@ -29,11 +29,26 @@ const AddClient: React.FC = () => {
     const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
     const [homes, setHomes] = useState<{value: number; label: string}[]>([]);
     
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        firstName: string;
+        lastName: string;
+        dateOfBirth: string;
+        homeID: number | '';
+        intakeDate: string;
+        medicaidIdNumber: string;
+        behaviorPlanDueDate: string;
+        guardianName: string;
+        guardianPhone: string;
+        guardianEmail: string;
+        allergies: string;
+        medications: string;
+        notes: string;
+        companyID: number;
+    }>({
         firstName: '',
         lastName: '',
         dateOfBirth: '',
-        homeID: 0,
+        homeID: '',
         intakeDate: '',
         medicaidIdNumber: '',
         behaviorPlanDueDate: '',
@@ -97,7 +112,7 @@ const AddClient: React.FC = () => {
         if (!formData.firstName.trim()) return 'First name is required';
         if (!formData.lastName.trim()) return 'Last name is required';
         if (!formData.dateOfBirth) return 'Date of birth is required';
-        if (!formData.homeID || formData.homeID === 0) return 'Please select a home';
+        if (formData.homeID === '') return 'Please select a home';
         if (!formData.intakeDate) return 'Intake date is required';
         if (!formData.medicaidIdNumber.trim()) return 'Medicaid ID is required';
         if (!formData.behaviorPlanDueDate) return 'Behavior plan due date is required';
@@ -216,7 +231,8 @@ const AddClient: React.FC = () => {
                                     label="Home"
                                     options={homes}
                                     value={formData.homeID}
-                                    onChange={(e) => handleInputChange('homeID', parseInt(e.target.value))}
+                                    placeholderOption="Select a home"
+                                    onChange={(e) => handleInputChange('homeID', e.target.value ? parseInt(e.target.value, 10) : '')}
                                     requiring={true}
                                 />
                                 
