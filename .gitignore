@@ -79,3 +79,6 @@ sonarcloud-issues-report.md
 sonarcloud-issues-page1.json
 sonarcloud-issues-all.json
 sonarcloud-issues-all.csv
+sonarcloud-issues-page1-refresh.json
+.gitignore
+sonarcloud-issues-page2-refresh.json
