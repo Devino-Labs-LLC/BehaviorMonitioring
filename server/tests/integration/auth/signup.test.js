@@ -1,11 +1,11 @@
 const request = require('supertest');
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const csurf = require('csurf');
 const rateLimit = require('express-rate-limit');
 const authRouter = require('../../../routes/Auth');
 const Employee = require('../../../models/Employee');
 const bcrypt = require('bcryptjs');
+const { csrfProtection, generateToken } = require('../../../middleware/csrfProtection');
 
 // Mock the models module
 jest.mock('../../../models/Employee');
@@ -15,21 +15,12 @@ jest.mock('../../../middleware/helpers/authLog');
 describe('SignUp API Integration Tests', () => {
     let app;
     let agent;
-    const csrfCookieName = 'psifi.x-csrf-token';
 
     const testRateLimiter = rateLimit({
         windowMs: 60 * 1000,
         max: 1000,
         standardHeaders: true,
         legacyHeaders: false,
-    });
-    const csrfProtection = csurf({
-        cookie: {
-            key: csrfCookieName,
-            sameSite: 'strict',
-            path: '/',
-            httpOnly: true,
-        },
     });
 
     async function postWithCsrf(path, payload) {
@@ -47,7 +38,7 @@ describe('SignUp API Integration Tests', () => {
         app.use(csrfProtection);
         app.use(express.json());
         app.get('/csrf-token', (req, res) => {
-            res.json({ csrfToken: req.csrfToken() });
+            res.json({ csrfToken: generateToken(req, res) });
         });
         app.use('/auth', testRateLimiter, authRouter);
     });

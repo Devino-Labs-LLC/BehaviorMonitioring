@@ -1,4 +1,6 @@
 const { doubleCsrf } = require('csrf-csrf');
+const prodStatus = process.env.IN_PROD === 'true';
+const csrfCookieName = prodStatus ? '__Host-psifi.x-csrf-token' : 'psifi.x-csrf-token';
 
 // Configure CSRF protection with double-submit cookie pattern
 const {
@@ -7,11 +9,11 @@ const {
     doubleCsrfProtection, // Combined middleware for protection
 } = doubleCsrf({
     getSecret: () => process.env.CSRF_SECRET || 'default-csrf-secret-change-in-production',
-    cookieName: '__Host-psifi.x-csrf-token', // Cookie name for CSRF token
+    cookieName: csrfCookieName, // Cookie name for CSRF token
     cookieOptions: {
         sameSite: 'strict',
         path: '/',
-        secure: process.env.IN_PROD === 'true', // Secure only in production
+        secure: prodStatus, // Secure only in production
         httpOnly: true, // Prevent client-side access
     },
     size: 64, // Size of the secret
@@ -22,10 +24,7 @@ const {
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
 const csrfProtection = (req, res, next) => {
-    const csrfToken = generateToken(req, res);
-    res.locals.csrfToken = csrfToken;
-
-    if (process.env.NODE_ENV === 'test' || SAFE_METHODS.includes(req.method)) {
+    if (SAFE_METHODS.includes(req.method) || process.env.SKIP_CSRF_PROTECTION === 'true') {
         return next();
     }
 

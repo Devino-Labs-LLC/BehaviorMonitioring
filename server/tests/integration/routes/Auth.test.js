@@ -1,11 +1,11 @@
 const request = require('supertest');
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const csurf = require('csurf');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('../../../routes/Auth');
 const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
 const bcrypt = require('bcryptjs');
+const { csrfProtection, generateToken } = require('../../../middleware/csrfProtection');
 
 // Mock employeeQueries
 jest.mock('../../../middleware/helpers/EmployeeQueries');
@@ -14,27 +14,18 @@ jest.mock('../../../middleware/helpers/EmployeeQueries');
 jest.mock('bcryptjs');
 
 const app = express();
-const csrfCookieName = 'psifi.x-csrf-token';
 const testRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
 });
-const csrfProtection = csurf({
-  cookie: {
-    key: csrfCookieName,
-    sameSite: 'strict',
-    path: '/',
-    httpOnly: true,
-  },
-});
 
 app.use(cookieParser());
 app.use(csrfProtection);
 app.use(express.json());
 app.get('/csrf-token', (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
+  res.json({ csrfToken: generateToken(req, res) });
 });
 app.use('/auth', testRateLimiter, authRoutes);
 

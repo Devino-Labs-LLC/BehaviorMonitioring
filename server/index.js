@@ -11,23 +11,12 @@ const cors = require('cors');
 const express = require('express');
 const app = express();
 const cookieParser = require("cookie-parser");
-const csurf = require('csurf');
 const authMiddleware = require('./middleware/authMiddleware');
 const { requireRole } = require('./middleware/rbac');
 const requestLogger = require('./middleware/requestLogger');
 const { generalLimiter, apiLimiter } = require('./middleware/rateLimiter');
+const { csrfProtection, generateToken } = require('./middleware/csrfProtection');
 let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
-const csrfCookieKey = prodStatus ? '__Host-psifi.x-csrf-token' : 'psifi.x-csrf-token';
-
-const csrfProtection = csurf({
-  cookie: {
-    key: csrfCookieKey,
-    sameSite: 'strict',
-    path: '/',
-    secure: prodStatus,
-    httpOnly: true,
-  },
-});
 
 // Define allowed origins
 const allowedOrigins = [clientOrigin, amplifyOrigin].filter(Boolean);
@@ -75,7 +64,7 @@ app.get('/', generalLimiter, (req, res) => {
 
 // Endpoint to get CSRF token
 app.get('/csrf-token', generalLimiter, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
+  res.json({ csrfToken: generateToken(req, res) });
 });
 
 const authRoute = require('./routes/Auth');
@@ -101,14 +90,6 @@ app.use((req, res, next) => {
 
 // Middleware for handling errors and setting CORS headers
 app.use((err, req, res, next) => {
-  if (err.code === 'EBADCSRFTOKEN') {
-    return res.status(403).json({
-      statusCode: 403,
-      success: false,
-      message: 'Invalid or missing CSRF token',
-    });
-  }
-
   if (err.status && err.status === 404) {
     return res.redirect(host + '/PageNotFound');
   } 
