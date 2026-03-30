@@ -96,7 +96,7 @@ describe('ManageAdmins Page Integration', () => {
         admins: [],
       } as any);
 
-    global.confirm = jest.fn(() => true);
+    globalThis.confirm = jest.fn(() => true);
 
     render(<ManageAdmins />);
 
@@ -107,7 +107,7 @@ describe('ManageAdmins Page Integration', () => {
     const deleteButton = screen.getByLabelText('Delete admin admin1');
     await userEvent.click(deleteButton);
 
-    expect(global.confirm).toHaveBeenCalled();
+    expect(globalThis.confirm).toHaveBeenCalled();
   });
 
   it('displays error message on fetch failure', async () => {

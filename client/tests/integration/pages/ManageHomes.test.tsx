@@ -115,7 +115,7 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('handles delete home with confirmation', async () => {
-    global.confirm = jest.fn(() => true);
+    globalThis.confirm = jest.fn(() => true);
 
     mockApi.mockImplementation((method, path) => {
       if (path === '/admin/deleteHome') {
@@ -140,7 +140,7 @@ describe('ManageHomes Page Integration', () => {
     const deleteButtons = await screen.findAllByRole('button', { name: 'Delete button' });
     await userEvent.click(deleteButtons[0]);
 
-    expect(global.confirm).toHaveBeenCalledWith(
+    expect(globalThis.confirm).toHaveBeenCalledWith(
       expect.stringContaining('Sunrise Home')
     );
 
@@ -153,7 +153,7 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('does not delete when user cancels confirmation', async () => {
-    global.confirm = jest.fn(() => false);
+    globalThis.confirm = jest.fn(() => false);
 
     mockApi.mockImplementation(() =>
       Promise.resolve({
@@ -171,7 +171,7 @@ describe('ManageHomes Page Integration', () => {
     const deleteButtons = await screen.findAllByRole('button', { name: 'Delete button' });
     await userEvent.click(deleteButtons[0]);
 
-    expect(global.confirm).toHaveBeenCalled();
+    expect(globalThis.confirm).toHaveBeenCalled();
     expect(mockApi.mock.calls.filter(([, path]) => path === '/admin/deleteHome')).toHaveLength(0);
   });
 

@@ -4,10 +4,8 @@ import Head from 'next/head';
 import { useRouter } from 'next/navigation';
 import componentStyles from '../../../styles/components.module.scss';
 import Header from '../../../components/header';
-import Button from '../../../components/Button';
 import Loading from '../../../components/loading';
 import { GetLoggedInUserStatus } from '../../../function/VerificationCheck';
-import { debounceAsync } from '../../../function/debounce';
 
 const AddSkillAquisition: React.FC = () => {
     const navigate = useRouter();
@@ -15,15 +13,17 @@ const AddSkillAquisition: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     useEffect(() => {
+        if (userLoggedIn) {
+            setIsLoading(true);
+            //Get skill aquisition
+            setIsLoading(false);
+            return;
+        }
+
         if (!userLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);        
         }
-        else {
-            setIsLoading(true);
-            //Get skill aquisition
-        }
-        setIsLoading(false);
     }, [userLoggedIn]);
 
   return (
@@ -45,6 +45,6 @@ const AddSkillAquisition: React.FC = () => {
         </div>
     </>
   );
-}
+};
 
 export default AddSkillAquisition;

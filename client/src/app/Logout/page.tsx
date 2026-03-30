@@ -30,8 +30,8 @@ const Logout: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const submitLogoutForm = async() => {
@@ -78,7 +78,7 @@ const Logout: React.FC = () => {
                         <h2>Logout</h2>
                         <p>You have been logged out <br/> Select the login button below to sign in</p>
                         <Button nameOfClass='loginButton' placeholder='Login' btnType='button' isLoading={isLoading} onClick={routeChange}/>
-                        <p className={componentStyles.statusMessage}>{statusMessage ? statusMessage : null}</p>
+                        <p className={componentStyles.statusMessage}>{statusMessage || null}</p>
                     </form>
                 }
             </main>
@@ -86,6 +86,6 @@ const Logout: React.FC = () => {
         <Footer />
     </>
   );
-}
+};
 
 export default Logout;

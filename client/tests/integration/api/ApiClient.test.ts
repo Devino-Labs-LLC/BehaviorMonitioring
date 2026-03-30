@@ -5,6 +5,11 @@ jest.mock('axios', () => ({
   create: jest.fn(() => ({
     post: jest.fn(),
     request: jest.fn(),
+    interceptors: {
+      request: {
+        use: jest.fn(),
+      },
+    },
   })),
 }));
 

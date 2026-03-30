@@ -87,24 +87,24 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     };
 
     const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value) && value >= 0) {
+        const value = Number.parseInt(e.target.value, 10);
+        if (!Number.isNaN(value) && value >= 0) {
             setHour(value);
             updateTime(value, minute, second);
         }
     };
 
     const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value) && value >= 0 && value < 60) {
+        const value = Number.parseInt(e.target.value, 10);
+        if (!Number.isNaN(value) && value >= 0 && value < 60) {
             setMinute(value);
             updateTime(hour, value, second);
         }
     };
 
     const handleSecondChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value) && value >= 0 && value < 60) {
+        const value = Number.parseInt(e.target.value, 10);
+        if (!Number.isNaN(value) && value >= 0 && value < 60) {
             setSecond(value);
             updateTime(hour, minute, value);
         }
@@ -113,6 +113,15 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     return (
         <div className={`ng-timepicker ${name}`}>
             <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Hours</th>
+                        <th scope="col"></th>
+                        <th scope="col">Minutes</th>
+                        <th scope="col"></th>
+                        <th scope="col">Seconds</th>
+                    </tr>
+                </thead>
                 <tbody>
                     <tr>
                         <td className="act noselect" onClick={incrementHour}><FaAngleUp /></td>

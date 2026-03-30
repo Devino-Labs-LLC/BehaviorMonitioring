@@ -73,12 +73,7 @@
 .DS_STORE*
 node_modules*
 .vscode/
-sonarcloud-screenshot-report.md
-sonarcloud-issues-page2.json
-sonarcloud-issues-report.md
-sonarcloud-issues-page1.json
-sonarcloud-issues-all.json
-sonarcloud-issues-all.csv
-sonarcloud-issues-page1-refresh.json
-.gitignore
-sonarcloud-issues-page2-refresh.json
+
+# SonarCloud
+*sonarcloud*.csv
+*sonarcloud*.json

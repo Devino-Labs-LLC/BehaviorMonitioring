@@ -120,7 +120,7 @@ const Archive: React.FC = () => {
         setStatusMessage('');
         setArchivedSessionNotes([]);
         setSelectedClient(value);
-        const numericValue = value === '' ? NaN : parseFloat(value);
+        const numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         setSelectedClientID(numericValue);
     };
 
@@ -207,8 +207,8 @@ const Archive: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     return (
@@ -249,8 +249,8 @@ const Archive: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {archivedSessionNotes.map((note, index) => (
-                                            <tr key={index}>
+                                        {archivedSessionNotes.map((note) => (
+                                            <tr key={String(note.sessionNoteDataID)}>
                                                 <td onClick={() => openSessionNoteDetail(note.sessionNoteDataID)}><div>{note.sessionDate}</div></td>
                                                 <td onClick={() => openSessionNoteDetail(note.sessionNoteDataID)}><div>{note.sessionTime}</div></td>
                                                 <td onClick={() => openSessionNoteDetail(note.sessionNoteDataID)}><div>{note.sessionNotes?.substring(0, 50)}{note.sessionNotes && note.sessionNotes.length > 50 ? '...' : ''}</div></td>
@@ -269,6 +269,6 @@ const Archive: React.FC = () => {
             </div>
         </>
     );
-}
+};
 
 export default Archive;

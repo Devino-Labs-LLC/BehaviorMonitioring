@@ -8,7 +8,7 @@ import Loading from '../../../components/loading';
 import { GetLoggedInUserStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
-import type { GetSessionNotesResponse, DeleteSessionNoteResponse, SessionNote } from '../../../dto';
+import type { GetSessionNotesResponse, SessionNote } from '../../../dto';
 import Button from '../../../components/Button';
 
 const Page: React.FC = () => {
@@ -21,8 +21,6 @@ const Page: React.FC = () => {
     const [selectedSessionNoteID, setSelectedSessionNoteID] = useState<string | null>(null);
     const [clientID, setClientID] = useState<string | null>(null);
     const [sessionNotesData, setSessionNotesData] = useState<SessionNote[]>([]);
-    const [sessionNotesToActOn, setSessionNotesToActOn] = useState<string>('');
-    const [sessionNotesIdToActOn, setSessionNotesIdToActOn] = useState<string>('');
     const [timerCount, setTimerCount] = useState<number>(0);
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
 
@@ -34,18 +32,13 @@ const Page: React.FC = () => {
         const storedSessionNoteID = sessionStorage.getItem('sessionNoteId');
         const storedClientID = sessionStorage.getItem('clientID');
         
-        console.log('SessionNotes Detail - Stored IDs:', { storedClientID, storedSessionNoteID });
-        
         if (!storedClientID || !storedSessionNoteID) {
-            console.log('SessionNotes Detail - Missing IDs, redirecting back');
             navigate.push('/SessionNotes');
             return;
         }
         
         setSelectedSessionNoteID(storedSessionNoteID);
         setClientID(storedClientID);
-        
-        console.log('SessionNotes Detail - Calling API with:', { storedClientID, storedSessionNoteID });
         
         // Pass IDs directly to avoid state timing issues
         debounceAsync(() => getASessionNoteDetails(storedClientID, storedSessionNoteID), 300)();
@@ -73,8 +66,8 @@ const Page: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const backButtonFuctionality = () => {
@@ -101,40 +94,6 @@ const Page: React.FC = () => {
             }
         } catch (error) {
             setStatusMessage(String(error));
-        }
-        finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        await debounceAsync(() => deleteSessionNoteCall(sessionNotesIdToActOn, sessionNotesToActOn), 300)();
-    };
-
-    const deleteSessionNoteCall = async (sessionNoteId: string, sessionNoteName: string) => {
-        setIsLoading(true);
-        if (!userLoggedIn) {
-            const previousUrl = encodeURIComponent(location.pathname);
-            navigate.push(`/Login?previousUrl=${previousUrl}`);
-            return;
-        }
-        
-        try {
-            const response = await api<DeleteSessionNoteResponse>('post', '/aba/deleteSessionNote', {
-                "clientID": clientID, 
-                "sessionNoteId": sessionNoteId, 
-                "employeeUsername": loggedInUser 
-            });
-            if (response.statusCode === 200) {
-                setStatusMessage(`Session Note "${sessionNoteName}" has been deleted successfully.`);
-                // Update the notesOptions state to remove the deleted behavior
-                setTimerCount(3);
-                setClearMessageStatus(true);                                   
-        } else {
-                throw new Error(`Failed to delete "${sessionNoteName}".`);
-            }
-        } catch (error) {
-            return setStatusMessage(String(error));
         }
         finally {
             setIsLoading(false);
@@ -184,6 +143,6 @@ const Page: React.FC = () => {
             </div>
         </>
     );
-}
+};
 
 export default Page;

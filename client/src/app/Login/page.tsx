@@ -8,9 +8,8 @@ import Footer from '../../components/footer';
 import InputFields from '../../components/Inputfield';
 import Button from '../../components/Button';
 import Loading from '../../components/loading';
-import { GetLoggedInUserStatus } from '../../function/VerificationCheck'
+import { GetLoggedInUserStatus, SetLoggedInUser } from '../../function/VerificationCheck';
 import { CheckUsername } from '../../function/EntryCheck';
-import { SetLoggedInUser } from '../../function/VerificationCheck';
 import { debounceAsync } from '../../function/debounce';
 import { api } from '../../lib/Api';
 import type { LoginResponse } from '../../dto';
@@ -75,8 +74,8 @@ const LoginContent: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, [submitLoginForm]);
 
     return (
@@ -95,7 +94,7 @@ const LoginContent: React.FC = () => {
                             <InputFields name="usernameField" type="text" placeholder="Username" requiring={true} value={uName} onChange={(e) => setuName(e.target.value)}/>
                             <InputFields name="passwordField" type="password" placeholder="Password" requiring={true} value={pWord} onChange={(e) => setPWord(e.target.value)}/>
                             <Button nameOfClass='loginButton' placeholder='Login' btnType='button' isLoading={isLoading} onClick={debounceAsync(submitLoginForm, 300)}/>
-                            <p className={componentStyles.statusMessage}>{statusMessage ? statusMessage : null}</p>
+                            <p className={componentStyles.statusMessage}>{statusMessage || null}</p>
                         </form>
                     }
                 </main>
@@ -103,7 +102,7 @@ const LoginContent: React.FC = () => {
             <Footer />
         </>
     );
-}
+};
 
 export default function Login() {
     return (

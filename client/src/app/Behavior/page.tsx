@@ -82,14 +82,15 @@ const TargetBehavior: React.FC = () => {
         }
         try {
             const data = await api<GetAllClientsResponse>('post','/aba/getAllClientInfo', { "employeeUsername": loggedInUser });
+            const clientData = Array.isArray(data.clientData) ? data.clientData : [];
             if (data.statusCode === 200) {
-                if (data.clientData.length === 0) {
+                if (clientData.length === 0) {
                     setShowNoClientsPrompt(true);
                     return;
                 }
-                setSelectedClient(data.clientData[0].fName + " " + data.clientData[0].lName);
-                setSelectedClientID(data.clientData[0].clientID);
-                const fetchedOptions = data.clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
+                setSelectedClient(clientData[0].fName + " " + clientData[0].lName);
+                setSelectedClientID(clientData[0].clientID);
+                const fetchedOptions = clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
                     value: clientData.clientID,
                     label: `${clientData.fName} ${clientData.lName}`,
                 }));
@@ -128,12 +129,13 @@ const TargetBehavior: React.FC = () => {
             });
 
             if (response.statusCode === 200) {
+                const behaviorSkillData = Array.isArray(response.behaviorSkillData) ? response.behaviorSkillData : [];
                 setTargetOptions([]);
                 setCheckedState([]);
                 setCheckedBehaviors([]);
                 sessionStorage.removeItem('checkedBehaviors');
 
-                const fetchedOptions = response.behaviorSkillData.map((behavior) => ({
+                const fetchedOptions = behaviorSkillData.map((behavior) => ({
                     value: behavior.bsID,
                     label: behavior.name,
                     definition: behavior.definition,

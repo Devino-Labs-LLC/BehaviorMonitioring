@@ -33,9 +33,9 @@ function notifyBootstrapComplete() {
 }
 
 function hasStoredUserSession() {
-    if (typeof window === "undefined") return false;
+    if (typeof globalThis.window === "undefined") return false;
 
-    const storedUserData = localStorage.getItem('bmUserData');
+    const storedUserData = globalThis.localStorage.getItem('bmUserData');
     if (!storedUserData) return false;
 
     try {
@@ -47,7 +47,8 @@ function hasStoredUserSession() {
 }
 
 export default function AuthBootstrap() {
-    const [, setReady] = useState(false);
+    const [ready, setReady] = useState(false);
+    void ready;
 
     useEffect(() => {
         if (isBootstrapping || isBootstrapped) return;
@@ -73,7 +74,7 @@ export default function AuthBootstrap() {
                 });
                 setAccessToken(res.data.accessToken);
                 scheduleSilentRefresh(res.data.accessToken);
-            } catch (error) {
+            } catch {
                 // If refresh fails and user data exists, clear it
                 clearScheduledRefresh();
                 clearAccessToken();

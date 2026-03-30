@@ -88,7 +88,7 @@ async function employeePasswordById(uID) {
 
 async function employeeUpdateEmployeeAccountByUsername(fName, lName, email, phone_number, pWord, uName, compID) {
     try {
-        return updateEmployeeAccount(
+        return await updateEmployeeAccount(
             { username: uName, companyID: compID },
             { fName, lName, email, phone_number, password: pWord }
         );
@@ -99,7 +99,7 @@ async function employeeUpdateEmployeeAccountByUsername(fName, lName, email, phon
 
 async function employeeUpdateEmployeeAccountByID(fName, lName, email, phone_number, pWord, eID, compID) {
     try {
-        return updateEmployeeAccount(
+        return await updateEmployeeAccount(
             { employeeID: eID, companyID: compID },
             { fName, lName, email, phone_number, password: pWord }
         );
@@ -110,7 +110,7 @@ async function employeeUpdateEmployeeAccountByID(fName, lName, email, phone_numb
 
 async function employeeUpdateEmployeeAccountWithoutPasswordByUsername(fName, lName, email, phone_number, uName, compID) {
     try {
-        return updateEmployeeAccount(
+        return await updateEmployeeAccount(
             { username: uName, companyID: compID },
             { fName, lName, email, phone_number }
         );
@@ -121,7 +121,7 @@ async function employeeUpdateEmployeeAccountWithoutPasswordByUsername(fName, lNa
 
 async function employeeUpdateEmployeeAccountWithoutPasswordByID(fName, lName, email, phone_number, eID, compID) {
     try {
-        return updateEmployeeAccount(
+        return await updateEmployeeAccount(
             { employeeID: eID, companyID: compID },
             { fName, lName, email, phone_number }
         );
@@ -259,7 +259,7 @@ async function employeeAddFrequencyBehaviorData({
     timeEntered
 }) {
     try {
-        return createBehaviorDataEntry({
+        return await createBehaviorDataEntry({
             bsID, 
             clientID: cID, 
             clientName: cName, 
@@ -292,7 +292,7 @@ async function employeeAddRateBehaviorData({
     timeEntered
 }) {
     try {
-        return createBehaviorDataEntry({
+        return await createBehaviorDataEntry({
             bsID, 
             clientID: cID, 
             clientName: cName, 
@@ -325,7 +325,7 @@ async function employeeAddDurationBehaviorData({
     timeEntered
 }) {
     try {
-        return createBehaviorDataEntry({
+        return await createBehaviorDataEntry({
             bsID, 
             clientID: cID, 
             clientName: cName, 

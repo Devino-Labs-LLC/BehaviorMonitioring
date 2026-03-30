@@ -115,7 +115,7 @@ describe('ManageClients Page Integration', () => {
   });
 
   it('handles delete client with confirmation', async () => {
-    global.confirm = jest.fn(() => true);
+    globalThis.confirm = jest.fn(() => true);
 
     mockApi.mockImplementation((method, path) => {
       if (path === '/admin/deleteClient') {
@@ -139,7 +139,7 @@ describe('ManageClients Page Integration', () => {
 
     await userEvent.click(screen.getByLabelText('Delete client John Doe'));
 
-    expect(global.confirm).toHaveBeenCalledWith(
+    expect(globalThis.confirm).toHaveBeenCalledWith(
       expect.stringContaining('John Doe')
     );
 
@@ -152,7 +152,7 @@ describe('ManageClients Page Integration', () => {
   });
 
   it('does not delete when user cancels confirmation', async () => {
-    global.confirm = jest.fn(() => false);
+    globalThis.confirm = jest.fn(() => false);
 
     mockApi.mockImplementation(() =>
       Promise.resolve({
@@ -169,7 +169,7 @@ describe('ManageClients Page Integration', () => {
 
     await userEvent.click(screen.getByLabelText('Delete client John Doe'));
 
-    expect(global.confirm).toHaveBeenCalled();
+    expect(globalThis.confirm).toHaveBeenCalled();
     expect(mockApi.mock.calls.filter(([, path]) => path === '/admin/deleteClient')).toHaveLength(0);
   });
 
@@ -199,7 +199,7 @@ describe('ManageClients Page Integration', () => {
   });
 
   it('displays success message after deletion', async () => {
-    global.confirm = jest.fn(() => true);
+    globalThis.confirm = jest.fn(() => true);
 
     mockApi.mockImplementation((method, path) => {
       if (path === '/admin/deleteClient') {

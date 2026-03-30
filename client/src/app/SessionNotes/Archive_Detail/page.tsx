@@ -8,7 +8,7 @@ import Loading from '../../../components/loading';
 import { GetLoggedInUserStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
-import type { GetSessionNotesResponse, DeleteSessionNoteResponse, SessionNote } from '../../../dto';
+import type { GetSessionNotesResponse, SessionNote } from '../../../dto';
 import Button from '../../../components/Button';
 
 const ArchiveDetails: React.FC = () => {
@@ -66,8 +66,8 @@ const ArchiveDetails: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const backButtonFuctionality = () => {
@@ -147,6 +147,6 @@ const ArchiveDetails: React.FC = () => {
             </div>
         </>
     );
-}
+};
 
 export default ArchiveDetails;

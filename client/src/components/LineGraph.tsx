@@ -1,36 +1,38 @@
 import React from 'react';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TooltipItem, LegendItem, Colors } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TooltipItem, LegendItem } from 'chart.js';
 import annotationPlugin, { AnnotationOptions } from 'chartjs-plugin-annotation';
 
 const backgroundPlugin = {
     id: 'backgroundColor',
     beforeDraw: (chart: ChartJS) => {
-        const ctx = chart.ctx ?? 0;
+        const ctx = chart.ctx;
         const chartArea = chart.chartArea;
 
-        if (ctx) {
-            ctx.save();
-            if (ctx && chart.width !== null && chart.height !== null) {
-                ctx.save();
-                ctx.fillStyle = '#F1FCFD';
-                ctx.fillRect(0, 0, chart.width!, chart.height!); // Ensure full coverage
-            }
-
-            // Draw background for title
-            const titleOptions = chart.options.plugins?.title;
-            if (titleOptions?.display) {
-                const titleHeight = 30; // Approximation of title height
-                ctx.fillRect(
-                    chartArea.left,
-                    chartArea.top - titleHeight,
-                    chartArea.right - chartArea.left,
-                    titleHeight
-                );
-            }
-
-            ctx.restore();
+        if (!ctx) {
+            return;
         }
+
+        ctx.save();
+        if (chart.width !== null && chart.height !== null) {
+            ctx.save();
+            ctx.fillStyle = '#F1FCFD';
+            ctx.fillRect(0, 0, chart.width, chart.height); // Ensure full coverage
+        }
+
+        // Draw background for title
+        const titleOptions = chart.options.plugins?.title;
+        if (titleOptions?.display) {
+            const titleHeight = 30; // Approximation of title height
+            ctx.fillRect(
+                chartArea.left,
+                chartArea.top - titleHeight,
+                chartArea.right - chartArea.left,
+                titleHeight
+            );
+        }
+
+        ctx.restore();
     },
 };
 
@@ -127,7 +129,8 @@ const LineGraph: React.FC<{ data: ChartData; average: number }> = ({ data, avera
                 callbacks: {
                     label: (context: TooltipItem<'line'>) => {
                         const datasetLabel = context.dataset.label || '';
-                        const value = context.raw as number || 0;
+                        const rawValue = context.raw;
+                        const value = typeof rawValue === 'number' ? rawValue : 0;
                         if (!datasetLabel.includes('Avg')) {
                             return `${datasetLabel}: ${value}`;
                         }

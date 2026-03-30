@@ -144,7 +144,8 @@ const getClientTargetBehaviorData = async (passedClientID?: string, passedBehavi
             });
 
             if (response.statusCode === 200) {
-                setTargetBehaviorData(response.behaviorSkillData.reverse());
+                const behaviorSkillData = Array.isArray(response.behaviorSkillData) ? response.behaviorSkillData : [];
+                setTargetBehaviorData([...behaviorSkillData].reverse());
             } else {
                 throw new Error(response.errorMessage);
             }
@@ -157,24 +158,25 @@ const getClientTargetBehaviorData = async (passedClientID?: string, passedBehavi
 
     const generateTargetTableHeaders = (measurement: string) => {
         setHeaders([]);
-        const headers: JSX.Element[] = [];
+        const headers: JSX.Element[] = [
+            <th key="sessionDate">Session Date</th>,
+            <th key="sessionTime">Session Time</th>,
+            <th key='enteredBy'>Entered By</th>,
+            <th key='delete'></th>
+        ];
         if (measurement === 'Frequency' || measurement === 'Rate') {
-            headers.push(<th key="count">Count:</th>);
+            headers.unshift(<th key="count">Count:</th>);
         }
         if (measurement === 'Duration' || measurement === 'Rate') {
-            headers.push(<th key="duration">Duration:</th>);
+            const durationIndex = measurement === 'Rate' ? 1 : 0;
+            headers.splice(durationIndex, 0, <th key="duration">Duration:</th>);
         }
-
-        headers.push(<th key="sessionDate">Session Date</th>)
-        headers.push(<th key="sessionTime">Session Time</th>);
-        headers.push(<th key='enteredBy'>Entered By</th>);
-        headers.push(<th key='delete'></th>)
         setHeaders(headers);
-    }
+    };
 
     const generateTargetTableData = (measurement: string) => {
-        return paginatedData.map((data, index) => (
-            <tr key={index}>
+        return paginatedData.map((data) => (
+            <tr key={String(data.behaviorDataID)}>
                 {measurement === 'Frequency' || measurement === 'Rate' ? <td><div>{data.count}</div></td> : null}
                 {measurement === 'Duration' || measurement === 'Rate' ? <td><div>{data.duration}</div></td> : null}
                 <td><div>{data.sessionDate}</div></td>
@@ -236,11 +238,7 @@ const getClientTargetBehaviorData = async (passedClientID?: string, passedBehavi
         if (totalPages > totalBlocks) {
             const startPage = Math.max(2, currentPage - 2);
             const endPage = Math.min(totalPages - 1, currentPage + 2);
-            let pages = [];
-    
-            for (let i = startPage; i <= endPage; i++) {
-                pages.push(i);
-            }
+            const pages = Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
     
             if (currentPage > 3) {
                 pages.unshift('...');
@@ -304,7 +302,7 @@ const getClientTargetBehaviorData = async (passedClientID?: string, passedBehavi
                                         {getPageNumbers().length > 0 && (
                                             <>
                                                 <Button nameOfClass='paginationLeftButton' placeholder='&lt;' btnType='button' onClick={() => handlePageChange(currentPage - 1)} disabled = {currentPage <= 1}/>
-                                                {getPageNumbers().map((page, index) => (<button key={index} onClick={() => typeof page === 'number' && handlePageChange(page)} className={`${componentStyles.paginationButton} ${currentPage === page ? componentStyles.active : ''}`} disabled={currentPage === page}> {page} </button>))}
+                                                {getPageNumbers().map((page) => (<button key={String(page)} onClick={() => typeof page === 'number' && handlePageChange(page)} className={`${componentStyles.paginationButton} ${currentPage === page ? componentStyles.active : ''}`} disabled={currentPage === page}> {page} </button>))}
                                                 <Button nameOfClass='paginationRightButton' placeholder='&gt;' btnType='button' onClick={() => handlePageChange(currentPage + 1)} disabled = {currentPage >= totalPages}/>
                                             </>
                                         )}
@@ -317,6 +315,6 @@ const getClientTargetBehaviorData = async (passedClientID?: string, passedBehavi
                 </div>
         </>
     );
-}
+};
 
 export default ArchiveDetails;

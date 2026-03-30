@@ -6,7 +6,7 @@ export const RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
     { key: '90d', label: 'Last 90 days' },
 ];
 
-export type MeasurementType = 'Frequency' | 'Rate' | 'Duration' | string;
+export type MeasurementType = string;
 
 export type BehaviorEntry = {
     id?: string | number;
@@ -67,11 +67,14 @@ function entryValue(e: BehaviorEntry) {
     return c;
 }
 
-export function buildDashboardView(entries: BehaviorEntry[], range: { start: string; end: string }) {
-    const start = range.start;
-    const end = range.end;
+type NormalizedBehaviorEntry = BehaviorEntry & {
+    id: string | number;
+    sessionDate: string;
+    value: number;
+};
 
-    const normalized = (entries || []).map((e, idx) => {
+function normalizeEntries(entries: BehaviorEntry[]) {
+    return (entries || []).map((e, idx): NormalizedBehaviorEntry => {
         const day = toDayKey(e.sessionDate);
         return {
             ...e,
@@ -80,28 +83,32 @@ export function buildDashboardView(entries: BehaviorEntry[], range: { start: str
             value: entryValue(e),
         };
     });
+}
 
-    // ---- KPIs ----
-    const sessionsSet = new Set(normalized.map((e) => e.sessionDate));
-    const sessionsLogged = sessionsSet.size;
-    const dataPoints = normalized.length;
-
-    // last entry day
+function getLastDay(normalized: NormalizedBehaviorEntry[]) {
     let lastDay = '';
+
     for (const e of normalized) {
         if (!lastDay || e.sessionDate > lastDay) lastDay = e.sessionDate;
     }
 
-    const daysSinceLastEntry = lastDay ? Math.max(0, daysBetween(lastDay, end)) : daysBetween(start, end) + 1;
+    return lastDay;
+}
 
-    // Top behavior by total value
+function buildBehaviorTotals(normalized: NormalizedBehaviorEntry[]) {
     const byBehavior = new Map<string, number>();
+
     for (const e of normalized) {
         byBehavior.set(e.behaviorName, (byBehavior.get(e.behaviorName) ?? 0) + (Number(e.value) || 0));
     }
 
+    return byBehavior;
+}
+
+function getTopBehavior(byBehavior: Map<string, number>) {
     let topBehaviorName = '';
     let topBehaviorTotal = 0;
+
     for (const [k, v] of byBehavior.entries()) {
         if (v > topBehaviorTotal) {
             topBehaviorTotal = v;
@@ -109,24 +116,39 @@ export function buildDashboardView(entries: BehaviorEntry[], range: { start: str
         }
     }
 
-    // ---- Trend chart (top 3 behaviors) ----
-    const topBehaviors = Array.from(byBehavior.entries())
+    return { topBehaviorName, topBehaviorTotal };
+}
+
+function getTopBehaviors(byBehavior: Map<string, number>) {
+    return Array.from(byBehavior.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([name]) => name);
+}
 
-    const days = enumerateDays(start, end);
-
-    // day -> behavior -> sum
+function buildDayMap(days: string[], topBehaviors: string[], normalized: NormalizedBehaviorEntry[]) {
     const dayMap = new Map<string, Map<string, number>>();
+
     for (const day of days) dayMap.set(day, new Map());
 
     for (const e of normalized) {
-        if (!dayMap.has(e.sessionDate)) continue;
-        const m = dayMap.get(e.sessionDate)!;
-        if (!topBehaviors.includes(e.behaviorName)) continue;
-        m.set(e.behaviorName, (m.get(e.behaviorName) ?? 0) + (Number(e.value) || 0));
+        if (!dayMap.has(e.sessionDate) || !topBehaviors.includes(e.behaviorName)) {
+            continue;
+        }
+
+        const dayValues = dayMap.get(e.sessionDate);
+        if (!dayValues) {
+            continue;
+        }
+
+        dayValues.set(e.behaviorName, (dayValues.get(e.behaviorName) ?? 0) + (Number(e.value) || 0));
     }
+
+    return dayMap;
+}
+
+function buildTrend(days: string[], topBehaviors: string[], normalized: NormalizedBehaviorEntry[]) {
+    const dayMap = buildDayMap(days, topBehaviors, normalized);
 
     const series = topBehaviors.map((name, i) => ({
         name,
@@ -142,16 +164,20 @@ export function buildDashboardView(entries: BehaviorEntry[], range: { start: str
         return row;
     });
 
-    // ---- Daily totals (bar chart) ----
-    const dailyTotals = days.map((day) => {
+    return { series, timeline };
+}
+
+function buildDailyTotals(days: string[], normalized: NormalizedBehaviorEntry[]) {
+    return days.map((day) => {
         const total = normalized
             .filter((e) => e.sessionDate === day)
             .reduce((sum, e) => sum + (Number(e.value) || 0), 0);
 
         return { date: day, total };
     });
+}
 
-    // ---- Alerts ----
+function buildAlerts(dataPoints: number, daysSinceLastEntry: number, lastDay: string, dailyTotals: { date: string; total: number }[]) {
     const alerts: DashboardAlert[] = [];
 
     if (dataPoints === 0) {
@@ -189,8 +215,11 @@ export function buildDashboardView(entries: BehaviorEntry[], range: { start: str
         }
     }
 
-    // ---- Recent activity ----
-    const recent = normalized
+    return alerts;
+}
+
+function buildRecentActivity(normalized: NormalizedBehaviorEntry[]) {
+    return normalized
         .slice()
         .sort((a, b) => (a.sessionDate < b.sessionDate ? 1 : -1))
         .slice(0, 6)
@@ -201,25 +230,50 @@ export function buildDashboardView(entries: BehaviorEntry[], range: { start: str
             measurementType: e.measurementType,
             valueLabel: String(e.value ?? 0),
         }));
+}
+
+function buildDashboardKpis(
+    normalized: NormalizedBehaviorEntry[],
+    byBehavior: Map<string, number>,
+    start: string,
+    end: string
+) {
+    const sessionsLogged = new Set(normalized.map((e) => e.sessionDate)).size;
+    const dataPoints = normalized.length;
+    const lastDay = getLastDay(normalized);
+    const daysSinceLastEntry = lastDay ? Math.max(0, daysBetween(lastDay, end)) : daysBetween(start, end) + 1;
+    const { topBehaviorName, topBehaviorTotal } = getTopBehavior(byBehavior);
+
+    return {
+        sessionsLogged,
+        dataPoints,
+        topBehaviorName,
+        topBehaviorDetail: topBehaviorName ? `Total: ${topBehaviorTotal}` : '',
+        daysSinceLastEntry,
+        lastDay,
+        lastEntryLabel: lastDay ? `Last: ${lastDay}` : 'No entries yet',
+        sessionsDeltaLabel: 'vs previous range (optional)',
+    };
+}
+
+export function buildDashboardView(entries: BehaviorEntry[], range: { start: string; end: string }) {
+    const start = range.start;
+    const end = range.end;
+    const normalized = normalizeEntries(entries);
+    const byBehavior = buildBehaviorTotals(normalized);
+    const days = enumerateDays(start, end);
+    const topBehaviors = getTopBehaviors(byBehavior);
+    const trend = buildTrend(days, topBehaviors, normalized);
+    const dailyTotals = buildDailyTotals(days, normalized);
+    const kpis = buildDashboardKpis(normalized, byBehavior, start, end);
+    const alerts = buildAlerts(kpis.dataPoints, kpis.daysSinceLastEntry, kpis.lastDay, dailyTotals);
+    const recent = buildRecentActivity(normalized);
 
     return {
         meta: { start, end },
 
-        kpis: {
-            sessionsLogged,
-            dataPoints,
-            topBehaviorName,
-            topBehaviorDetail: topBehaviorName ? `Total: ${topBehaviorTotal}` : '',
-            daysSinceLastEntry,
-            lastEntryLabel: lastDay ? `Last: ${lastDay}` : 'No entries yet',
-            sessionsDeltaLabel: 'vs previous range (optional)',
-        },
-
-        trend: {
-            series,
-            timeline,
-        },
-
+        kpis,
+        trend,
         dailyTotals,
         alerts,
         recent,

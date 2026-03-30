@@ -26,27 +26,27 @@ export const VIEWPORTS = {
  * @param width - Viewport width in pixels
  */
 export const setViewportWidth = (width: number): void => {
-  Object.defineProperty(window, 'innerWidth', {
+  Object.defineProperty(globalThis.window, 'innerWidth', {
     writable: true,
     configurable: true,
     value: width,
   });
 
   // Mock matchMedia for CSS media queries
-  Object.defineProperty(window, 'matchMedia', {
+  Object.defineProperty(globalThis.window, 'matchMedia', {
     writable: true,
     configurable: true,
     value: jest.fn().mockImplementation((query: string) => {
       // Parse media query to extract width
-      const maxWidthMatch = query.match(/max-width:\s*(\d+)px/);
-      const minWidthMatch = query.match(/min-width:\s*(\d+)px/);
+      const maxWidthMatch = /max-width:\s*(\d+)px/.exec(query);
+      const minWidthMatch = /min-width:\s*(\d+)px/.exec(query);
 
       let matches = false;
       if (maxWidthMatch) {
-        const maxWidth = parseInt(maxWidthMatch[1], 10);
+        const maxWidth = Number.parseInt(maxWidthMatch[1], 10);
         matches = width <= maxWidth;
       } else if (minWidthMatch) {
-        const minWidth = parseInt(minWidthMatch[1], 10);
+        const minWidth = Number.parseInt(minWidthMatch[1], 10);
         matches = width >= minWidth;
       }
 
@@ -72,7 +72,7 @@ export const setViewport = (viewport: keyof typeof VIEWPORTS): void => {
   const { width, height } = VIEWPORTS[viewport];
   setViewportWidth(width);
   
-  Object.defineProperty(window, 'innerHeight', {
+  Object.defineProperty(globalThis.window, 'innerHeight', {
     writable: true,
     configurable: true,
     value: height,
@@ -86,7 +86,7 @@ export const setViewport = (viewport: keyof typeof VIEWPORTS): void => {
  */
 export const matchesBreakpoint = (
   breakpoint: keyof typeof BREAKPOINTS,
-  width: number = window.innerWidth
+  width: number = globalThis.window.innerWidth
 ): boolean => {
   return width <= BREAKPOINTS[breakpoint];
 };
@@ -105,8 +105,8 @@ export const hasMobileTouchTarget = (element: HTMLElement): boolean => {
  * Minimum 16px font size prevents iOS zoom
  */
 export const hasMobileFontSize = (element: HTMLElement): boolean => {
-  const fontSize = window.getComputedStyle(element).fontSize;
-  const fontSizeValue = parseInt(fontSize, 10);
+  const fontSize = globalThis.window.getComputedStyle(element).fontSize;
+  const fontSizeValue = Number.parseInt(fontSize, 10);
   return fontSizeValue >= 16;
 };
 

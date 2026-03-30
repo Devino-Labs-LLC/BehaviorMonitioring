@@ -21,8 +21,8 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({ name, requiring, value,
                     {placeholderOption}
                 </option>
             ) : null}
-            {options.map((option, index) => (
-                <option key={index} value={option.value}>
+            {options.map((option) => (
+                <option key={String(option.value)} value={option.value}>
                     {option.label}
                 </option>
             ))}
@@ -44,8 +44,8 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({ name, requiring, value,
                         {placeholderOption}
                     </option>
                 ) : null}
-                {options.map((option, index) => (
-                    <option key={index} value={option.value}>
+                {options.map((option) => (
+                    <option key={String(option.value)} value={option.value}>
                         {option.label}
                     </option>
                 ))}
