@@ -19,23 +19,17 @@ const {
     getTokenFromRequest: (req) => req.headers['x-csrf-token'], // Get token from header
 });
 
-/**
- * CSRF Protection Middleware
- * - Generates CSRF token for all requests (available via /csrf-token endpoint)
- * - Currently disabled for validation since app uses JWT (not cookie-based sessions)
- * - CSRF protection is primarily for cookie-based authentication
- * - Enable validation when implementing cookie-based features
- */
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+
 const csrfProtection = (req, res, next) => {
-    // Generate token and attach to response for client consumption
     const csrfToken = generateToken(req, res);
     res.locals.csrfToken = csrfToken;
-    
-    // Skip CSRF validation - app uses JWT authentication, not cookies
-    // CSRF is primarily needed for cookie-based session authentication
-    // Uncomment below to enable CSRF validation for cookie-based features
-    /*
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+
+    if (process.env.NODE_ENV === 'test' || SAFE_METHODS.includes(req.method)) {
+        return next();
+    }
+
+    try {
         const isValid = validateRequest(req);
         if (!isValid) {
             return res.status(403).json({
@@ -44,10 +38,15 @@ const csrfProtection = (req, res, next) => {
                 message: 'Invalid or missing CSRF token'
             });
         }
+        return next();
+    } catch (error) {
+        return res.status(403).json({
+            statusCode: 403,
+            success: false,
+            message: 'Invalid or missing CSRF token',
+            errorMessage: error.message
+        });
     }
-    */
-    
-    next();
 };
 
 module.exports = {

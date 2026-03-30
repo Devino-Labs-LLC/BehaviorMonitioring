@@ -1,5 +1,3 @@
-const request = require('supertest');
-const express = require('express');
 const bcrypt = require('bcryptjs');
 const authController = require('../../../controllers/AuthController');
 const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
@@ -19,17 +17,10 @@ jest.mock('../../../middleware/email/emailTemplate', () => ({
 }));
 
 describe('AuthController - signUpEmployee', () => {
-    let app;
     let req;
     let res;
 
     beforeEach(() => {
-        app = express();
-        app.use(express.json());
-        // Test setup: Rate limiting and CSRF intentionally omitted for testing
-        // codeql[js/missing-rate-limiting]
-        app.post('/auth/signup', authController.signUpEmployee.bind(authController));
-
         req = {
             body: {},
             ip: '127.0.0.1',

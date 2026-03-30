@@ -1,7 +1,9 @@
 const request = require('supertest');
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const authRouter = require('../../../routes/Auth');
+const { csrfProtection } = require('../../../middleware/csrfProtection');
 const Employee = require('../../../models/Employee');
 const bcrypt = require('bcryptjs');
 
@@ -12,17 +14,37 @@ jest.mock('../../../middleware/helpers/authLog');
 
 describe('SignUp API Integration Tests', () => {
     let app;
+    let agent;
+
+    const testRateLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 1000,
+        standardHeaders: true,
+        legacyHeaders: false,
+    });
+
+    async function postWithCsrf(path, payload) {
+        const csrfResponse = await agent.get('/csrf-token');
+        return agent
+            .post(path)
+            .set('x-csrf-token', csrfResponse.body.csrfToken)
+            .send(payload)
+            .expect('Content-Type', /json/);
+    }
 
     beforeAll(() => {
         app = express();
-        app.use(express.json());
-        // Test setup: CSRF and rate limiting intentionally omitted for testing
-        // codeql[js/missing-token-validation]
         app.use(cookieParser());
-        app.use('/auth', authRouter);
+        app.use(express.json());
+        app.use(csrfProtection);
+        app.get('/csrf-token', (req, res) => {
+            res.json({ csrfToken: res.locals.csrfToken });
+        });
+        app.use('/auth', testRateLimiter, authRouter);
     });
 
     beforeEach(() => {
+        agent = request.agent(app);
         jest.clearAllMocks();
     });
 
@@ -60,10 +82,7 @@ describe('SignUp API Integration Tests', () => {
             });
             logAuthEvent.mockResolvedValue(true);
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(validSignupData)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', validSignupData);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -96,10 +115,7 @@ describe('SignUp API Integration Tests', () => {
                 // missing other required fields
             };
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(incompleteData)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', incompleteData);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -115,10 +131,7 @@ describe('SignUp API Integration Tests', () => {
                 confirmPassword: 'DifferentPass123'
             };
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(mismatchedPasswords)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', mismatchedPasswords);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -135,10 +148,7 @@ describe('SignUp API Integration Tests', () => {
                 confirmPassword: 'weak'
             };
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(weakPassword)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', weakPassword);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -154,10 +164,7 @@ describe('SignUp API Integration Tests', () => {
                 email: 'not-an-email'
             };
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(invalidEmail)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', invalidEmail);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -171,10 +178,7 @@ describe('SignUp API Integration Tests', () => {
             const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
             employeeQueries.employeeExistByUsername = jest.fn().mockResolvedValue(true);
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(validSignupData)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', validSignupData);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -191,10 +195,7 @@ describe('SignUp API Integration Tests', () => {
                 email: 'john.doe@example.com'
             });
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(validSignupData)
-                .expect('Content-Type', /json/);
+            const response = await postWithCsrf('/auth/signup', validSignupData);
 
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
@@ -223,9 +224,7 @@ describe('SignUp API Integration Tests', () => {
             });
             logAuthEvent.mockResolvedValue(true);
 
-            await request(app)
-                .post('/auth/signup')
-                .send(validSignupData);
+            await postWithCsrf('/auth/signup', validSignupData);
 
             expect(Employee.create).toHaveBeenCalled();
             const createArgs = Employee.create.mock.calls[0][0];
@@ -256,9 +255,7 @@ describe('SignUp API Integration Tests', () => {
             });
             logAuthEvent.mockResolvedValue(true);
 
-            await request(app)
-                .post('/auth/signup')
-                .send(validSignupData);
+            await postWithCsrf('/auth/signup', validSignupData);
 
             expect(Employee.create).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -289,9 +286,7 @@ describe('SignUp API Integration Tests', () => {
             });
             logAuthEvent.mockResolvedValue(true);
 
-            await request(app)
-                .post('/auth/signup')
-                .send(validSignupData);
+            await postWithCsrf('/auth/signup', validSignupData);
 
             expect(Employee.create).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -324,9 +319,7 @@ describe('SignUp API Integration Tests', () => {
             const dataWithoutPhone = { ...validSignupData };
             delete dataWithoutPhone.phoneNumber;
 
-            const response = await request(app)
-                .post('/auth/signup')
-                .send(dataWithoutPhone);
+            const response = await postWithCsrf('/auth/signup', dataWithoutPhone);
 
             expect(response.body.signupSuccess).toBe(true);
             expect(Employee.create).toHaveBeenCalledWith(

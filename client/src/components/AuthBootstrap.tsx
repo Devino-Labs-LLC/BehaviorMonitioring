@@ -5,6 +5,7 @@ import axios from "axios";
 import { setAccessToken, clearAccessToken } from "@/lib/tokenStore";
 import { clearScheduledRefresh, scheduleSilentRefresh } from "../lib/authScheduler";
 import { ClearLoggedInUser } from "../function/VerificationCheck";
+import { getCsrfToken } from "@/lib/csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -65,8 +66,10 @@ export default function AuthBootstrap() {
         
         (async () => {
             try {
+                const csrfToken = await getCsrfToken();
                 const res = await axios.post(`${API_BASE}/auth/refresh`, null, {
                     withCredentials: true,
+                    headers: csrfToken ? { "x-csrf-token": csrfToken } : undefined,
                 });
                 setAccessToken(res.data.accessToken);
                 scheduleSilentRefresh(res.data.accessToken);

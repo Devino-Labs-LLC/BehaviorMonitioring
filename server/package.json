@@ -15,7 +15,6 @@
   "author": "Devino Labs LLC",
   "license": "ISC",
   "dependencies": {
-    "aws-sdk": "^2.1693.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -31,8 +30,7 @@
     "nodemon": "^3.1.11",
     "path": "^0.12.7",
     "resend": "^6.9.0",
-    "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7"
+    "sequelize": "^6.37.7"
   },
   "devDependencies": {
     "jest": "^30.2.0",

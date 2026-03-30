@@ -1,5 +1,6 @@
 import { setAccessToken, clearAccessToken } from "./tokenStore";
 import axios from "axios";
+import { getCsrfToken } from "./csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -25,7 +26,11 @@ export function scheduleSilentRefresh(accessToken: string) {
 
     refreshTimeout = setTimeout(async () => {
         try {
-        const res = await axios.post(`${API_BASE}/auth/refresh`, null, { withCredentials: true });
+        const csrfToken = await getCsrfToken();
+        const res = await axios.post(`${API_BASE}/auth/refresh`, null, {
+            withCredentials: true,
+            headers: csrfToken ? { "x-csrf-token": csrfToken } : undefined,
+        });
         setAccessToken(res.data.accessToken);
         scheduleSilentRefresh(res.data.accessToken);
         } catch {

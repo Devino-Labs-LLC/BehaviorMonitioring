@@ -2,12 +2,29 @@ import axios, { AxiosRequestConfig, Method } from 'axios';
 import { getAccessToken, setAccessToken, clearAccessToken } from "./tokenStore";
 import { ClearLoggedInUser } from '../function/VerificationCheck';
 import { clearScheduledRefresh, scheduleSilentRefresh } from './authScheduler';
+import { getCsrfToken } from './csrf';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const apiClient = axios.create({
     baseURL: API_BASE,
     withCredentials: true,
+});
+
+apiClient.interceptors.request.use(async (config) => {
+    const method = String(config.method || 'get').toLowerCase();
+
+    if (!['get', 'head', 'options'].includes(method)) {
+        const csrfToken = await getCsrfToken();
+        if (csrfToken) {
+            config.headers = {
+                ...(config.headers || {}),
+                'x-csrf-token': csrfToken,
+            };
+        }
+    }
+
+    return config;
 });
 
 async function refreshAccessToken(): Promise<string | null> {
