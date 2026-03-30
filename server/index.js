@@ -17,13 +17,14 @@ const { requireRole } = require('./middleware/rbac');
 const requestLogger = require('./middleware/requestLogger');
 const { generalLimiter, apiLimiter } = require('./middleware/rateLimiter');
 let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
+const csrfCookieKey = prodStatus ? '__Host-psifi.x-csrf-token' : 'psifi.x-csrf-token';
 
 const csrfProtection = csurf({
   cookie: {
-    key: '__Host-psifi.x-csrf-token',
+    key: csrfCookieKey,
     sameSite: 'strict',
     path: '/',
-    secure: process.env.IN_PROD === 'true',
+    secure: prodStatus,
     httpOnly: true,
   },
 });
@@ -50,9 +51,9 @@ const corsOptions = {
 };
 
 app.use(requestLogger);
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(csrfProtection);
-app.use(cors(corsOptions));
 app.use(express.json());
 
 // Commented out to prevent automatic S3 import on server start

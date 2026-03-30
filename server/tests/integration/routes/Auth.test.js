@@ -14,6 +14,7 @@ jest.mock('../../../middleware/helpers/EmployeeQueries');
 jest.mock('bcryptjs');
 
 const app = express();
+const csrfCookieName = 'psifi.x-csrf-token';
 const testRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 1000,
@@ -22,7 +23,7 @@ const testRateLimiter = rateLimit({
 });
 const csrfProtection = csurf({
   cookie: {
-    key: '__Host-psifi.x-csrf-token',
+    key: csrfCookieName,
     sameSite: 'strict',
     path: '/',
     httpOnly: true,

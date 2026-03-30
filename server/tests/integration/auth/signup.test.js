@@ -15,6 +15,7 @@ jest.mock('../../../middleware/helpers/authLog');
 describe('SignUp API Integration Tests', () => {
     let app;
     let agent;
+    const csrfCookieName = 'psifi.x-csrf-token';
 
     const testRateLimiter = rateLimit({
         windowMs: 60 * 1000,
@@ -24,7 +25,7 @@ describe('SignUp API Integration Tests', () => {
     });
     const csrfProtection = csurf({
         cookie: {
-            key: '__Host-psifi.x-csrf-token',
+            key: csrfCookieName,
             sameSite: 'strict',
             path: '/',
             httpOnly: true,
