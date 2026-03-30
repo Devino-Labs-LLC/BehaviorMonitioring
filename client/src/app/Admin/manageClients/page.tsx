@@ -26,13 +26,13 @@ const ManageClients: React.FC = () => {
     useEffect(() => {
         if (!isReady) return;
 
-        if (!isLoggedIn) {
+        if (isLoggedIn && isAdmin) {
+            debounceAsync(fetchClients, 300)();
+        } else if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!isAdmin) {
-            navigate.push('/');
         } else {
-            debounceAsync(fetchClients, 300)();
+            navigate.push('/');
         }
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 

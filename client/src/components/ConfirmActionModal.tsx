@@ -27,7 +27,7 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
     }
 
     return (
-        <div className={componentStyles.popupOverlay} role="dialog" aria-modal="true" aria-label={title}>
+        <dialog className={componentStyles.popupOverlay} open aria-modal="true" aria-label={title}>
             <div className={componentStyles.popupContent}>
                 <h2>{title}</h2>
                 <p>{message}</p>
@@ -40,7 +40,7 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </dialog>
     );
 };
 

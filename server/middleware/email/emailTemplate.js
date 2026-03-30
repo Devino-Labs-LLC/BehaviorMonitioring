@@ -17,7 +17,7 @@ function getResendClient() {
 function shouldBypassEmailDelivery() {
     const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
     const isTestEnv = process.env.NODE_ENV === 'test';
-    const isJestRuntime = typeof process.env.JEST_WORKER_ID !== 'undefined';
+    const isJestRuntime = process.env.JEST_WORKER_ID !== undefined;
 
     // In CI runtime flows (e.g., Playwright-backed server startup), bypass external
     // email providers to avoid network/provider delays. Keep real provider paths
@@ -55,7 +55,7 @@ async function sendEmailWithFallback(emailData) {
     try {
         // Ensure 'from' is a string for Resend
         let resendEmailData = { ...emailData };
-        if (typeof resendEmailData.from === 'object') {
+        if (resendEmailData.from !== undefined && typeof resendEmailData.from === 'object') {
             resendEmailData.from = `${resendEmailData.from.name} <${resendEmailData.from.email}>`;
         }
         
@@ -72,7 +72,7 @@ async function sendEmailWithFallback(emailData) {
         try {
             // Parse from field for Brevo SMTP
             let fromAddress = emailData.from;
-            if (typeof fromAddress === 'object') {
+            if (fromAddress !== undefined && typeof fromAddress === 'object') {
                 fromAddress = `${fromAddress.name} <${fromAddress.email}>`;
             }
 

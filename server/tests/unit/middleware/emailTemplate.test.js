@@ -6,7 +6,6 @@ let emailTemplate;
 
 describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
     let mockResendEmails;
-    let mockResend;
     let mockSendMail;
     let mockNodemailer;
 
@@ -22,8 +21,6 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
         Resend.mockImplementation(() => ({
             emails: mockResendEmails
         }));
-        mockResend = Resend;
-
         // Setup nodemailer mock BEFORE importing emailTemplate
         mockSendMail = jest.fn();
         mockNodemailer = require('nodemailer');

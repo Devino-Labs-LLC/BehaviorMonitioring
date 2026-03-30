@@ -121,7 +121,7 @@ async function fillInputWithRetry(page: Page, name: string, value: string, attem
 
 async function waitForAdminSession(page: Page): Promise<void> {
   await page.waitForFunction(() => {
-    const userData = window.localStorage.getItem('bmUserData');
+    const userData = globalThis.localStorage.getItem('bmUserData');
     if (!userData) return false;
 
     try {

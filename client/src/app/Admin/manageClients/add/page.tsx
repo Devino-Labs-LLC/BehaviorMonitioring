@@ -232,7 +232,7 @@ const AddClient: React.FC = () => {
                                     options={homes}
                                     value={formData.homeID}
                                     placeholderOption="Select a home"
-                                    onChange={(e) => handleInputChange('homeID', e.target.value ? parseInt(e.target.value, 10) : '')}
+                                    onChange={(e) => handleInputChange('homeID', e.target.value ? Number.parseInt(e.target.value, 10) : '')}
                                     requiring={true}
                                 />
                                 

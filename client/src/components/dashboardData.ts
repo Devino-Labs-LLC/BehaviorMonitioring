@@ -6,8 +6,6 @@ export const RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
     { key: '90d', label: 'Last 90 days' },
 ];
 
-export type MeasurementType = string;
-
 export type BehaviorEntry = {
     id?: string | number;
     bsID?: string | number;
@@ -17,7 +15,7 @@ export type BehaviorEntry = {
     behaviorName: string;
 
     sessionDate: string; // "YYYY-MM-DD" recommended
-    measurementType: MeasurementType;
+    measurementType: string;
 
     count?: number | null;
     duration?: number | null; // seconds/minutes depending on your system

@@ -760,7 +760,18 @@ class ABAController {
             if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
                 const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
 
-                if (await abaQueries.abaAddSessionNoteData(cID, clientData.fName + " " + clientData.lName, await formatDateString(sessionDate), await formatTimeString(sessionTime), sessionNotes, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
+                if (await abaQueries.abaAddSessionNoteData({
+                    cID,
+                    cName: `${clientData.fName} ${clientData.lName}`,
+                    sDate: await formatDateString(sessionDate),
+                    sTime: await formatTimeString(sessionTime),
+                    sNotes: sessionNotes,
+                    enteredBy: `${employeeData.fName} ${employeeData.lName}`,
+                    compID: employeeData.companyID,
+                    compName: employeeData.companyName,
+                    dateEntered: await formatDateString(await currentDateTime.getCurrentDate()),
+                    timeEntered: await currentDateTime.getCurrentTime()
+                })) {
                     return res.json({ statusCode: 201, behaviorAdded: true, serverMessage: 'All submission notes stored' });
                 }
                 return res.json({ statusCode: 400, behaviorAdded: false, serverMessage: 'Unable to store notes' });

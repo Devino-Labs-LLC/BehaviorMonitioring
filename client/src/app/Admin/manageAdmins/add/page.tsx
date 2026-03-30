@@ -10,9 +10,8 @@ import InputFields from '../../../../components/Inputfield';
 import Selectdropdown from '../../../../components/Selectdropdown';
 import { GetLoggedInUser } from '../../../../function/VerificationCheck';
 import { useAuth } from '../../../../hooks/useAuth';
-import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
-import type { CreateAdminRequest, CreateAdminResponse } from '../../../../dto';
+import type { CreateAdminResponse } from '../../../../dto';
 
 const AddAdmin: React.FC = () => {
     const navigate = useRouter();

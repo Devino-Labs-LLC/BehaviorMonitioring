@@ -395,6 +395,8 @@ async function abaArchiveBehaviorDataByID(newStatus, cID, bsID, compID) {
     }
 }
 
+const updateBehaviorDataStatusByID = abaArchiveBehaviorDataByID;
+
 async function abaArchiveBehaviorOrSkillByID(cID, bsID, dateArchived, dateToDeleteArchive, compID) {
     try {
         const [rowsUpdated] = await BehaviorAndSkill.update(
@@ -420,17 +422,7 @@ async function archiveBehaviorSkillExistByID(bsID, compID) {
     }
 }
 
-async function abaReactivateBehaviorDataByID(newStatus, cID, bsID, compID) {
-    try {
-        const [rowsUpdated] = await BehaviorData.update(
-            { status: newStatus },
-            { where: { bsID, clientID: cID, companyID: compID } }
-        );
-        return rowsUpdated > 0;
-    } catch (err) {
-        throw toError(err);
-    }
-}
+const abaReactivateBehaviorDataByID = updateBehaviorDataStatusByID;
 
 async function abaReactivateBehaviorOrSkillByID(cID, bsID, dateArchived, dateToDeleteArchive, compID) {
     try {
@@ -560,7 +552,18 @@ async function abaGetSessionNoteByID(cID, sessionNoteId, compID) {
     }
 }
 
-async function abaAddSessionNoteData(cID, cName, sDate, sTime, sNotes, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function abaAddSessionNoteData({
+    cID,
+    cName,
+    sDate,
+    sTime,
+    sNotes,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await SessionNoteData.create({
             clientID: cID, 

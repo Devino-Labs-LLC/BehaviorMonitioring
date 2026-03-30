@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import axios from "axios";
 import { setAccessToken, clearAccessToken } from "@/lib/tokenStore";
 import { clearScheduledRefresh, scheduleSilentRefresh } from "../lib/authScheduler";
@@ -33,7 +33,7 @@ function notifyBootstrapComplete() {
 }
 
 function hasStoredUserSession() {
-    if (typeof globalThis.window === "undefined") return false;
+    if (globalThis.window === undefined) return false;
 
     const storedUserData = globalThis.localStorage.getItem('bmUserData');
     if (!storedUserData) return false;
@@ -47,9 +47,6 @@ function hasStoredUserSession() {
 }
 
 export default function AuthBootstrap() {
-    const [ready, setReady] = useState(false);
-    void ready;
-
     useEffect(() => {
         if (isBootstrapping || isBootstrapped) return;
         
@@ -60,7 +57,6 @@ export default function AuthBootstrap() {
             clearAccessToken();
             isBootstrapped = true;
             isBootstrapping = false;
-            setReady(true);
             notifyBootstrapComplete();
             return;
         }
@@ -82,7 +78,6 @@ export default function AuthBootstrap() {
             } finally {
                 isBootstrapped = true;
                 isBootstrapping = false;
-                setReady(true);
                 notifyBootstrapComplete();
             }
         })();

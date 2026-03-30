@@ -21,10 +21,10 @@ const {
     getTokenFromRequest: (req) => req.headers['x-csrf-token'], // Get token from header
 });
 
-const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const csrfProtection = (req, res, next) => {
-    if (SAFE_METHODS.includes(req.method) || process.env.SKIP_CSRF_PROTECTION === 'true') {
+    if (SAFE_METHODS.has(req.method) || process.env.SKIP_CSRF_PROTECTION === 'true') {
         return next();
     }
 

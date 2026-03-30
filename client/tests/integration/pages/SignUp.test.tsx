@@ -32,7 +32,7 @@ const localStorageMock = (() => {
     };
 })();
 
-Object.defineProperty(window, 'localStorage', {
+Object.defineProperty(globalThis, 'localStorage', {
     value: localStorageMock,
 });
 
@@ -236,7 +236,6 @@ describe('SignUp Page Integration Tests', () => {
 
     describe('Navigation Integration', () => {
         it('should navigate to login page when clicking login link', async () => {
-            const user = userEvent.setup();
             render(<SignUpPage />);
 
             const loginLink = screen.getByText('Login here');

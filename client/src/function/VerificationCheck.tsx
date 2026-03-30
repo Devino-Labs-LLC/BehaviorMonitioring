@@ -3,7 +3,7 @@ import { getBootstrapStatus } from '../components/AuthBootstrap';
 import { clearScheduledRefresh } from '../lib/authScheduler';
 
 const parseStoredUserData = () => {
-    if (typeof globalThis.window === 'undefined') {
+    if (globalThis.window === undefined) {
         return null;
     }
 
@@ -21,7 +21,7 @@ const parseStoredUserData = () => {
 };
 
 export const SetLoggedInUser = (loginSuccessful: boolean, user: { uName: string, compID: string | number, compName: string, isAdmin: boolean }) => {
-    if (typeof globalThis.window === 'undefined') return true;
+    if (globalThis.window === undefined) return true;
     
     if (loginSuccessful) {
         const dataToStore = {
@@ -40,14 +40,14 @@ export const SetLoggedInUser = (loginSuccessful: boolean, user: { uName: string,
 }
 
 export const ClearLoggedInUser = () => {
-    if (typeof globalThis.window === 'undefined') return true;
+    if (globalThis.window === undefined) return true;
 
     clearScheduledRefresh();
     globalThis.localStorage.removeItem('bmUserData');
 };
 
 export const GetLoggedInUserStatus = () => {
-    if (typeof globalThis.window === 'undefined') return false;
+    if (globalThis.window === undefined) return false;
 
     // Check if we're still bootstrapping - don't log out yet
     const { isBootstrapping, isBootstrapped } = getBootstrapStatus();
@@ -78,7 +78,7 @@ export const GetLoggedInUserStatus = () => {
 };
 
 export const GetLoggedInUser = () => {
-    if (typeof globalThis.window === 'undefined') return null;
+    if (globalThis.window === undefined) return null;
 
     if (GetLoggedInUserStatus()) {
         const parsedData = parseStoredUserData();
@@ -90,7 +90,7 @@ export const GetLoggedInUser = () => {
 };
 
 export const GetAdminStatus = () => {
-    if (typeof globalThis.window === 'undefined') return true;
+    if (globalThis.window === undefined) return true;
     
     if (GetLoggedInUserStatus()) {
         const parsedData = parseStoredUserData();
@@ -102,7 +102,7 @@ export const GetAdminStatus = () => {
 };
 
 export const NeedToLogout = (uName: string) => {
-    if (typeof globalThis.window === 'undefined') return true;
+    if (globalThis.window === undefined) return true;
     
     if (GetLoggedInUserStatus() && uName === GetLoggedInUser()) {
         return false;

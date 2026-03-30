@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import Inputfield from '../../../src/components/Inputfield';
 import Selectdropdown from '../../../src/components/Selectdropdown';
 import Button from '../../../src/components/Button';
-import { setViewport, resetViewport, hasMobileFontSize, hasMobileTouchTarget } from '../../utils/viewportUtils';
+import { setViewport, resetViewport } from '../../utils/viewportUtils';
 
 describe('Form Components - Mobile Responsive', () => {
   beforeEach(() => {

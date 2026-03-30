@@ -18,18 +18,18 @@ const Input: React.FC<InputProps> = ({ name, nameOfClass, requiring, value, futu
 
     const field = <input id={inputId} type='date' name={name} className={nameOfClass} required={requiring} autoComplete='off' value={value} max={!futureDating ? localDate : undefined} onChange={onChange}/>;
 
-    if (!label) {
-        return field;
+    if (label) {
+        return (
+            <div className={componentStyles.formFieldGroup}>
+                <label htmlFor={inputId} className={componentStyles.formFieldLabel}>
+                    {label}{requiring ? ' *' : ''}
+                </label>
+                {field}
+            </div>
+        );
     }
 
-    return (
-        <div className={componentStyles.formFieldGroup}>
-            <label htmlFor={inputId} className={componentStyles.formFieldLabel}>
-                {label}{requiring ? ' *' : ''}
-            </label>
-            {field}
-        </div>
-    );
+    return field;
 }    
 
 export default Input;
