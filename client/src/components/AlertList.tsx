@@ -1,3 +1,4 @@
+import React from 'react';
 import styles from '../styles/AlertList.module.scss';
 import type { DashboardAlert } from './dashboardData';
 
@@ -5,7 +6,7 @@ type AlertListProps = {
   readonly alerts: DashboardAlert[];
 };
 
-export default function AlertList({ alerts }: AlertListProps) {
+const AlertList: React.FC<AlertListProps> = ({ alerts }) => {
   if (!alerts.length) {
     return <div className={styles.empty}>No alerts — data looks stable.</div>;
   }
@@ -29,4 +30,6 @@ export default function AlertList({ alerts }: AlertListProps) {
       })}
     </div>
   );
-}
+};
+
+export default AlertList;
