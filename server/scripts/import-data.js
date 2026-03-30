@@ -13,8 +13,8 @@
  */
 
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { sequelize } = require('../models');
 
 // Import all models
@@ -38,7 +38,7 @@ function parseCSV(filePath) {
   if (lines.length === 0) return [];
   
   // Parse header
-  const headers = lines[0].split(';').map(h => h.replace(/"/g, '').trim());
+  const headers = lines[0].split(';').map(h => h.replaceAll('"', '').trim());
   
   // Parse rows
   const rows = [];
@@ -118,7 +118,7 @@ async function importData(csvDir) {
       CompanyData,
       path.join(csvDir, 'CompanyData.csv'),
       {
-        companyDataID: val => parseInt(val, 10)
+        companyDataID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -127,8 +127,8 @@ async function importData(csvDir) {
       Employee,
       path.join(csvDir, 'employee.csv'),
       {
-        employeeID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10)
+        employeeID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -137,8 +137,8 @@ async function importData(csvDir) {
       Home,
       path.join(csvDir, 'Home.csv'),
       {
-        homeID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10)
+        homeID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -147,8 +147,8 @@ async function importData(csvDir) {
       Client,
       path.join(csvDir, 'client.csv'),
       {
-        clientID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10)
+        clientID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -157,9 +157,9 @@ async function importData(csvDir) {
       BehaviorAndSkill,
       path.join(csvDir, 'BehaviorAndSkill.csv'),
       {
-        bsID: val => parseInt(val, 10),
-        clientID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10)
+        bsID: val => Number.parseInt(val, 10),
+        clientID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -168,13 +168,13 @@ async function importData(csvDir) {
       BehaviorData,
       path.join(csvDir, 'BehaviorData.csv'),
       {
-        behaviorDataID: val => parseInt(val, 10),
-        bsID: val => parseInt(val, 10),
-        clientID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10),
-        count: val => val ? parseInt(val, 10) : null,
-        duration: val => val ? parseFloat(val) : null,
-        trial: val => val ? parseInt(val, 10) : null
+        behaviorDataID: val => Number.parseInt(val, 10),
+        bsID: val => Number.parseInt(val, 10),
+        clientID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10),
+        count: val => val ? Number.parseInt(val, 10) : null,
+        duration: val => val ? Number.parseFloat(val) : null,
+        trial: val => val ? Number.parseInt(val, 10) : null
       }
     );
     
@@ -183,9 +183,9 @@ async function importData(csvDir) {
       SessionNoteData,
       path.join(csvDir, 'SessionNoteData.csv'),
       {
-        sessionNoteDataID: val => parseInt(val, 10),
-        clientID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10)
+        sessionNoteDataID: val => Number.parseInt(val, 10),
+        clientID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -194,10 +194,10 @@ async function importData(csvDir) {
       SkillData,
       path.join(csvDir, 'SkillData.csv'),
       {
-        skillDataID: val => parseInt(val, 10),
-        bsID: val => parseInt(val, 10),
-        clientID: val => parseInt(val, 10),
-        companyID: val => parseInt(val, 10)
+        skillDataID: val => Number.parseInt(val, 10),
+        bsID: val => Number.parseInt(val, 10),
+        clientID: val => Number.parseInt(val, 10),
+        companyID: val => Number.parseInt(val, 10)
       }
     );
     
@@ -206,9 +206,9 @@ async function importData(csvDir) {
       RefreshToken,
       path.join(csvDir, 'refresh_tokens.csv'),
       {
-        id: val => parseInt(val, 10),
-        user_id: val => parseInt(val, 10),
-        revoked: val => parseInt(val, 10),
+        id: val => Number.parseInt(val, 10),
+        user_id: val => Number.parseInt(val, 10),
+        revoked: val => Number.parseInt(val, 10),
         created_at: val => val ? new Date(val) : null,
         expires_at: val => val ? new Date(val) : null,
         revoked_at: val => val ? new Date(val) : null,

@@ -1,5 +1,7 @@
 const { Client, BehaviorAndSkill, BehaviorData, SessionNoteData } = require('../../models');
 
+const toError = (err) => err instanceof Error ? err : new Error(err?.message || String(err));
+
 /*-------------------------------------------------client--------------------------------------------------*/
 async function abaClientExistByID(cID, compID) {
     try {
@@ -8,11 +10,24 @@ async function abaClientExistByID(cID, compID) {
         });
         return client !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaAddClientData(fName, lName, DOB, intakeDate, groupHomeName, medicadeNum, behaviorPlanDueDate, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function abaAddClientData({
+    fName,
+    lName,
+    DOB,
+    intakeDate,
+    groupHomeName,
+    medicadeNum,
+    behaviorPlanDueDate,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await Client.create({
             fName, lName, DOB, 
@@ -28,7 +43,7 @@ async function abaAddClientData(fName, lName, DOB, intakeDate, groupHomeName, me
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -40,7 +55,7 @@ async function abaGetClientDataByID(cID) {
         });
         return client ? client.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -54,11 +69,20 @@ async function abaGetAllClientData(companyID = null) {
         });
         return clients.map(c => c.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaUpdateClientData(fName, lName, DOB, intakeDate, groupHomeName, medicadeNum, behaviorPlanDueDate, cID) {
+async function abaUpdateClientData({
+    fName,
+    lName,
+    DOB,
+    intakeDate,
+    groupHomeName,
+    medicadeNum,
+    behaviorPlanDueDate,
+    cID
+}) {
     try {
         const [rowsUpdated] = await Client.update({
             fName, lName, DOB,
@@ -71,7 +95,7 @@ async function abaUpdateClientData(fName, lName, DOB, intakeDate, groupHomeName,
         });
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -83,11 +107,24 @@ async function behaviorSkillExistByID(bsID, compID) {
         });
         return record !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaAddBehaviorOrSkill(name, def, meas, cat, type, cID, cName, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function abaAddBehaviorOrSkill({
+    name,
+    def,
+    meas,
+    cat,
+    type,
+    cID,
+    cName,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await BehaviorAndSkill.create({
             name, 
@@ -106,11 +143,21 @@ async function abaAddBehaviorOrSkill(name, def, meas, cat, type, cID, cName, ent
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaUpdateBehaviorOrSkill(name, def, meas, cat, type, cID, cName, bsID, compID) {
+async function abaUpdateBehaviorOrSkill({
+    name,
+    def,
+    meas,
+    cat,
+    type,
+    cID,
+    cName,
+    bsID,
+    compID
+}) {
     try {
         const [rowsUpdated] = await BehaviorAndSkill.update({
             name, 
@@ -121,11 +168,11 @@ async function abaUpdateBehaviorOrSkill(name, def, meas, cat, type, cID, cName, 
             clientID: cID, 
             clientName: cName
         }, {
-            where: { bsID, companyID }
+            where: { bsID, companyID: compID }
         });
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -137,7 +184,7 @@ async function abaGetBehaviorOrSkill(cID, BorS, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -149,11 +196,23 @@ async function abaGetABehaviorOrSkill(cID, bsID, BorS, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaAddFrequencyBehaviorData(bsID, cID, cName, sDate, sTime, count, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function abaAddFrequencyBehaviorData({
+    bsID,
+    cID,
+    cName,
+    sDate,
+    sTime,
+    count,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await BehaviorData.create({
             bsID, 
@@ -171,11 +230,24 @@ async function abaAddFrequencyBehaviorData(bsID, cID, cName, sDate, sTime, count
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaAddRateBehaviorData(bsID, cID, cName, sDate, sTime, count, duration, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function abaAddRateBehaviorData({
+    bsID,
+    cID,
+    cName,
+    sDate,
+    sTime,
+    count,
+    duration,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await BehaviorData.create({
             bsID, 
@@ -194,11 +266,23 @@ async function abaAddRateBehaviorData(bsID, cID, cName, sDate, sTime, count, dur
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function abaAddDurationBehaviorData(bsID, cID, cName, sDate, sTime, trial, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function abaAddDurationBehaviorData({
+    bsID,
+    cID,
+    cName,
+    sDate,
+    sTime,
+    trial,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await BehaviorData.create({
             bsID, 
@@ -216,7 +300,7 @@ async function abaAddDurationBehaviorData(bsID, cID, cName, sDate, sTime, trial,
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -228,7 +312,7 @@ async function abaGetBehaviorDataById(cID, bsID, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -239,7 +323,7 @@ async function abaFoundBehaviorDataById(cID, bsID, compID) {
         });
         return count > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -247,22 +331,22 @@ async function abaMergeBehaviorDataById(cID, tBSID, mBsID, compID) {
     try {
         const [rowsUpdated] = await BehaviorData.update(
             { bsID: tBSID },
-            { where: { bsID: mBsID, clientID: cID, companyID } }
+            { where: { bsID: mBsID, clientID: cID, companyID: compID } }
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
 async function abaDeleteBehaviorDataByID(cID, bsID, compID) {
     try {
         const rowsDeleted = await BehaviorData.destroy({
-            where: { bsID, clientID: cID, companyID }
+            where: { bsID, clientID: cID, companyID: compID }
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -273,29 +357,29 @@ async function abaGetBehaviorDataByBehaviorId(cID, bsID, bdID, compID) {
         });
         return count > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
 async function abaDeleteBehaviorDataByBehaviorID(cID, bsID, bdID, compID) {
     try {
         const rowsDeleted = await BehaviorData.destroy({
-            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID }
+            where: { bsID, behaviorDataID: bdID, clientID: cID, companyID: compID }
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
 async function abaDeleteBehaviorOrSkillByID(cID, bsID, compID) {
     try {
         const rowsDeleted = await BehaviorAndSkill.destroy({
-            where: { bsID, clientID: cID, companyID }
+            where: { bsID, clientID: cID, companyID: compID }
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -303,11 +387,11 @@ async function abaArchiveBehaviorDataByID(newStatus, cID, bsID, compID) {
     try {
         const [rowsUpdated] = await BehaviorData.update(
             { status: newStatus },
-            { where: { bsID, clientID: cID, companyID } }
+            { where: { bsID, clientID: cID, companyID: compID } }
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -315,11 +399,11 @@ async function abaArchiveBehaviorOrSkillByID(cID, bsID, dateArchived, dateToDele
     try {
         const [rowsUpdated] = await BehaviorAndSkill.update(
             { status: "Archived", archived_date: dateArchived, archived_deletion_date: dateToDeleteArchive },
-            { where: { bsID, clientID: cID, companyID } }
+            { where: { bsID, clientID: cID, companyID: compID } }
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -332,7 +416,7 @@ async function archiveBehaviorSkillExistByID(bsID, compID) {
         });
         return record !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -340,11 +424,11 @@ async function abaReactivateBehaviorDataByID(newStatus, cID, bsID, compID) {
     try {
         const [rowsUpdated] = await BehaviorData.update(
             { status: newStatus },
-            { where: { bsID, clientID: cID, companyID } }
+            { where: { bsID, clientID: cID, companyID: compID } }
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -352,11 +436,11 @@ async function abaReactivateBehaviorOrSkillByID(cID, bsID, dateArchived, dateToD
     try {
         const [rowsUpdated] = await BehaviorAndSkill.update(
             { status: "Active", archived_date: dateArchived, archived_deletion_date: dateToDeleteArchive },
-            { where: { bsID, clientID: cID, companyID } }
+            { where: { bsID, clientID: cID, companyID: compID } }
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -368,7 +452,7 @@ async function abaGetArchivedBehaviorDataById(cID, bsID, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -380,7 +464,7 @@ async function abaGetArchivedBehaviorOrSkill(cID, BorS, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -391,7 +475,7 @@ async function abaDeleteArchivedBehaviorDataByID(cID, bsID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -402,7 +486,7 @@ async function abaDeleteArchivedBehaviorOrSkillByID(cID, bsID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -414,7 +498,7 @@ async function abaGetAArchivedBehaviorOrSkill(cID, bsID, BorS, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -425,7 +509,7 @@ async function abaGetArchivedBehaviorDataByBehaviorId(cID, bsID, bdID, compID) {
         });
         return count > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -436,7 +520,7 @@ async function abaDeleteArchivedBehaviorDataByBehaviorID(cID, bsID, bdID, compID
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -448,7 +532,7 @@ async function abaSessionNoteDataByClientIDExists(cID, compID) {
         });
         return count > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -460,7 +544,7 @@ async function abaSessionNoteDataByClientID(cID, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -472,7 +556,7 @@ async function abaGetSessionNoteByID(cID, sessionNoteId, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -493,7 +577,7 @@ async function abaAddSessionNoteData(cID, cName, sDate, sTime, sNotes, enteredBy
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -504,7 +588,7 @@ async function abaDeleteSessionNoteDataByID(cID, snID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 /*-------------------------------------------------Archived Session Notes--------------------------------------------------*/
@@ -516,7 +600,7 @@ async function abaGetArchivedSessionNoteDataByClientID(cID, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -528,7 +612,7 @@ async function abaGetArchivedSessionNoteByID(cID, sessionNoteId, compID) {
         });
         return records.map(r => r.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -540,7 +624,7 @@ async function abaReactivateSessionNoteByID(cID, sessionNoteId, compID) {
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -552,7 +636,7 @@ async function abaArchiveSessionNoteByID(cID, sessionNoteId, compID) {
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -563,7 +647,7 @@ async function abaDeleteArchivedSessionNoteByID(cID, sessionNoteId, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 

@@ -93,18 +93,24 @@ describe('ManageClients Page Integration', () => {
   });
 
   it('displays empty state when no clients exist', async () => {
-    mockApi.mockImplementation(() =>
-      Promise.resolve({
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [],
+        } as any);
+      }
+
+      return Promise.resolve({
         statusCode: 200,
         clientData: [],
-      } as any)
-    );
+      } as any);
+    });
 
     render(<ManageClients />);
 
     await waitFor(() => {
-      // Check for the EmptyStatePrompt modal
-      expect(screen.getByText(/no clients found/i)).toBeInTheDocument();
+      expect(screen.getByText(/no homes found/i)).toBeInTheDocument();
     });
   });
 

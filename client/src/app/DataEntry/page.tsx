@@ -207,11 +207,11 @@ const DataEntry: React.FC = () => {
         if (typeof input === 'number') {
             numericValue = input;
         } else {
-            let value = input.target.value;
-            numericValue = value === '' ? NaN : parseFloat(value);
+            const value = input.target.value;
+            numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         }
     
-        if (numericValue <= 0 || isNaN(numericValue)) {
+        if (numericValue <= 0 || Number.isNaN(numericValue)) {
             numericValue = 1;
         }
     
@@ -224,11 +224,11 @@ const DataEntry: React.FC = () => {
         if (typeof input === 'number') {
             numericValue = input;
         } else {
-            let value = input.target.value;
-            numericValue = value === '' ? NaN : parseFloat(value);
+            const value = input.target.value;
+            numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         }
     
-        if (numericValue <= 0 || isNaN(numericValue)) {
+        if (numericValue <= 0 || Number.isNaN(numericValue)) {
             numericValue = 1;
         }
     
@@ -238,32 +238,32 @@ const DataEntry: React.FC = () => {
     useEffect(() => {
         if (activeTab === 'Behavior' && isInitialized) {
             setSelectedTargets(prev => {
-                const newTargets = Array(targetAmt).fill(''); // Initialize with empty strings instead of null
+                const newTargets = new Array(targetAmt).fill(''); // Initialize with empty strings instead of null
                 return newTargets.map((_, i) => prev[i] || '');
             });
                 
             setDates(prev => {
-                const newDates = Array(targetAmt).fill(getCurrentDate());
+                const newDates = new Array(targetAmt).fill(getCurrentDate());
                 return newDates.map((_, i) => prev[i] || getCurrentDate());
             });
     
             setTimes(prev => {
-                const newTimes = Array(targetAmt).fill(getCurrentTime());
+                const newTimes = new Array(targetAmt).fill(getCurrentTime());
                 return newTimes.map((_, i) => prev[i] || getCurrentTime());
             });
         } else if (activeTab === 'Skill' && isInitialized) {
             setSelectedSkills(prev => {
-                const newSkills = Array(skillAmt).fill(''); // Initialize with empty strings instead of null
+                const newSkills = new Array(skillAmt).fill(''); // Initialize with empty strings instead of null
                 return newSkills.map((_, i) => prev[i] || '');
             });
                 
             setDates(prev => {
-                const newDates = Array(skillAmt).fill(getCurrentDate());
+                const newDates = new Array(skillAmt).fill(getCurrentDate());
                 return newDates.map((_, i) => prev[i] || getCurrentDate());
             });
     
             setTimes(prev => {
-                const newTimes = Array(skillAmt).fill(getCurrentTime());
+                const newTimes = new Array(skillAmt).fill(getCurrentTime());
                 return newTimes.map((_, i) => prev[i] || getCurrentTime());
             });        }
     }, [targetAmt, skillAmt, activeTab, isInitialized]);
@@ -272,7 +272,7 @@ const DataEntry: React.FC = () => {
     const handleClientChange = (value: any) => {
         setStatusMessage('')
         setSelectedClient(value.name);
-        let numericValue = value.id === '' ? NaN : parseFloat(value.id);
+        const numericValue = value.id === '' ? Number.NaN : Number.parseFloat(value.id);
         setSelectedClientID(numericValue);
     };
 
@@ -305,7 +305,7 @@ const DataEntry: React.FC = () => {
     
             setCount(prevCounts => {
                 const newCounts = [...prevCounts];
-                newCounts[index] = NaN; // Set to null or default value
+                newCounts[index] = Number.NaN; // Set to null or default value
                 return newCounts;
             });
         }
@@ -334,17 +334,6 @@ const DataEntry: React.FC = () => {
     };
 
     useEffect(() => {
-        const loadData = () => {
-            if (selectedClient.length > 0) { setSelectedClient(selectedClient); }
-            if (selectedClientID > 0) setSelectedClientID(selectedClientID);
-            if (selectedTargets.length > 0) setSelectedTargets(selectedTargets);
-            if (dates.length > 0) setDates(dates);
-            if (times.length > 0) setTimes(times);
-            if (count.length > 0) setCount(count);
-            if (selectedMeasurementTypes.length > 0) setSelectedMeasurementTypes(selectedMeasurementTypes);
-            // TODO: Add logic for skill data collection
-        };
-
         if (activeTab === 'Behavior') {
             const generateTargetTableHeaders = () => {
                 const newHeaders: JSX.Element[] = [
@@ -363,10 +352,6 @@ const DataEntry: React.FC = () => {
                 return newHeaders;
             };
 
-            if (isInitialized) {
-                loadData();  // Load data when component mounts
-            }    
-
             setHeaders(generateTargetTableHeaders());
         }
         else if (activeTab === 'Skill') {
@@ -377,15 +362,9 @@ const DataEntry: React.FC = () => {
                     <th key="sessionDate">Session Date:</th>,
                     <th key="time">Time:</th>
                 ];
-    
-                // TODO: Add logic for skill data collection
                     
                 return newHeaders;
             };
-
-            if (isInitialized) {
-                loadData();  // Load data when component mounts
-            }
     
             setHeaders(generateSkillTableHeaders());
         }
@@ -427,14 +406,12 @@ const DataEntry: React.FC = () => {
             <td key={`time-${index}`}><TimeFields name={`SessionTime-${index}`} requiring={true} value={times[index]} onChange={(e) => handleTimeChange(index, e.target.value)} /></td>
         ];
 
-        // TODO: Add logic for skill data collection
-
         return cells;
     };
 
     const handleCountChange  = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        let numericValue = value === '' ? NaN : parseFloat(value);
+        let numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         if (numericValue <= -1) {
             numericValue = 0;
         }
@@ -611,7 +588,7 @@ const DataEntry: React.FC = () => {
                                         </thead>
                                         <tbody>
                                             {targetAmt > 0 && dates.map((date, index) =>
-                                                <tr key={index}>
+                                                <tr key={`behavior-${selectedTargets[index] || 'empty'}-${dates[index] || 'date'}-${times[index] || 'time'}-${index}`}>
                                                     {renderTargetTableData(index)}
                                                 </tr>
                                             )}
@@ -625,7 +602,7 @@ const DataEntry: React.FC = () => {
                                         </thead>
                                         <tbody>
                                             {skillAmt > 0 && dates.map((date, index) =>
-                                                <tr key={index}>
+                                                <tr key={`skill-${selectedSkills[index] || 'empty'}-${dates[index] || 'date'}-${times[index] || 'time'}-${index}`}>
                                                     {renderSkillTableData(index)}
                                                 </tr>
                                             )}

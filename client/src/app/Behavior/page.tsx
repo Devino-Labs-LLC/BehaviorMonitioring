@@ -160,7 +160,7 @@ const TargetBehavior: React.FC = () => {
         setTargetOptions([]);
         const selectedLabel = e.target.options[e.target.selectedIndex]?.text || '';
         setSelectedClient(selectedLabel);
-        const numericValue = e.target.value === '' ? NaN : Number(e.target.value);
+        const numericValue = e.target.value === '' ? Number.NaN : Number(e.target.value);
         setSelectedClientID(numericValue);
         setCheckedState(new Array(targetOptions.length).fill(false)); // Reset checkboxes
     };
@@ -219,6 +219,22 @@ const TargetBehavior: React.FC = () => {
         navigate.push(`/Behavior/Detail`);
     }
 
+    const renderBehaviorDetailButton = (id: string | number, content: React.ReactNode) => (
+        <button
+            type="button"
+            onClick={() => openBehaviorDetail(id)}
+            style={{
+                all: 'unset',
+                display: 'block',
+                width: '100%',
+                minHeight: '2.5em',
+                cursor: 'pointer',
+            }}
+        >
+            {content}
+        </button>
+    );
+
     const graphBehaviorCall = (index: number | string, name: string) => {
         sessionStorage.setItem('clientID', String(selectedClientID));
         const storedCheckedBehaviors = JSON.parse(sessionStorage.getItem('checkedBehaviors') || '[]');
@@ -251,8 +267,8 @@ const TargetBehavior: React.FC = () => {
         const ellipsisButton = document.querySelectorAll('.tbHRSEllipsesButton')[menuIndex];
         if (ellipsisButton) {
             const buttonRect = ellipsisButton.getBoundingClientRect();
-            const menuTop = buttonRect.top + window.scrollY; // Account for scrolling
-            const menuLeft = buttonRect.left + window.scrollX + buttonRect.width; // Offset for width
+            const menuTop = buttonRect.top + globalThis.scrollY; // Account for scrolling
+            const menuLeft = buttonRect.left + globalThis.scrollX + buttonRect.width; // Offset for width
             return {
                 top: `${menuTop}px`,
                 left: `${menuLeft}px`,
@@ -420,11 +436,11 @@ const TargetBehavior: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {targetOptions.map((option, index) => (
-                                            <tr key={index}>
+                                            <tr key={String(option.value)}>
                                                 <td><div><Checkbox nameOfClass='tbGraphTable' label={option.label} isChecked={checkedState[index]} onChange={handleCheckBoxChange(index)} disabled={isCheckboxDisabled(index)}/></div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>{option.label}</div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>{option.definition}</div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>{option.measurementType}</div></td>
+                                                <td><div>{renderBehaviorDetailButton(option.value, option.label)}</div></td>
+                                                <td><div>{renderBehaviorDetailButton(option.value, option.definition)}</div></td>
+                                                <td><div>{renderBehaviorDetailButton(option.value, option.measurementType)}</div></td>
                                                 <td><div><Button nameOfClass='tbHRSGraphButton' placeholder='Graph' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); graphBehaviorCall(option.value, option.label)}}/></div></td>
                                                 <td><div><Button nameOfClass='tbHRSEllipsesButton' btnName='More options' placeholder='...' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); handleEllipsisClick(index)}}/></div></td>
                                             </tr>
@@ -434,10 +450,10 @@ const TargetBehavior: React.FC = () => {
                                 {activeMenu !== null && (
                                     <div className={componentStyles.popoutMenu} style={getMenuPosition(activeMenu)}>
                                         <ul>
-                                            <li onClick={() => { closeMenu(); mergeBehaviorCall(); }}>Merge</li>
-                                            <li onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Archive', String(selectedBehavior.value), selectedBehavior.label); }}>Archive</li>
-                                            <li onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Delete', String(selectedBehavior.value), selectedBehavior.label); }}>Delete</li>
-                                            <li onClick={closeMenu}>Close Menu</li>
+                                            <li><button type="button" onClick={() => { closeMenu(); mergeBehaviorCall(); }}>Merge</button></li>
+                                            <li><button type="button" onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Archive', String(selectedBehavior.value), selectedBehavior.label); }}>Archive</button></li>
+                                            <li><button type="button" onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Delete', String(selectedBehavior.value), selectedBehavior.label); }}>Delete</button></li>
+                                            <li><button type="button" onClick={closeMenu}>Close Menu</button></li>
                                         </ul>
                                     </div>
                                 )}

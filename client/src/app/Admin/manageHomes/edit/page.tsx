@@ -11,7 +11,7 @@ import Checkbox from '../../../../components/Checkbox';
 import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
-import type { UpdateHomeRequest, UpdateHomeResponse, GetHomesResponse } from '../../../../dto';
+import type { UpdateHomeResponse, GetHomesResponse } from '../../../../dto';
 
 const EditHomeContent: React.FC = () => {
     const navigate = useRouter();
@@ -59,7 +59,7 @@ const EditHomeContent: React.FC = () => {
                 employeeUsername: username
             });
             if ((response as any).statusCode === 200) {
-                const home = response.homes.find(h => h.homeID === parseInt(homeID!));
+                const home = response.homes.find(h => h.homeID === Number.parseInt(homeID ?? '', 10));
                 if (home) {
                     setFormData({
                         homeID: home.homeID,
@@ -97,8 +97,8 @@ const EditHomeContent: React.FC = () => {
         if (!formData.zip.trim()) return 'ZIP code is required';
         if (formData.zip.trim().length < 5) return 'ZIP code must be at least 5 characters';
         if (!formData.capacity.trim()) return 'Capacity is required';
-        const capacity = parseInt(formData.capacity);
-        if (isNaN(capacity) || capacity <= 0) return 'Capacity must be a positive number';
+        const capacity = Number.parseInt(formData.capacity, 10);
+        if (Number.isNaN(capacity) || capacity <= 0) return 'Capacity must be a positive number';
         return null;
     };
 
@@ -126,7 +126,7 @@ const EditHomeContent: React.FC = () => {
                     city: formData.city.trim(),
                     state: formData.state.trim().toUpperCase(),
                     zipCode: formData.zip.trim(),
-                    capacity: parseInt(formData.capacity),
+                    capacity: Number.parseInt(formData.capacity, 10),
                     employeeUsername: username
                 };
 

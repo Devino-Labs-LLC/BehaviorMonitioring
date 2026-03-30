@@ -91,7 +91,7 @@ const AddTargetBehavior: React.FC = () => {
 
     const handleClientChange = (value: any) => {
         setSelectedClient(value.name);
-        const numericValue = value.id === '' ? NaN : parseFloat(value.id);
+        const numericValue = value.id === '' ? Number.NaN : Number.parseFloat(value.id);
         setSelectedClientID(numericValue);
     };
 

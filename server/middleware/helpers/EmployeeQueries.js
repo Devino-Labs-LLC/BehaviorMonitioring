@@ -1,5 +1,20 @@
 const { Employee, BehaviorAndSkill, BehaviorData } = require('../../models');
 
+const toError = (err) => err instanceof Error ? err : new Error(err?.message || String(err));
+
+async function updateEmployeeAccount(where, values) {
+    const [rowsUpdated] = await Employee.update(values, { where });
+    return rowsUpdated > 0;
+}
+
+async function createBehaviorDataEntry(values) {
+    await BehaviorData.create({
+        ...values,
+        status: "Active"
+    });
+    return true;
+}
+
 /*-------------------------------------------------Employee--------------------------------------------------*/
 async function employeeExistByUsername(uName) {
     try {
@@ -8,7 +23,7 @@ async function employeeExistByUsername(uName) {
         });
         return employee !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -19,7 +34,7 @@ async function employeeExistByID(uID) {
         });
         return employee !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -31,7 +46,7 @@ async function employeeDataByUsername(uName) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -43,7 +58,7 @@ async function employeeDataById(uID) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -55,7 +70,7 @@ async function employeePasswordByUsername(uName) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -67,55 +82,51 @@ async function employeePasswordById(uID) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
 async function employeeUpdateEmployeeAccountByUsername(fName, lName, email, phone_number, pWord, uName, compID) {
     try {
-        const [rowsUpdated] = await Employee.update(
-            { fName, lName, email, phone_number, password: pWord },
-            { where: { username: uName, companyID: compID } }
+        return updateEmployeeAccount(
+            { username: uName, companyID: compID },
+            { fName, lName, email, phone_number, password: pWord }
         );
-        return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
 async function employeeUpdateEmployeeAccountByID(fName, lName, email, phone_number, pWord, eID, compID) {
     try {
-        const [rowsUpdated] = await Employee.update(
-            { fName, lName, email, phone_number, password: pWord },
-            { where: { employeeID: eID, companyID: compID } }
+        return updateEmployeeAccount(
+            { employeeID: eID, companyID: compID },
+            { fName, lName, email, phone_number, password: pWord }
         );
-        return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function employeeUpdateEmployeeAccountWithoutPasswordByUsername(fName, lName, email, phone_number, pWord, uName, compID) {
+async function employeeUpdateEmployeeAccountWithoutPasswordByUsername(fName, lName, email, phone_number, uName, compID) {
     try {
-        const [rowsUpdated] = await Employee.update(
-            { fName, lName, email, phone_number, password: pWord },
-            { where: { username: uName, companyID: compID } }
+        return updateEmployeeAccount(
+            { username: uName, companyID: compID },
+            { fName, lName, email, phone_number }
         );
-        return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function employeeUpdateEmployeeAccountWithoutPasswordByID(fName, lName, email, phone_number, pWord, eID, compID) {
+async function employeeUpdateEmployeeAccountWithoutPasswordByID(fName, lName, email, phone_number, eID, compID) {
     try {
-        const [rowsUpdated] = await Employee.update(
-            { fName, lName, email, phone_number, password: pWord },
-            { where: { employeeID: eID, companyID: compID } }
+        return updateEmployeeAccount(
+            { employeeID: eID, companyID: compID },
+            { fName, lName, email, phone_number }
         );
-        return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -127,7 +138,7 @@ async function employeeUpdateEmployeeAccountStatusByUsername(accountStatus, uNam
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -139,7 +150,7 @@ async function employeeUpdateEmployeeStatusAccountByID(accountStatus, eID, compI
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -151,7 +162,7 @@ async function employeeSetEmployeeCredentialsByUsername(pWord, uName, compID) {
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -163,7 +174,7 @@ async function employeeSetEmployeeCredentialsByID(pWord, eID, compID) {
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -175,7 +186,7 @@ async function employeeDataByEmail(email) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -190,7 +201,7 @@ async function employeeSetPasswordResetToken(employeeID, resetToken, expiryDate)
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -202,7 +213,7 @@ async function employeeDataByResetToken(token) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -218,7 +229,7 @@ async function employeeResetPassword(employeeID, hashedPassword) {
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -230,13 +241,25 @@ async function behaviorSkillExistByID(bsID, compID) {
         });
         return record !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function employeeAddFrequencyBehaviorData(bsID, cID, cName, sDate, sTime, count, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function employeeAddFrequencyBehaviorData({
+    bsID,
+    cID,
+    cName,
+    sDate,
+    sTime,
+    count,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
-        await BehaviorData.create({
+        return createBehaviorDataEntry({
             bsID, 
             clientID: cID, 
             clientName: cName, 
@@ -247,18 +270,29 @@ async function employeeAddFrequencyBehaviorData(bsID, cID, cName, sDate, sTime, 
             companyID: compID, 
             companyName: compName,
             date_entered: dateEntered, 
-            time_entered: timeEntered, 
-            status: "Active"
+            time_entered: timeEntered
         });
-        return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function employeeAddRateBehaviorData(bsID, cID, cName, sDate, sTime, count, duration, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function employeeAddRateBehaviorData({
+    bsID,
+    cID,
+    cName,
+    sDate,
+    sTime,
+    count,
+    duration,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
-        await BehaviorData.create({
+        return createBehaviorDataEntry({
             bsID, 
             clientID: cID, 
             clientName: cName, 
@@ -270,18 +304,28 @@ async function employeeAddRateBehaviorData(bsID, cID, cName, sDate, sTime, count
             companyID: compID, 
             companyName: compName, 
             date_entered: dateEntered, 
-            time_entered: timeEntered, 
-            status: "Active"
+            time_entered: timeEntered
         });
-        return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function employeeAddDurationBehaviorData(bsID, cID, cName, sDate, sTime, trial, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function employeeAddDurationBehaviorData({
+    bsID,
+    cID,
+    cName,
+    sDate,
+    sTime,
+    trial,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
-        await BehaviorData.create({
+        return createBehaviorDataEntry({
             bsID, 
             clientID: cID, 
             clientName: cName, 
@@ -292,12 +336,10 @@ async function employeeAddDurationBehaviorData(bsID, cID, cName, sDate, sTime, t
             companyID: compID, 
             companyName: compName,
             date_entered: dateEntered, 
-            time_entered: timeEntered, 
-            status: "Active"
+            time_entered: timeEntered
         });
-        return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 

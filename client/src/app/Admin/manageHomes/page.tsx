@@ -55,7 +55,7 @@ const ManageHomes: React.FC = () => {
     };
 
     const handleDeleteClick = async (homeID: number, homeName: string) => {
-        if (!window.confirm(`Are you sure you want to delete home "${homeName}"? This action cannot be undone.`)) {
+        if (!globalThis.confirm(`Are you sure you want to delete home "${homeName}"? This action cannot be undone.`)) {
             return;
         }
 

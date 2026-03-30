@@ -91,7 +91,7 @@ const EditClientContent: React.FC = () => {
                 employeeUsername: username
             });
             if (response.statusCode === 200) {
-                const client = response.clientData.find((c: any) => c.clientID === parseInt(clientID!));
+                const client = response.clientData.find((c: any) => c.clientID === Number.parseInt(clientID ?? '', 10));
                 if (client) {
                     setFormData({
                         clientID: client.clientID,
@@ -240,7 +240,7 @@ const EditClientContent: React.FC = () => {
                                     label="Home"
                                     options={homes}
                                     value={formData.homeID}
-                                    onChange={(e) => handleInputChange('homeID', parseInt(e.target.value))}
+                                    onChange={(e) => handleInputChange('homeID', Number.parseInt(e.target.value, 10))}
                                     requiring={true}
                                 />
                                 

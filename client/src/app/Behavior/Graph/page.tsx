@@ -8,7 +8,7 @@ import Loading from '../../../components/loading';
 import { GetLoggedInUserStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
-import type { SelectedBehaviorSkill, DropdownOption, GetBehaviorDataResponse } from '../../../dto';
+import type { SelectedBehaviorSkill, GetBehaviorDataResponse } from '../../../dto';
 import { DATE_RANGES } from '../../../dto';
 import SelectDropdown from '../../../components/Selectdropdown';
 import GraphDataProcessor from '../../../function/GraphDataProcessor';
@@ -41,8 +41,8 @@ const Graph: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const handleDateRangeChange = (range: number) => {

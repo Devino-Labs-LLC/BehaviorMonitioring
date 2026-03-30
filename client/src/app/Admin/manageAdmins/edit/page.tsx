@@ -12,7 +12,7 @@ import { GetLoggedInUser } from '../../../../function/VerificationCheck';
 import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
-import type { UpdateAdminRequest, UpdateAdminResponse, GetAdminsResponse } from '../../../../dto';
+import type { UpdateAdminResponse, GetAdminsResponse } from '../../../../dto';
 
 function EditClientContent() {
     const navigate = useRouter();
@@ -59,7 +59,7 @@ function EditClientContent() {
                 employeeUsername: GetLoggedInUser()
             });
             if (response.statusCode === 200) {
-                const admin = response.admins.find(a => a.adminID === parseInt(clientID!));
+                const admin = response.admins.find(a => a.adminID === Number.parseInt(clientID ?? '', 10));
                 if (admin) {
                     setFormData({
                         adminID: admin.adminID,

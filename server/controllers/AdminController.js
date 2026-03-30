@@ -26,20 +26,20 @@ class AdminController {
                 username = await generateUsername(fName, lName, role);
             }
 
-            if (await adminQueries.adminAddNewEmployee(
-                fName, 
-                lName, 
-                username.toLowerCase(), 
-                email, 
-                pNumber, 
+            if (await adminQueries.adminAddNewEmployee({
+                fName,
+                lName,
+                username: username.toLowerCase(),
+                email,
+                phone_number: pNumber,
                 role,
-                accountStatus,
-                employeeData.fName + " " + employeeData.lName,
-                employeeData.companyID,
-                employeeData.companyName,
-                await formatDateString(await currentDateTime.getCurrentDate()), 
-                await currentDateTime.getCurrentTime()
-            )) {
+                account_status: accountStatus,
+                enteredBy: employeeData.fName + " " + employeeData.lName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: await formatDateString(await currentDateTime.getCurrentDate()),
+                timeEntered: await currentDateTime.getCurrentTime()
+            })) {
                 // Send appropriate verification email based on role
                 if (role.toLowerCase() === 'root' || role.toLowerCase() === 'admin') {
                     await emailTemplate.sendAdminVerification(
@@ -174,20 +174,20 @@ class AdminController {
                 return res.json({ statusCode: 409, serverMessage: 'A home with this name already exists' });
             }
 
-            if (await adminQueries.adminAddNewHome(
-                name, 
-                streetAddress, 
-                city, 
-                state, 
+            if (await adminQueries.adminAddNewHome({
+                name,
+                streetAddress,
+                city,
+                state,
                 zipCode,
                 capacity,
-                0,
-                employeeData.fName + " " + employeeData.lName,
-                employeeData.companyID,
-                employeeData.companyName,
-                await formatDateString(await currentDateTime.getCurrentDate()), 
-                await currentDateTime.getCurrentTime()
-            )) {
+                currentOccupancy: 0,
+                enteredBy: employeeData.fName + " " + employeeData.lName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: await formatDateString(await currentDateTime.getCurrentDate()),
+                timeEntered: await currentDateTime.getCurrentTime()
+            })) {
                 return res.json({ statusCode: 201, serverMessage: 'New home added' });
             }
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred' });
@@ -247,7 +247,16 @@ class AdminController {
                 return res.json({ statusCode: 400, serverMessage: 'Capacity must be a positive whole number' });
             }
 
-            if (await adminQueries.adminUpdateHomeByID(name, streetAddress, city, state, zipCode, capacity, hID, employeeData.companyID)) {
+            if (await adminQueries.adminUpdateHomeByID({
+                name,
+                streetAddress,
+                city,
+                state,
+                zipCode,
+                capacity,
+                hID,
+                compID: employeeData.companyID
+            })) {
                 return res.json({ statusCode: 201, serverMessage: 'Home has been updated' });
             }
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred' });
@@ -267,9 +276,9 @@ class AdminController {
             const allEmployees = await adminQueries.adminGetAllEmployees(employeeData.companyID);
             
             // Filter to only include admin-level roles (root, admin, manager)
-            const adminRoles = ['root', 'admin', 'manager'];
+            const adminRoles = new Set(['root', 'admin', 'manager']);
             const admins = allEmployees
-                .filter(emp => adminRoles.includes(emp.role.toLowerCase()))
+                .filter(emp => adminRoles.has(emp.role.toLowerCase()))
                 .map(emp => ({
                     adminID: emp.employeeID,
                     firstName: emp.fName,
@@ -348,20 +357,20 @@ class AdminController {
 
             const { fName, lName, DOB, intakeDate, groupHomeName, medicaidIdNumber, behaviorPlanDueDate } = req.body;
             
-            const newClient = await adminQueries.adminAddNewClient(
+            const newClient = await adminQueries.adminAddNewClient({
                 fName,
                 lName,
                 DOB,
                 intakeDate,
-                groupHomeName || null,
-                medicaidIdNumber || null,
-                behaviorPlanDueDate || null,
-                employeeData.fName + " " + employeeData.lName,
-                employeeData.companyID,
-                employeeData.companyName,
-                await formatDateString(await currentDateTime.getCurrentDate()),
-                await currentDateTime.getCurrentTime()
-            );
+                groupHomeName: groupHomeName || null,
+                medicaidIdNumber: medicaidIdNumber || null,
+                behaviorPlanDueDate: behaviorPlanDueDate || null,
+                enteredBy: employeeData.fName + " " + employeeData.lName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: await formatDateString(await currentDateTime.getCurrentDate()),
+                timeEntered: await currentDateTime.getCurrentTime()
+            });
 
             return res.json({ 
                 statusCode: 201, 
@@ -387,17 +396,17 @@ class AdminController {
                 return res.json({ statusCode: 404, serverMessage: 'Client not found' });
             }
 
-            if (await adminQueries.adminUpdateClient(
+            if (await adminQueries.adminUpdateClient({
                 clientID,
                 fName,
                 lName,
                 DOB,
                 intakeDate,
-                groupHomeName || null,
-                medicaidIdNumber || null,
-                behaviorPlanDueDate || null,
-                employeeData.companyID
-            )) {
+                groupHomeName: groupHomeName || null,
+                medicaidIdNumber: medicaidIdNumber || null,
+                behaviorPlanDueDate: behaviorPlanDueDate || null,
+                compID: employeeData.companyID
+            })) {
                 return res.json({ statusCode: 200, serverMessage: 'Client updated successfully' });
             }
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred' });

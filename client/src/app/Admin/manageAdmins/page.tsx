@@ -66,7 +66,7 @@ const ManageAdmins: React.FC = () => {
     };
 
     const handleDeleteClick = async (admin: AdminEmployee) => {
-        if (!window.confirm(`Are you sure you want to delete admin "${admin.username}"? This action cannot be undone.`)) {
+        if (!globalThis.confirm(`Are you sure you want to delete admin "${admin.username}"? This action cannot be undone.`)) {
             return;
         }
 

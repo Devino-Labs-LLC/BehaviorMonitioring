@@ -14,28 +14,28 @@ async function addPasswordResetFields() {
             AND COLUMN_NAME IN ('password_reset_token', 'password_reset_expires')
         `);
         
-        const columnNames = existingColumns.map(col => col.COLUMN_NAME);
+        const columnNames = new Set(existingColumns.map((col) => col.COLUMN_NAME));
         
-        // Add password_reset_token if it doesn't exist
-        if (!columnNames.includes('password_reset_token')) {
+        // Add password_reset_token if it already exists
+        if (columnNames.has('password_reset_token')) {
+            console.log('✓ password_reset_token column already exists');
+        } else {
             await sequelize.query(`
                 ALTER TABLE employee 
                 ADD COLUMN password_reset_token VARCHAR(255) NULL AFTER last_login
             `);
             console.log('✓ Added password_reset_token column');
-        } else {
-            console.log('✓ password_reset_token column already exists');
         }
         
-        // Add password_reset_expires if it doesn't exist
-        if (!columnNames.includes('password_reset_expires')) {
+        // Add password_reset_expires if it already exists
+        if (columnNames.has('password_reset_expires')) {
+            console.log('✓ password_reset_expires column already exists');
+        } else {
             await sequelize.query(`
                 ALTER TABLE employee 
                 ADD COLUMN password_reset_expires DATETIME NULL AFTER password_reset_token
             `);
             console.log('✓ Added password_reset_expires column');
-        } else {
-            console.log('✓ password_reset_expires column already exists');
         }
         
         console.log('Password reset fields migration completed successfully!');

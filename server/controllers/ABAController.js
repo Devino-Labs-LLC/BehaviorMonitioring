@@ -5,6 +5,130 @@ const { addDays, addYears } = require('../functions/base/addDayYear');
 const { formatDateString, formatTimeString } = require('../functions/base/dateTimeFormat');
 const { verifyABAAuthorization, verifyBasicAuthentication } = require('../middleware/helpers/authorizationHelper');
 
+const sendNotImplemented = (res, serverMessage = 'Not implemented') =>
+    res.json({ statusCode: 501, serverMessage });
+
+async function getAuditTimestamp() {
+    return {
+        currentDate: await formatDateString(await currentDateTime.getCurrentDate()),
+        currentTime: await currentDateTime.getCurrentTime()
+    };
+}
+
+async function deleteBehaviorAndDataIfPresent(queryApi, cID, behaviorId, companyID, behaviorName) {
+    const hasBehaviorData = await queryApi.abaFoundBehaviorDataById(cID, behaviorId, companyID);
+
+    if (hasBehaviorData && !await queryApi.abaDeleteBehaviorDataByID(cID, behaviorId, companyID)) {
+        throw new Error(`An error occured while deleting ${behaviorName}'s data`);
+    }
+
+    if (!await queryApi.abaDeleteBehaviorOrSkillByID(cID, behaviorId, companyID)) {
+        throw new Error(`An error occured while deleting ${behaviorName}`);
+    }
+}
+
+async function addBehaviorForClient(behavior, employeeData) {
+    const { behaviorName: name, behaviorDefinition: def, behaviorMeasurement: meas, behaviorCategory: cat, type, clientID: cID, clientName } = behavior;
+
+    if (!await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
+        return { errorResponse: { statusCode: 400, behaviorsAdded: false, serverMessage: 'Client does not exist' } };
+    }
+
+    const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
+    if (!clientData) {
+        return { errorResponse: { statusCode: 500, behaviorsAdded: false, serverMessage: 'Unable to locate client data' } };
+    }
+
+    const { currentDate, currentTime } = await getAuditTimestamp();
+    const behaviorAdded = await abaQueries.abaAddBehaviorOrSkill({
+        name,
+        def,
+        meas,
+        cat,
+        type,
+        cID,
+        cName: `${clientData.fName} ${clientData.lName}`,
+        enteredBy: `${employeeData.fName} ${employeeData.lName}`,
+        compID: employeeData.companyID,
+        compName: employeeData.companyName,
+        dateEntered: currentDate,
+        timeEntered: currentTime
+    });
+
+    if (!behaviorAdded) {
+        return { failedBehavior: { name, def, meas, cat, type, cID, clientName } };
+    }
+
+    return {};
+}
+
+const getEmployeeName = (employeeData) => `${employeeData.fName} ${employeeData.lName}`;
+const getClientName = (clientData) => `${clientData.fName} ${clientData.lName}`;
+
+async function submitBehaviorMeasurementEntry({
+    measurementType,
+    selectedTargetId,
+    cID,
+    clientData,
+    occurredDate,
+    occurredTime,
+    countValue,
+    durationValue,
+    employeeData
+}) {
+    const { currentDate, currentTime } = await getAuditTimestamp();
+    const clientName = getClientName(clientData);
+    const employeeName = getEmployeeName(employeeData);
+
+    switch (measurementType) {
+        case "Frequency":
+            return abaQueries.abaAddFrequencyBehaviorData({
+                bsID: selectedTargetId,
+                cID,
+                cName: clientName,
+                sDate: occurredDate,
+                sTime: occurredTime,
+                count: countValue,
+                enteredBy: employeeName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: currentDate,
+                timeEntered: currentTime
+            });
+        case "Duration":
+            return abaQueries.abaAddDurationBehaviorData({
+                bsID: selectedTargetId,
+                cID,
+                cName: clientName,
+                sDate: occurredDate,
+                sTime: occurredTime,
+                trial: durationValue,
+                enteredBy: employeeName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: currentDate,
+                timeEntered: currentTime
+            });
+        case "Rate":
+            return abaQueries.abaAddRateBehaviorData({
+                bsID: selectedTargetId,
+                cID,
+                cName: clientName,
+                sDate: occurredDate,
+                sTime: occurredTime,
+                count: countValue,
+                duration: durationValue,
+                enteredBy: employeeName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: currentDate,
+                timeEntered: currentTime
+            });
+        default:
+            return false;
+    }
+}
+
 class ABAController {
     // ============================================
     // CLIENT MANAGEMENT
@@ -20,17 +144,28 @@ class ABAController {
 
             const { clientFName: cFName, clientLName: cLName, dateOfBirth: DOB, intakeDate, ghName, medicadeNum, behaviorProvided } = req.body;
             let behaviorPlanDueDate = await formatDateString(await addDays(intakeDate, 90));
-
-            if (!behaviorProvided) {
-                if (await abaQueries.abaAddClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
-                    return res.json({ statusCode: 200, clientAdded: true });
-                }
-            } else {
+            if (behaviorProvided) {
                 behaviorPlanDueDate = await formatDateString(await addYears(intakeDate, 1));
-                if (await abaQueries.abaAddClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
-                    return res.json({ statusCode: 200, clientAdded: true });
-                }
             }
+
+            const { currentDate, currentTime } = await getAuditTimestamp();
+            if (await abaQueries.abaAddClientData({
+                fName: cFName,
+                lName: cLName,
+                DOB,
+                intakeDate,
+                groupHomeName: ghName,
+                medicadeNum,
+                behaviorPlanDueDate,
+                enteredBy: employeeData.fName + " " + employeeData.lName,
+                compID: employeeData.companyID,
+                compName: employeeData.companyName,
+                dateEntered: currentDate,
+                timeEntered: currentTime
+            })) {
+                return res.json({ statusCode: 200, clientAdded: true });
+            }
+
             return res.json({ statusCode: 500, clientAdded: false, serverMessage: 'Unable add a client' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
@@ -69,7 +204,16 @@ class ABAController {
 
             const { clientID: cID, clientFName: cFName, clientLName: cLName, dateOfBirth: DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate } = req.body;
             
-            if (await abaQueries.abaUpdateClientData(cFName, cLName, DOB, intakeDate, ghName, medicadeNum, behaviorPlanDueDate, cID)) {
+            if (await abaQueries.abaUpdateClientData({
+                fName: cFName,
+                lName: cLName,
+                DOB,
+                intakeDate,
+                groupHomeName: ghName,
+                medicadeNum,
+                behaviorPlanDueDate,
+                cID
+            })) {
                 return res.json({ statusCode: 200, clientAdded: true });
             }
             return res.json({ statusCode: 500, clientAdded: false, serverMessage: 'Unable add a client' });
@@ -82,12 +226,7 @@ class ABAController {
      * Delete client information
      */
     async deleteClientInfo(req, res) {
-        try {
-            // TODO: Determine whether to terminate client or if all data related to client should be deleted
-            return res.json({ statusCode: 501, serverMessage: 'Not implemented' });
-        } catch (error) {
-            return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
-        }
+        return sendNotImplemented(res, 'Client deletion flow is not implemented yet');
     }
 
     /**
@@ -123,21 +262,13 @@ class ABAController {
             const { behaviors } = req.body;
             const failedBehaviors = [];
 
-            for (let i = 0; i < behaviors.length; i++) {
-                const { behaviorName: name, behaviorDefinition: def, behaviorMeasurement: meas, behaviorCategory: cat, type, clientID: cID, clientName } = behaviors[i];
-
-                if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
-                    const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
-
-                    if (clientData) {
-                        if (!await abaQueries.abaAddBehaviorOrSkill(name, def, meas, cat, type, cID, clientData.fName + " " + clientData.lName, employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
-                            failedBehaviors.push({ name, def, meas, cat, type, cID, clientName });
-                        }
-                    } else {
-                        return res.json({ statusCode: 500, behaviorsAdded: false, serverMessage: 'Unable to locate client data' });
-                    }
-                } else {
-                    return res.json({ statusCode: 400, behaviorsAdded: false, serverMessage: 'Client does not exist' });
+            for (const behavior of behaviors) {
+                const { errorResponse, failedBehavior } = await addBehaviorForClient(behavior, employeeData);
+                if (errorResponse) {
+                    return res.json(errorResponse);
+                }
+                if (failedBehavior) {
+                    failedBehaviors.push(failedBehavior);
                 }
             }
 
@@ -155,8 +286,7 @@ class ABAController {
      */
     async updateTargetBehavior(req, res) {
         try {
-            // Implementation appears incomplete in original - keeping as is
-            return res.json({ statusCode: 501, serverMessage: 'Not fully implemented' });
+            return sendNotImplemented(res, 'Target behavior update is not implemented yet');
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
         }
@@ -166,12 +296,7 @@ class ABAController {
      * Delete target behavior
      */
     async deleteTargetBehavior(req, res) {
-        try {
-            // TODO: Determine whether to terminate target behavior or if all data related to client should be deleted
-            return res.json({ statusCode: 501, serverMessage: 'Not implemented' });
-        } catch (error) {
-            return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
-        }
+        return sendNotImplemented(res, 'Target behavior deletion flow is not implemented yet');
     }
 
     /**
@@ -284,9 +409,7 @@ class ABAController {
                 const behaviorSkillData = await abaQueries.abaGetBehaviorOrSkill(cID, 'Behavior', employeeData.companyID);
                 const archivedBehaviorSkillData = await abaQueries.abaGetArchivedBehaviorOrSkill(cID, 'Behavior', employeeData.companyID);
 
-                if (archivedBehaviorSkillData.length > 0) {
-                    return res.json({ statusCode: 200, behaviorSkillData: archivedBehaviorSkillData });
-                } else if (behaviorSkillData.length > 0) {
+                if (archivedBehaviorSkillData.length > 0 || behaviorSkillData.length > 0) {
                     return res.json({ statusCode: 200, behaviorSkillData: archivedBehaviorSkillData });
                 }
                 return res.json({ statusCode: 500, serverMessage: 'Unable to locate client data' });
@@ -334,18 +457,22 @@ class ABAController {
 
             const { clientID: cID, behaviorID: bID } = req.body;
 
-            if (await abaQueries.behaviorSkillExistByID(bID, employeeData.companyID)) {
-                const behaviorSkillData = await abaQueries.abaGetBehaviorDataById(cID, bID, employeeData.companyID);
-                const archivedBehaviorSkillData = await abaQueries.abaGetArchivedBehaviorDataById(cID, bID, employeeData.companyID);
-
-                if (archivedBehaviorSkillData.length > 0) {
-                    return res.json({ statusCode: 200, behaviorSkillData: archivedBehaviorSkillData });
-                } else if (behaviorSkillData.length > 0) {
-                    return res.json({ statusCode: 200, behaviorSkillData });
-                }
-                return res.json({ statusCode: 500, serverMessage: 'Unable to locate behavior data' });
+            if (!await abaQueries.behaviorSkillExistByID(bID, employeeData.companyID)) {
+                return res.json({ statusCode: 400, serverMessage: 'Behavior does not exist' });
             }
-            return res.json({ statusCode: 400, serverMessage: 'Behavior does not exist' });
+
+            const behaviorSkillData = await abaQueries.abaGetBehaviorDataById(cID, bID, employeeData.companyID);
+            const archivedBehaviorSkillData = await abaQueries.abaGetArchivedBehaviorDataById(cID, bID, employeeData.companyID);
+
+            if (archivedBehaviorSkillData.length > 0) {
+                return res.json({ statusCode: 200, behaviorSkillData: archivedBehaviorSkillData });
+            }
+
+            if (behaviorSkillData.length > 0) {
+                return res.json({ statusCode: 200, behaviorSkillData });
+            }
+
+            return res.json({ statusCode: 500, serverMessage: 'Unable to locate behavior data' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
         }
@@ -364,40 +491,53 @@ class ABAController {
             if (!employeeData) return;
 
             const { clientID: cID, targetAmt: targetAmount, selectedTargets: selectedTargetIds, selectedMeasurementTypes, dates: datesTargetsOccured, times: timesTargetsOccured, count, duration } = req.body;
-            let addedSuccessfully = true;
 
-            if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
-                const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
-
-                for (let i = 0; i < targetAmount; i++) {
-                    if (await abaQueries.behaviorSkillExistByID(selectedTargetIds[i], employeeData.companyID)) {
-
-                        switch (selectedMeasurementTypes[i]) {
-                            case "Frequency":
-                                if (!await abaQueries.abaAddFrequencyBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], count[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
-                                    addedSuccessfully = false;
-                                }
-                                break;    
-                            case "Duration":
-                                if (!await abaQueries.abaAddDurationBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], duration[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
-                                    addedSuccessfully = false;
-                                }
-                                break;
-                            case "Rate":
-                                if (!await abaQueries.abaAddRateBehaviorData(selectedTargetIds[i], cID, clientData.fName + " " + clientData.lName, datesTargetsOccured[i], timesTargetsOccured[i], count[i], duration[i], employeeData.fName + " " + employeeData.lName, employeeData.companyID, employeeData.companyName, await formatDateString(await currentDateTime.getCurrentDate()), await currentDateTime.getCurrentTime())) {
-                                    addedSuccessfully = false;
-                                }
-                                break; 
-                        }
-                        
-                        if (addedSuccessfully === false) {
-                            return res.json({ statusCode: 400, behaviorAdded: false, serverMessage: 'Target behavior id, ' + selectedTargetIds[i] + ', does not exist', Data: {index: i, Date: datesTargetsOccured[i], time: timesTargetsOccured[i], count: count[i], duration: duration[i]} });
-                        }
-                    }
-                }
-                return res.json({ statusCode: 201, behaviorAdded: true, serverMessage: 'All behavior data added' });
+            if (!await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorAdded: false, serverMessage: 'Client does not exist' });
             }
-            return res.json({ statusCode: 400, behaviorAdded: false, serverMessage: 'Client does not exist' });
+
+            const clientData = await abaQueries.abaGetClientDataByID(cID, employeeData.companyID);
+
+            for (const [index, selectedTargetId] of selectedTargetIds.entries()) {
+                if (index >= targetAmount) {
+                    break;
+                }
+
+                if (!await abaQueries.behaviorSkillExistByID(selectedTargetId, employeeData.companyID)) {
+                    continue;
+                }
+
+                const addedSuccessfully = await submitBehaviorMeasurementEntry({
+                    measurementType: selectedMeasurementTypes[index],
+                    selectedTargetId,
+                    cID,
+                    clientData,
+                    occurredDate: datesTargetsOccured[index],
+                    occurredTime: timesTargetsOccured[index],
+                    countValue: count[index],
+                    durationValue: duration[index],
+                    employeeData
+                });
+
+                if (addedSuccessfully) {
+                    continue;
+                }
+
+                return res.json({
+                    statusCode: 400,
+                    behaviorAdded: false,
+                    serverMessage: 'Target behavior id, ' + selectedTargetId + ', does not exist',
+                    Data: {
+                        index,
+                        Date: datesTargetsOccured[index],
+                        time: timesTargetsOccured[index],
+                        count: count[index],
+                        duration: duration[index]
+                    }
+                });
+            }
+
+            return res.json({ statusCode: 201, behaviorAdded: true, serverMessage: 'All behavior data added' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
         }
@@ -413,34 +553,33 @@ class ABAController {
 
             const { clientID: cID, targetBehaviorId, mergeBehaviorIds } = req.body;
 
-            if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
-                if (await abaQueries.behaviorSkillExistByID(targetBehaviorId, employeeData.companyID)) {
-                    const targetBehaviorData = await abaQueries.abaGetBehaviorOrSkill(targetBehaviorId, "Behavior", employeeData.companyID);
+            if (!await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+            }
 
-                    for (let i = 0; i < mergeBehaviorIds.length; i++) {
-                        let mergeBehaviorData = await abaQueries.abaGetBehaviorOrSkill(mergeBehaviorIds[i], "Behavior", employeeData.companyID); 
+            if (!await abaQueries.behaviorSkillExistByID(targetBehaviorId, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+            }
 
-                        if (mergeBehaviorData.measurment === targetBehaviorData.measurment) {
-                            const dataExists = await abaQueries.abaGetBehaviorDataById(cID, mergeBehaviorIds[i], employeeData.companyID);
+            const targetBehaviorData = await abaQueries.abaGetBehaviorOrSkill(targetBehaviorId, "Behavior", employeeData.companyID);
 
-                            if (dataExists.length > 0) {
-                                if (!await abaQueries.abaMergeBehaviorDataById(cID, targetBehaviorId, mergeBehaviorIds[i], employeeData.companyID)) {
-                                    throw new Error("An error occured while merging " + mergeBehaviorData.name);
-                                }
-                                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, mergeBehaviorIds[i], employeeData.companyID)) {
-                                    throw new Error("An error occured while deleting " + mergeBehaviorData.name);
-                                }
-                            } else {
-                                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, mergeBehaviorIds[i], employeeData.companyID)) {
-                                    throw new Error("An error occured while deleting " + mergeBehaviorData.name);
-                                }
-                            }
-                        }
-                    }
-                    return res.json({ statusCode: 200, behaviorMerged: true, serverMessage: 'All behavior data merged successfully' });       
+            for (const mergeBehaviorId of mergeBehaviorIds) {
+                const mergeBehaviorData = await abaQueries.abaGetBehaviorOrSkill(mergeBehaviorId, "Behavior", employeeData.companyID);
+                if (mergeBehaviorData.measurment !== targetBehaviorData.measurment) {
+                    continue;
+                }
+
+                const dataExists = await abaQueries.abaGetBehaviorDataById(cID, mergeBehaviorId, employeeData.companyID);
+                if (dataExists.length > 0 && !await abaQueries.abaMergeBehaviorDataById(cID, targetBehaviorId, mergeBehaviorId, employeeData.companyID)) {
+                    throw new Error("An error occured while merging " + mergeBehaviorData.name);
+                }
+
+                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, mergeBehaviorId, employeeData.companyID)) {
+                    throw new Error("An error occured while deleting " + mergeBehaviorData.name);
                 }
             }
-            return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+
+            return res.json({ statusCode: 200, behaviorMerged: true, serverMessage: 'All behavior data merged successfully' });
         } catch (error) {
             return res.json({ statusCode: 500, behaviorMerged: false, serverMessage: 'A server error occurred', errorMessage: error.message });
         }
@@ -456,27 +595,28 @@ class ABAController {
 
             const { clientID: cID, behaviorId } = req.body;
 
-            if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
-                if (await abaQueries.behaviorSkillExistByID(behaviorId, employeeData.companyID)) {
-                    const behaviorData = await abaQueries.abaGetBehaviorOrSkill(behaviorId, "Behavior", employeeData.companyID);
-                    const archiveDeletionDate = await formatDateString(await addYears(await formatDateString(await currentDateTime.getCurrentDate()), 7));
-
-                    if (await abaQueries.abaFoundBehaviorDataById(cID, behaviorId, employeeData.companyID)) {
-                        if (!await abaQueries.abaArchiveBehaviorDataByID('Archived', cID, behaviorId, employeeData.companyID)) {
-                            throw new Error("An error occured while archiving " + behaviorData.name + "'s data");
-                        }
-                        if (!await abaQueries.abaArchiveBehaviorOrSkillByID(cID, behaviorId, await formatDateString(await currentDateTime.getCurrentDate()), archiveDeletionDate, employeeData.companyID)) {
-                            throw new Error("An error occured while archiving " + behaviorData.name);
-                        }
-                    } else {
-                        if (!await abaQueries.abaArchiveBehaviorOrSkillByID(cID, behaviorId, await formatDateString(await currentDateTime.getCurrentDate()), archiveDeletionDate, employeeData.companyID)) {
-                            throw new Error("An error occured while archiving " + behaviorData.name);
-                        }
-                    }
-                    return res.json({ statusCode: 200, behaviorMerged: true, serverMessage: 'All behavior data archived successfully' });       
-                }
+            if (!await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
             }
-            return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+
+            if (!await abaQueries.behaviorSkillExistByID(behaviorId, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+            }
+
+            const behaviorData = await abaQueries.abaGetBehaviorOrSkill(behaviorId, "Behavior", employeeData.companyID);
+            const { currentDate } = await getAuditTimestamp();
+            const archiveDeletionDate = await formatDateString(await addYears(currentDate, 7));
+
+            if (await abaQueries.abaFoundBehaviorDataById(cID, behaviorId, employeeData.companyID) &&
+                !await abaQueries.abaArchiveBehaviorDataByID('Archived', cID, behaviorId, employeeData.companyID)) {
+                throw new Error("An error occured while archiving " + behaviorData.name + "'s data");
+            }
+
+            if (!await abaQueries.abaArchiveBehaviorOrSkillByID(cID, behaviorId, currentDate, archiveDeletionDate, employeeData.companyID)) {
+                throw new Error("An error occured while archiving " + behaviorData.name);
+            }
+
+            return res.json({ statusCode: 200, behaviorMerged: true, serverMessage: 'All behavior data archived successfully' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
         }
@@ -494,18 +634,7 @@ class ABAController {
 
             let behaviorData = await abaQueries.abaGetBehaviorOrSkill(behaviorId, "Behavior", employeeData.companyID); 
 
-            if (await abaQueries.abaFoundBehaviorDataById(cID, behaviorId)) {
-                if (!await abaQueries.abaDeleteBehaviorDataByID(cID, behaviorId, employeeData.companyID)) {
-                    throw new Error("An error occured while deleting " + behaviorData.name + "'s data");
-                }
-                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, behaviorId, employeeData.companyID)) {
-                    throw new Error("An error occured while deleting " + behaviorData.name);
-                }
-            } else {
-                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, behaviorId, employeeData.companyID)) {
-                    throw new Error("An error occured while deleting " + behaviorData.name);
-                }
-            }
+            await deleteBehaviorAndDataIfPresent(abaQueries, cID, behaviorId, employeeData.companyID, behaviorData.name);
             return res.json({ statusCode: 200, behaviorAdded: true, serverMessage: 'All behavior data deleted successfully' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
@@ -546,26 +675,26 @@ class ABAController {
 
             const { clientID: cID, behaviorId } = req.body;
 
-            if (await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
-                if (await abaQueries.behaviorSkillExistByID(behaviorId, employeeData.companyID)) {
-                    const behaviorData = await abaQueries.abaGetArchivedBehaviorOrSkill(behaviorId, "Behavior", employeeData.companyID);
-
-                    if (await abaQueries.abaGetArchivedBehaviorDataById(cID, behaviorId) > 0) {
-                        if (!await abaQueries.abaReactivateBehaviorDataByID('Active', cID, behaviorId, null, null)) {
-                            throw new Error("An error occured while reactivating " + behaviorData.name + "'s data");
-                        }
-                        if (!await abaQueries.abaReactivateBehaviorOrSkillByID(cID, behaviorId, null, null, employeeData.companyID)) {
-                            throw new Error("An error occured while reactivating " + behaviorData.name);
-                        }
-                    } else {
-                        if (!await abaQueries.abaReactivateBehaviorOrSkillByID(cID, behaviorId, null, null, employeeData.companyID)) {
-                            throw new Error("An error occured while archiving " + behaviorData.name);
-                        }
-                    }
-                    return res.json({ statusCode: 200, behaviorMerged: true, serverMessage: 'The behavior data reactivated successfully' });       
-                }
+            if (!await abaQueries.abaClientExistByID(cID, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
             }
-            return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+
+            if (!await abaQueries.behaviorSkillExistByID(behaviorId, employeeData.companyID)) {
+                return res.json({ statusCode: 400, behaviorMerged: false, serverMessage: 'Client does not exist' });
+            }
+
+            const behaviorData = await abaQueries.abaGetArchivedBehaviorOrSkill(behaviorId, "Behavior", employeeData.companyID);
+            const archivedBehaviorData = await abaQueries.abaGetArchivedBehaviorDataById(cID, behaviorId, employeeData.companyID);
+            if (archivedBehaviorData.length > 0 &&
+                !await abaQueries.abaReactivateBehaviorDataByID('Active', cID, behaviorId, employeeData.companyID)) {
+                throw new Error("An error occured while reactivating " + behaviorData.name + "'s data");
+            }
+
+            if (!await abaQueries.abaReactivateBehaviorOrSkillByID(cID, behaviorId, null, null, employeeData.companyID)) {
+                throw new Error("An error occured while reactivating " + behaviorData.name);
+            }
+
+            return res.json({ statusCode: 200, behaviorMerged: true, serverMessage: 'The behavior data reactivated successfully' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
         }
@@ -583,18 +712,7 @@ class ABAController {
 
             let behaviorData = await abaQueries.abaGetBehaviorOrSkill(behaviorId, "Behavior", employeeData.companyID);
 
-            if (await abaQueries.abaFoundBehaviorDataById(cID, behaviorId, employeeData.companyID)) {
-                if (!await abaQueries.abaDeleteBehaviorDataByID(cID, behaviorId, employeeData.companyID)) {
-                    throw new Error("An error occured while deleting " + behaviorData.name + "'s data");
-                }
-                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, behaviorId, employeeData.companyID)) {
-                    throw new Error("An error occured while deleting " + behaviorData.name);
-                }
-            } else {
-                if (!await abaQueries.abaDeleteBehaviorOrSkillByID(cID, behaviorId, employeeData.companyID)) {
-                    throw new Error("An error occured while deleting " + behaviorData.name);
-                }
-            }
+            await deleteBehaviorAndDataIfPresent(abaQueries, cID, behaviorId, employeeData.companyID, behaviorData.name);
             return res.json({ statusCode: 200, behaviorAdded: true, serverMessage: 'All behavior data merged successfully' });
         } catch (error) {
             return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
@@ -870,12 +988,7 @@ class ABAController {
      * Submit skill acquisition data
      */
     async submitSkillAquisition(req, res) {
-        try {
-            // TODO: Implementation pending
-            return res.json({ statusCode: 501, serverMessage: 'Not implemented' });
-        } catch (error) {
-            return res.json({ statusCode: 500, serverMessage: 'A server error occurred', errorMessage: error.message });
-        }
+        return sendNotImplemented(res, 'Skill acquisition submission is not implemented yet');
     }
 }
 

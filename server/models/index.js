@@ -82,16 +82,17 @@ const syncDatabase = async () => {
       let tablesSkipped = 0;
       
       // Check each model and only sync if table doesn't exist
-      for (const [modelName, model] of Object.entries(models)) {
+      for (const [, model] of Object.entries(models)) {
         const tableName = model.tableName;
         
-        if (!existingTables.includes(tableName)) {
-          console.log(`  → Creating table: ${tableName}`);
-          await model.sync();
-          tablesCreated++;
-        } else {
+        if (existingTables.includes(tableName)) {
           tablesSkipped++;
+          continue;
         }
+
+        console.log(`  → Creating table: ${tableName}`);
+        await model.sync();
+        tablesCreated++;
       }
 
       await ensureHomeCapacityColumns(queryInterface, existingTables);

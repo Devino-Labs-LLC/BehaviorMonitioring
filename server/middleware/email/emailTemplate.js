@@ -29,7 +29,7 @@ function shouldBypassEmailDelivery() {
 let brevoTransporter = null;
 function getBrevoTransporter() {
     if (!brevoTransporter) {
-        const port = parseInt(process.env.Brevo_SMTP_Port, 10);
+        const port = Number.parseInt(process.env.Brevo_SMTP_Port, 10);
         brevoTransporter = nodemailer.createTransport({
             host: process.env.Brevo_SMTP_Server,
             port: port,

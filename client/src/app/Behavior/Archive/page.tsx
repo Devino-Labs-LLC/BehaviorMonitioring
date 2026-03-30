@@ -34,10 +34,7 @@ const Archive: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<string>('');
     const [selectedClientID, setSelectedClientID] = useState<number>(0);
     const [archivedBehaviors, setArchivedBehaviors] = useState<BehaviorSkillOption[]>([]);
-    const [activeMenu, setActiveMenu] = useState<number | null>(null);
-    const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [isPopoutVisible, setIsPopoutVisible] = useState<boolean>(false);
-    const [mergeBehaviorList, setMergeBehaviorList] = useState<{ id: string; name: string }[]>([]);
     const [popupAction, setPopupAction] = useState<string>('');
     const [behaviorNameToActOn, setBehaviorNameToActOn] = useState<string>('');
     const [behaviorIdToActOn, setBehaviorIdToActOn] = useState<string>('');
@@ -62,7 +59,7 @@ const Archive: React.FC = () => {
             setClearMessageStatus(false);
             setStatusMessage('')
         }
-    }, [timerCount, clearMessageStatus]);;
+    }, [timerCount, clearMessageStatus]);
 
     const getClientNames = async () => {
         setIsLoading(true);
@@ -144,7 +141,7 @@ const Archive: React.FC = () => {
         setStatusMessage('');
         setArchivedBehaviors([]);
         setSelectedClient(value);
-        const numericValue = value === '' ? NaN : parseFloat(value);
+        const numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         setSelectedClientID(numericValue);
     };
 
@@ -229,8 +226,8 @@ const Archive: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     return (
