@@ -1,9 +1,9 @@
 const request = require('supertest');
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const csurf = require('csurf');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('../../../routes/Auth');
-const { csrfProtection } = require('../../../middleware/csrfProtection');
 const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
 const bcrypt = require('bcryptjs');
 
@@ -20,12 +20,20 @@ const testRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+const csrfProtection = csurf({
+  cookie: {
+    key: '__Host-psifi.x-csrf-token',
+    sameSite: 'strict',
+    path: '/',
+    httpOnly: true,
+  },
+});
 
 app.use(cookieParser());
-app.use(express.json());
 app.use(csrfProtection);
+app.use(express.json());
 app.get('/csrf-token', (req, res) => {
-  res.json({ csrfToken: res.locals.csrfToken });
+  res.json({ csrfToken: req.csrfToken() });
 });
 app.use('/auth', testRateLimiter, authRoutes);
 

@@ -1,9 +1,9 @@
 const request = require('supertest');
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const csurf = require('csurf');
 const rateLimit = require('express-rate-limit');
 const authRouter = require('../../../routes/Auth');
-const { csrfProtection } = require('../../../middleware/csrfProtection');
 const Employee = require('../../../models/Employee');
 const bcrypt = require('bcryptjs');
 
@@ -22,6 +22,14 @@ describe('SignUp API Integration Tests', () => {
         standardHeaders: true,
         legacyHeaders: false,
     });
+    const csrfProtection = csurf({
+        cookie: {
+            key: '__Host-psifi.x-csrf-token',
+            sameSite: 'strict',
+            path: '/',
+            httpOnly: true,
+        },
+    });
 
     async function postWithCsrf(path, payload) {
         const csrfResponse = await agent.get('/csrf-token');
@@ -35,10 +43,10 @@ describe('SignUp API Integration Tests', () => {
     beforeAll(() => {
         app = express();
         app.use(cookieParser());
-        app.use(express.json());
         app.use(csrfProtection);
+        app.use(express.json());
         app.get('/csrf-token', (req, res) => {
-            res.json({ csrfToken: res.locals.csrfToken });
+            res.json({ csrfToken: req.csrfToken() });
         });
         app.use('/auth', testRateLimiter, authRouter);
     });

@@ -11,12 +11,22 @@ const cors = require('cors');
 const express = require('express');
 const app = express();
 const cookieParser = require("cookie-parser");
+const csurf = require('csurf');
 const authMiddleware = require('./middleware/authMiddleware');
 const { requireRole } = require('./middleware/rbac');
 const requestLogger = require('./middleware/requestLogger');
-const { csrfProtection } = require('./middleware/csrfProtection');
 const { generalLimiter, apiLimiter } = require('./middleware/rateLimiter');
 let prodHost = prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`;
+
+const csrfProtection = csurf({
+  cookie: {
+    key: '__Host-psifi.x-csrf-token',
+    sameSite: 'strict',
+    path: '/',
+    secure: process.env.IN_PROD === 'true',
+    httpOnly: true,
+  },
+});
 
 // Define allowed origins
 const allowedOrigins = [clientOrigin, amplifyOrigin].filter(Boolean);
@@ -40,14 +50,10 @@ const corsOptions = {
 };
 
 app.use(requestLogger);
-// cookieParser is required for CSRF token validation (used by csrfProtection middleware below)
-// codeql[js/missing-token-validation]
 app.use(cookieParser());
+app.use(csrfProtection);
 app.use(cors(corsOptions));
 app.use(express.json());
-// CSRF protection middleware: validates tokens for POST/PUT/DELETE/PATCH requests
-// codeql[js/missing-token-validation]
-app.use(csrfProtection);
 
 // Commented out to prevent automatic S3 import on server start
 // if (prodStatus) {
@@ -68,7 +74,7 @@ app.get('/', generalLimiter, (req, res) => {
 
 // Endpoint to get CSRF token
 app.get('/csrf-token', generalLimiter, (req, res) => {
-  res.json({ csrfToken: res.locals.csrfToken });
+  res.json({ csrfToken: req.csrfToken() });
 });
 
 const authRoute = require('./routes/Auth');
@@ -94,6 +100,14 @@ app.use((req, res, next) => {
 
 // Middleware for handling errors and setting CORS headers
 app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({
+      statusCode: 403,
+      success: false,
+      message: 'Invalid or missing CSRF token',
+    });
+  }
+
   if (err.status && err.status === 404) {
     return res.redirect(host + '/PageNotFound');
   } 
