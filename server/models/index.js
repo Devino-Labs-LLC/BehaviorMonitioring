@@ -42,13 +42,14 @@ const ensureHomeCapacityColumns = async (queryInterface, existingTables) => {
   }
 
   const existingColumns = await queryInterface.describeTable(Home.tableName);
+  const homeAttributes = Home.getAttributes();
 
   for (const columnName of ['capacity', 'current_occupancy']) {
     if (existingColumns[columnName]) {
       continue;
     }
 
-    const attribute = Home.rawAttributes[columnName];
+    const attribute = homeAttributes[columnName];
     console.log(`  -> Adding missing Home column: ${columnName}`);
 
     await queryInterface.addColumn(Home.tableName, columnName, {

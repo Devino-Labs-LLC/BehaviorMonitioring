@@ -240,8 +240,10 @@ module.exports = {
     deleteExpiredClients
 };
 
+const isRunDirectly = require.main?.filename === __filename;
+
 // If running directly (not imported)
-if (require.main === module) {
+if (isRunDirectly) {
     runArchiveCleanup()
         .then(() => process.exit(0))
         .catch((error) => {

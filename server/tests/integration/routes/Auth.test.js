@@ -46,18 +46,9 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('POST /auth/validateEmployeeAccount', () => {
-    it.skip('returns 401 when username does not exist - SKIPPED: route bug, no response sent', async () => {
-      employeeQueries.employeeExistByUsername.mockResolvedValue(false);
-
-      const response = await postWithCsrf('/auth/validateEmployeeAccount', {
-        username: 'nonexistent',
-        password: 'password123',
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.body.statusCode).toBe(401);
-      expect(response.body.locatedAccount).toBe(false);
-    });
+    test.todo(
+      'returns 401 when username does not exist once validateEmployeeAccount sends a response for missing users'
+    );
 
     it('handles employee in verification status', async () => {
       employeeQueries.employeeExistByUsername.mockResolvedValue(true);
