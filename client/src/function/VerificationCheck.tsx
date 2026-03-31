@@ -1,6 +1,7 @@
 import { getAccessToken } from '../lib/tokenStore';
 import { getBootstrapStatus } from '../components/AuthBootstrap';
 import { clearScheduledRefresh } from '../lib/authScheduler';
+import { CheckEmail } from './EntryCheck';
 
 const parseStoredUserData = () => {
     if (globalThis.window === undefined) {
@@ -113,8 +114,7 @@ export const NeedToLogout = (uName: string) => {
 };
 export const validateEmail = (email: string): boolean => {
     if (!email) return false;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return CheckEmail(email);
 };
 
 export const validatePassword = (password: string): boolean => {

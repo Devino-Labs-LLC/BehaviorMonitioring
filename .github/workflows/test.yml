@@ -34,7 +34,7 @@ jobs:
         cache-dependency-path: ./client/package-lock.json
     
     - name: Install dependencies
-      run: npm ci
+      run: npm ci --ignore-scripts
     
     - name: Run linter
       run: npm run lint --if-present
@@ -44,7 +44,7 @@ jobs:
       run: npm test -- --testPathPatterns=tests/unit --coverage --watchAll=false
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457
       with:
         files: ./client/coverage/coverage-final.json
         flags: client
@@ -90,7 +90,7 @@ jobs:
         cache-dependency-path: ./server/package-lock.json
     
     - name: Install dependencies
-      run: npm ci
+      run: npm ci --ignore-scripts
         
     - name: Wait for MySQL
       run: |
@@ -101,16 +101,7 @@ jobs:
     
     - name: Setup database
       run: |
-        node -e "
-        const { sequelize } = require('./models');
-        sequelize.sync({ force: true }).then(() => {
-          console.log('Database synced');
-          process.exit(0);
-        }).catch(err => {
-          console.error('Database sync failed:', err);
-          process.exit(1);
-        });
-        "
+        npm run db:reset
       env:
         DB_TYPE: ${{ vars.DB_TYPE }}
         MYSQL_HOST: ${{ vars.MYSQL_HOST }}
@@ -137,7 +128,7 @@ jobs:
         MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457
       with:
         files: ./server/coverage/coverage-final.json
         flags: server
@@ -175,34 +166,25 @@ jobs:
     
     - name: Install client dependencies
       working-directory: ./client
-      run: npm ci
+      run: npm ci --ignore-scripts
     
     - name: Install server dependencies
       working-directory: ./server
-      run: npm ci
+      run: npm ci --ignore-scripts
         
     - name: Wait for MySQL
       run: |
-        until mysqladmin ping -h"${{ vars.MYSQL_HOST }}" -P"${{ vars.MYSQL_PORT }}" -uroot -p"${{ secrets.MYSQL_PASSWORD }}" --silent; do
+        until mysqladmin ping -h"${{ vars.MYSQL_HOST }}" -P"${{ vars.MYSQL_PORT }}" -uroot --silent; do
           echo 'waiting for mysql...'
           sleep 1
         done
       env:
-        MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        MYSQL_PWD: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Setup database
       working-directory: ./server
       run: |
-        node -e "
-        const { sequelize } = require('./models');
-        sequelize.sync({ force: true }).then(() => {
-          console.log('Database synced');
-          process.exit(0);
-        }).catch(err => {
-          console.error('Database sync failed:', err);
-          process.exit(1);
-        });
-        "
+        npm run db:reset
       env:
         NODE_ENV: test
         MYSQL_HOST: 127.0.0.1
@@ -266,11 +248,11 @@ jobs:
 
     - name: Install client dependencies
       working-directory: ./client
-      run: npm ci
+      run: npm ci --ignore-scripts
 
     - name: Install server dependencies
       working-directory: ./server
-      run: npm ci
+      run: npm ci --ignore-scripts
 
     - name: Install Playwright browsers
       working-directory: ./client
@@ -286,16 +268,7 @@ jobs:
     - name: Setup database
       working-directory: ./server
       run: |
-        node -e "
-        const { sequelize } = require('./models');
-        sequelize.sync({ force: true }).then(() => {
-          console.log('Database synced');
-          process.exit(0);
-        }).catch(err => {
-          console.error('Database sync failed:', err);
-          process.exit(1);
-        });
-        "
+        npm run db:reset
       env:
         NODE_ENV: test
         MYSQL_HOST: 127.0.0.1
@@ -368,11 +341,11 @@ jobs:
     
     - name: Install client dependencies
       working-directory: ./client
-      run: npm ci
+      run: npm ci --ignore-scripts
     
     - name: Install server dependencies
       working-directory: ./server
-      run: npm ci
+      run: npm ci --ignore-scripts
     
     - name: Generate client coverage
       working-directory: ./client
@@ -388,7 +361,7 @@ jobs:
         JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
     
     - name: Comment coverage on PR
-      uses: romeovs/lcov-reporter-action@v0.3.1
+      uses: romeovs/lcov-reporter-action@dda1c9b1fa1622b225e9acd87a248751dbcc6ada
       with:
         lcov-file: ./client/coverage/lcov.info
         github-token: ${{ secrets.GITHUB_TOKEN }}

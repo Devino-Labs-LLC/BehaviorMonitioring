@@ -10,6 +10,7 @@ const amplifyOrigin = process.env.AmplifyHost;
 const cors = require('cors');
 const express = require('express');
 const app = express();
+app.disable('x-powered-by');
 const cookieParser = require("cookie-parser");
 const authMiddleware = require('./middleware/authMiddleware');
 const { requireRole } = require('./middleware/rbac');

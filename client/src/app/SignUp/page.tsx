@@ -10,6 +10,7 @@ import InputFields from '../../components/Inputfield';
 import Button from '../../components/Button';
 import Loading from '../../components/loading';
 import { GetLoggedInUserStatus } from '../../function/VerificationCheck';
+import { CheckEmail } from '../../function/EntryCheck';
 import { debounceAsync } from '../../function/debounce';
 import { api } from '../../lib/Api';
 import type { SignUpRequest, SignUpResponse } from '../../dto';
@@ -45,8 +46,7 @@ const SignUpPage: React.FC = () => {
         if (!companyName.trim()) return 'Company name is required';
 
         // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!CheckEmail(email)) {
             return 'Please enter a valid email address';
         }
 

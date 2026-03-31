@@ -29,6 +29,32 @@ const createVerificationTokenDetails = () => {
     return { verificationToken, verificationExpiry };
 };
 
+const isValidEmailAddress = (value) => {
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    const email = value.trim();
+    if (!email || email.includes(' ')) {
+        return false;
+    }
+
+    const atIndex = email.indexOf('@');
+    if (atIndex <= 0 || atIndex !== email.lastIndexOf('@')) {
+        return false;
+    }
+
+    const localPart = email.slice(0, atIndex);
+    const domain = email.slice(atIndex + 1);
+    if (!localPart || !domain.includes('.')) {
+        return false;
+    }
+
+    return domain
+        .split('.')
+        .every((label) => label.length > 0 && !label.startsWith('-') && !label.endsWith('-'));
+};
+
 const blockLogin = (req, identifier, details, eventName = "EMPLOYEE_LOGIN_FAILED") => {
     logAuthEvent(eventName, {
         email: identifier,
@@ -75,8 +101,7 @@ class AuthController {
             }
 
             // Email validation
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-            if (!emailRegex.test(email)) {
+            if (!isValidEmailAddress(email)) {
                 return res.json({ 
                     statusCode: 400, 
                     signupSuccess: false, 
