@@ -1,111 +1,111 @@
 jest.mock('../../../middleware/helpers/EmployeeQueries', () => ({
-    employeeExistByUsername: jest.fn(),
-    employeeDataByUsername: jest.fn(),
+  employeeExistByUsername: jest.fn(),
+  employeeDataByUsername: jest.fn(),
 }));
 
 const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
 const {
-    hasRole,
-    hasValidCompanyScope,
-    verifyABAAuthorization,
-    verifyBasicAuthentication,
-    verifyAdminAuthorization,
+  getAuthenticatedUser,
+  hasRole,
+  hasValidCompanyScope,
+  verifyAuthorization,
+  verifyBasicAuthentication,
 } = require('../../../middleware/helpers/authorizationHelper');
 
 describe('authorizationHelper', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('gets the authenticated user with a normalized username', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({ username: 'admin.user' });
+
+    await expect(getAuthenticatedUser('Admin.User')).resolves.toEqual({ username: 'admin.user' });
+    expect(employeeQueries.employeeExistByUsername).toHaveBeenCalledWith('admin.user');
+    expect(employeeQueries.employeeDataByUsername).toHaveBeenCalledWith('admin.user');
+  });
+
+  it('checks roles case-insensitively', () => {
+    expect(hasRole({ role: 'Admin' }, ['root', 'admin'])).toBe(true);
+    expect(hasRole({ role: 'Technician' }, ['root', 'admin'])).toBe(false);
+  });
+
+  it('checks for a valid company scope', () => {
+    expect(hasValidCompanyScope({ companyID: 1 })).toBe(true);
+    expect(hasValidCompanyScope({ companyID: 0 })).toBe(false);
+  });
+
+  it('returns employee data when the user is authorized', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({
+      username: 'admin.user',
+      role: 'admin',
+      companyID: 1,
     });
+    const res = { json: jest.fn() };
 
-    describe('hasRole', () => {
-        it('treats roles case-insensitively', () => {
-            expect(hasRole({ role: 'Admin' }, ['root', 'admin'])).toBe(true);
-            expect(hasRole({ role: 'admin' }, ['root', 'Admin'])).toBe(true);
-        });
+    await expect(
+      verifyAuthorization({ body: { employeeUsername: 'admin.user' } }, res)
+    ).resolves.toEqual({
+      username: 'admin.user',
+      role: 'admin',
+      companyID: 1,
     });
+    expect(res.json).not.toHaveBeenCalled();
+  });
 
-    describe('hasValidCompanyScope', () => {
-        it('rejects non-positive company IDs', () => {
-            expect(hasValidCompanyScope({ companyID: 0 })).toBe(false);
-            expect(hasValidCompanyScope({ companyID: null })).toBe(false);
-            expect(hasValidCompanyScope({ companyID: 1 })).toBe(true);
-        });
+  it('rejects users without a valid company scope', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({
+      username: 'admin.user',
+      role: 'admin',
+      companyID: 0,
     });
+    const res = { json: jest.fn() };
 
-    describe('verifyABAAuthorization', () => {
-        it('authorizes lowercase admin users', async () => {
-            employeeQueries.employeeExistByUsername.mockResolvedValue(true);
-            employeeQueries.employeeDataByUsername.mockResolvedValue({
-                username: 'testuser',
-                role: 'admin',
-                companyID: 1,
-            });
-
-            const req = { body: { employeeUsername: 'TestUser' } };
-            const res = { json: jest.fn() };
-
-            const result = await verifyABAAuthorization(req, res);
-
-            expect(result).toMatchObject({ role: 'admin', companyID: 1 });
-            expect(res.json).not.toHaveBeenCalled();
-        });
-
-        it('authorizes capitalized Admin users', async () => {
-            employeeQueries.employeeExistByUsername.mockResolvedValue(true);
-            employeeQueries.employeeDataByUsername.mockResolvedValue({
-                username: 'testuser',
-                role: 'Admin',
-                companyID: 1,
-            });
-
-            const req = { body: { employeeUsername: 'TestUser' } };
-            const res = { json: jest.fn() };
-
-            const result = await verifyABAAuthorization(req, res);
-
-            expect(result).toMatchObject({ role: 'Admin', companyID: 1 });
-            expect(res.json).not.toHaveBeenCalled();
-        });
+    await expect(
+      verifyAuthorization({ body: { employeeUsername: 'admin.user' } }, res)
+    ).resolves.toBeNull();
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 403,
+      serverMessage: 'User is not assigned to a valid company',
     });
+  });
 
-    describe('verifyAdminAuthorization', () => {
-        it('authorizes capitalized Admin users', async () => {
-            employeeQueries.employeeExistByUsername.mockResolvedValue(true);
-            employeeQueries.employeeDataByUsername.mockResolvedValue({
-                username: 'testuser',
-                role: 'Admin',
-                companyID: 1,
-            });
-
-            const req = { body: { employeeUsername: 'TestUser' } };
-            const res = { json: jest.fn() };
-
-            const result = await verifyAdminAuthorization(req, res);
-
-            expect(result).toMatchObject({ role: 'Admin', companyID: 1 });
-            expect(res.json).not.toHaveBeenCalled();
-        });
+  it('rejects users with the wrong role', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({
+      username: 'employee.user',
+      role: 'employee',
+      companyID: 1,
     });
+    const res = { json: jest.fn() };
 
-    describe('verifyBasicAuthentication', () => {
-        it('rejects users without a valid company scope', async () => {
-            employeeQueries.employeeExistByUsername.mockResolvedValue(true);
-            employeeQueries.employeeDataByUsername.mockResolvedValue({
-                username: 'testuser',
-                role: 'employee',
-                companyID: 0,
-            });
-
-            const req = { body: { employeeUsername: 'TestUser' } };
-            const res = { json: jest.fn() };
-
-            const result = await verifyBasicAuthentication(req, res);
-
-            expect(result).toBeNull();
-            expect(res.json).toHaveBeenCalledWith({
-                statusCode: 403,
-                serverMessage: 'User is not assigned to a valid company'
-            });
-        });
+    await expect(
+      verifyAuthorization({ body: { employeeUsername: 'employee.user' } }, res, ['root', 'admin'])
+    ).resolves.toBeNull();
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 401,
+      serverMessage: 'Unauthorized user',
     });
+  });
+
+  it('allows any authenticated user with a valid company through basic authentication', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({
+      username: 'employee.user',
+      role: 'employee',
+      companyID: 9,
+    });
+    const res = { json: jest.fn() };
+
+    await expect(
+      verifyBasicAuthentication({ body: { employeeUsername: 'employee.user' } }, res)
+    ).resolves.toEqual({
+      username: 'employee.user',
+      role: 'employee',
+      companyID: 9,
+    });
+  });
 });
