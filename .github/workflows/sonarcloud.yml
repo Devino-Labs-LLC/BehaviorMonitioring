@@ -64,7 +64,7 @@ jobs:
 
       - name: Generate server coverage
         working-directory: ./server
-        run: npm test -- --coverage --testPathPatterns=tests/unit --watchAll=false
+        run: npm test -- --coverage --runInBand --watchAll=false --testPathPatterns=tests/unit|tests/integration/routes/(Admin|Employee|Auth)\\.test\\.js
         env:
           NODE_ENV: test
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
