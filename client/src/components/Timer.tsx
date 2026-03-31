@@ -11,6 +11,14 @@ interface CustomTimerProps {
 }
 
 const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", name, required, onChange }) => {
+    const getDecrementedMinute = (currentMinute: number, shouldBorrowMinute: boolean) => {
+        if (!shouldBorrowMinute) {
+            return currentMinute;
+        }
+
+        return currentMinute === 0 ? 59 : currentMinute - 1;
+    };
+
     const parseTimeString = (timeString: string) => {
         const [hour, minute, second] = timeString.split(':').map(Number);
         return { hour, minute, second };
@@ -76,7 +84,7 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
         const newSecond = second === 0 ? 59 : second - 1;
         const shouldBorrowMinute = second === 0;
         const shouldBorrowHour = shouldBorrowMinute && minute === 0;
-        const newMinute = shouldBorrowMinute ? (minute === 0 ? 59 : minute - 1) : minute;
+        const newMinute = getDecrementedMinute(minute, shouldBorrowMinute);
         const newHour = shouldBorrowHour ? Math.max(hour - 1, 0) : hour;
 
         updateTime(newHour, newMinute, newSecond);

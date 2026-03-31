@@ -100,4 +100,24 @@ describe('Timer component', () => {
     expect(screen.getByLabelText('Duration minutes input field')).toHaveValue(0);
     expect(screen.getByLabelText('Duration seconds input field')).toHaveValue(0);
   });
+
+  it('borrows from minutes and hours correctly when decrementing seconds', () => {
+    const onChange = jest.fn();
+    const { container } = render(
+      <Timer
+        initialValue="02:00:00"
+        name="duration"
+        required={false}
+        onChange={onChange}
+      />,
+    );
+
+    const controls = container.querySelectorAll('td.act');
+    fireEvent.click(controls[5]);
+
+    expect(screen.getByLabelText('Duration hours input field')).toHaveValue(1);
+    expect(screen.getByLabelText('Duration minutes input field')).toHaveValue(59);
+    expect(screen.getByLabelText('Duration seconds input field')).toHaveValue(59);
+    expect(onChange).toHaveBeenLastCalledWith({ hour: 1, minute: 59, second: 59 });
+  });
 });

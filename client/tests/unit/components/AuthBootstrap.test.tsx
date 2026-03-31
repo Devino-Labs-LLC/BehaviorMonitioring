@@ -57,6 +57,13 @@ describe('AuthBootstrap', () => {
       expect(mockClearScheduledRefresh).toHaveBeenCalled();
       expect(mockClearAccessToken).toHaveBeenCalled();
     });
+
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+    expect(callback).toHaveBeenCalled();
+    expect(getBootstrapStatus()).toEqual({
+      isBootstrapped: true,
+      isBootstrapping: false,
+    });
   });
 
   it('refreshes and bootstraps an existing session', async () => {
@@ -77,6 +84,14 @@ describe('AuthBootstrap', () => {
     });
 
     expect(getBootstrapStatus().isBootstrapped).toBe(true);
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/refresh'),
+      null,
+      expect.objectContaining({
+        withCredentials: true,
+        headers: { 'x-csrf-token': 'csrf-123' },
+      }),
+    );
   });
 
   it('clears stored auth when refresh fails', async () => {
@@ -93,5 +108,66 @@ describe('AuthBootstrap', () => {
       expect(mockClearLoggedInUser).toHaveBeenCalled();
       expect(mockClearAccessToken).toHaveBeenCalled();
     });
+  });
+
+  it('skips refresh when stored session data is malformed', async () => {
+    localStorage.setItem('bmUserData', '{bad-json');
+
+    render(<AuthBootstrap />);
+
+    await waitFor(() => {
+      expect(mockClearScheduledRefresh).toHaveBeenCalled();
+      expect(mockClearAccessToken).toHaveBeenCalled();
+    });
+
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+  });
+
+  it('refreshes without csrf headers when no csrf token is available', async () => {
+    localStorage.setItem(
+      'bmUserData',
+      JSON.stringify({ bmLoggedInStatus: true, bmUsername: 'jane' }),
+    );
+    mockGetCsrfToken.mockResolvedValue(null);
+    mockAxiosPost.mockResolvedValue({
+      data: { accessToken: 'token-456' },
+    } as any);
+
+    render(<AuthBootstrap />);
+
+    await waitFor(() => {
+      expect(mockSetAccessToken).toHaveBeenCalledWith('token-456');
+    });
+
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/refresh'),
+      null,
+      expect.objectContaining({
+        withCredentials: true,
+        headers: undefined,
+      }),
+    );
+  });
+
+  it('invokes bootstrap callbacks immediately once bootstrapping is complete', async () => {
+    localStorage.setItem(
+      'bmUserData',
+      JSON.stringify({ bmLoggedInStatus: true, bmUsername: 'jane' }),
+    );
+    mockGetCsrfToken.mockResolvedValue('csrf-123');
+    mockAxiosPost.mockResolvedValue({
+      data: { accessToken: 'token-123' },
+    } as any);
+
+    render(<AuthBootstrap />);
+
+    await waitFor(() => {
+      expect(getBootstrapStatus().isBootstrapped).toBe(true);
+    });
+
+    const callback = jest.fn();
+    onBootstrapComplete(callback);
+
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 });

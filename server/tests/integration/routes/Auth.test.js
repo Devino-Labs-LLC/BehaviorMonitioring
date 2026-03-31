@@ -85,21 +85,25 @@ describe('Auth API Integration Tests', () => {
 
   async function postWithCsrf(path, payload = {}) {
     const csrfResponse = await agent.get('/csrf-token');
-    return agent
-      .post(path)
-      .set('x-csrf-token', csrfResponse.body.csrfToken)
-      .send(payload);
+    const requestBuilder = agent.post(path);
+
+    if (csrfResponse.body?.csrfToken) {
+      requestBuilder.set('x-csrf-token', csrfResponse.body.csrfToken);
+    }
+
+    return requestBuilder.send(payload);
   }
 
   async function postWithCsrfAndCookies(path, cookies, payload = {}) {
     const csrfResponse = await agent.get('/csrf-token');
     const csrfCookies = (csrfResponse.headers['set-cookie'] || []).map((cookie) => cookie.split(';')[0]);
+    const requestBuilder = agent.post(path).set('Cookie', [...csrfCookies, ...cookies].join('; '));
 
-    return agent
-      .post(path)
-      .set('x-csrf-token', csrfResponse.body.csrfToken)
-      .set('Cookie', [...csrfCookies, ...cookies].join('; '))
-      .send(payload);
+    if (csrfResponse.body?.csrfToken) {
+      requestBuilder.set('x-csrf-token', csrfResponse.body.csrfToken);
+    }
+
+    return requestBuilder.send(payload);
   }
 
   beforeEach(() => {

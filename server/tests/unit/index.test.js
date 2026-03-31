@@ -98,6 +98,17 @@ describe('server entrypoint', () => {
     };
   }
 
+  function getTerminalMiddleware(expressApp) {
+    const anonymousMiddleware = expressApp.use.mock.calls
+      .map((call) => call[0])
+      .filter((middleware) => typeof middleware === 'function');
+
+    return {
+      notFoundMiddleware: [...anonymousMiddleware].reverse().find((middleware) => middleware.length === 3),
+      errorMiddleware: anonymousMiddleware.find((middleware) => middleware.length === 4),
+    };
+  }
+
   it('initializes middleware, routes, and starts the server', async () => {
     const {
       expressApp,
@@ -124,6 +135,164 @@ describe('server entrypoint', () => {
     expect(syncDatabase).toHaveBeenCalled();
     expect(expressApp.listen).toHaveBeenCalledWith('3001', expect.any(Function));
     expect(consoleLogSpy).toHaveBeenCalledWith('✓ Server running on port 3001...');
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('allows requests with no origin and approved origins through the CORS callback', async () => {
+    const {
+      cors,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const corsOptions = cors.mock.calls[0][0];
+    const callback = jest.fn();
+
+    corsOptions.origin(undefined, callback);
+    corsOptions.origin('http://localhost:3000', callback);
+
+    expect(callback).toHaveBeenNthCalledWith(1, null, true);
+    expect(callback).toHaveBeenNthCalledWith(2, null, true);
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('rejects disallowed origins through the CORS callback', async () => {
+    const {
+      cors,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const corsOptions = cors.mock.calls[0][0];
+    const callback = jest.fn();
+
+    corsOptions.origin('https://blocked.example.com', callback);
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'CORS blocked request from origin: https://blocked.example.com',
+    );
+    expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
+    expect(callback.mock.calls[0][0].message).toBe('Not allowed by CORS');
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('responds with the development server message on the root route', async () => {
+    const {
+      expressApp,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const rootHandler = expressApp.get.mock.calls.find(([path]) => path === '/')[2];
+    const res = { send: jest.fn() };
+
+    rootHandler({}, res);
+
+    expect(res.send).toHaveBeenCalledWith(
+      'The server is running successfully. <br/>The server is running on port 3001... <br/>The server url is http://localhost:3001...',
+    );
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns a CSRF token from the csrf-token route', async () => {
+    const {
+      expressApp,
+      generateToken,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const csrfHandler = expressApp.get.mock.calls.find(([path]) => path === '/csrf-token')[2];
+    const req = { id: 'req-1' };
+    const res = { json: jest.fn() };
+
+    csrfHandler(req, res);
+
+    expect(generateToken).toHaveBeenCalledWith(req, res);
+    expect(res.json).toHaveBeenCalledWith({ csrfToken: 'csrf-token' });
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('redirects 404 errors to the page-not-found route', async () => {
+    const {
+      expressApp,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const { notFoundMiddleware, errorMiddleware } = getTerminalMiddleware(expressApp);
+    const next = jest.fn();
+    const redirect = jest.fn();
+
+    notFoundMiddleware({}, {}, next);
+
+    const notFoundError = next.mock.calls[0][0];
+    errorMiddleware(notFoundError, {}, { redirect }, jest.fn());
+
+    expect(notFoundError.status).toBe(404);
+    expect(redirect).toHaveBeenCalledWith('http://localhost/PageNotFound');
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns explicit status errors and logs unexpected server errors', async () => {
+    const {
+      expressApp,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const { errorMiddleware } = getTerminalMiddleware(expressApp);
+    const status = jest.fn(() => ({ send: jest.fn() }));
+    const send = jest.fn();
+
+    errorMiddleware({ status: 401, message: 'Unauthorized' }, {}, { status }, jest.fn());
+    errorMiddleware(new Error('boom'), {}, { status: jest.fn(() => ({ send })) }, jest.fn());
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Unhandled error:', expect.any(Error));
+    expect(send).toHaveBeenCalledWith('Internal Server Error');
 
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();

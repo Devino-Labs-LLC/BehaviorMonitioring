@@ -35,6 +35,41 @@ type StoredDataEntryState = {
     duration?: (string | null)[];
 };
 
+const buildSharedEntryHeaders = (): JSX.Element[] => [
+    <th key="remove"></th>,
+    <th key="target">Target:</th>,
+    <th key="sessionDate">Session Date:</th>,
+    <th key="time">Time:</th>
+];
+
+const getMeasurementTypeForTarget = (
+    targetValue: string,
+    previousMeasurement: string,
+    targetOptions: BehaviorSkillOption[]
+) => {
+    const selectedOption = targetOptions.find((option) => String(option.value) === targetValue);
+    if (selectedOption) {
+        return selectedOption.measurementType || '';
+    }
+
+    return previousMeasurement || '';
+};
+
+const buildBehaviorTableHeaders = (selectedMeasurementTypes: string[]) => {
+    const newHeaders = buildSharedEntryHeaders();
+
+    if (selectedMeasurementTypes.includes('Frequency') || selectedMeasurementTypes.includes('Rate')) {
+        newHeaders.push(<th key="count">Count:</th>);
+    }
+    if (selectedMeasurementTypes.includes('Duration') || selectedMeasurementTypes.includes('Rate')) {
+        newHeaders.push(<th key="duration">Duration:</th>);
+    }
+
+    return newHeaders;
+};
+
+const buildSkillTableHeaders = () => buildSharedEntryHeaders();
+
 const parseStoredDataEntryState = (): StoredDataEntryState | null => {
     const storedData = sessionStorage.getItem('dataEntryState');
     if (!storedData) {
@@ -344,12 +379,7 @@ const DataEntry: React.FC = () => {
     useEffect(() => {
         setSelectedMeasurementTypes((previousMeasurements) =>
             selectedTargets.map((targetValue, index) => {
-                const selectedOption = targetOptions.find(option => String(option.value) === targetValue);
-                if (selectedOption) {
-                    return selectedOption.measurementType || '';
-                }
-
-                return previousMeasurements[index] || '';
+                return getMeasurementTypeForTarget(targetValue, previousMeasurements[index], targetOptions);
             })
         );
     }, [selectedTargets, targetOptions]);
@@ -370,38 +400,10 @@ const DataEntry: React.FC = () => {
 
     useEffect(() => {
         if (activeTab === 'Behavior') {
-            const generateTargetTableHeaders = () => {
-                const newHeaders: JSX.Element[] = [
-                    <th key="remove"></th>,
-                    <th key="target">Target:</th>,
-                    <th key="sessionDate">Session Date:</th>,
-                    <th key="time">Time:</th>
-                ];
-
-                if (selectedMeasurementTypes.includes('Frequency') || selectedMeasurementTypes.includes('Rate')) {
-                    newHeaders.push(<th key="count">Count:</th>);
-                }
-                if (selectedMeasurementTypes.includes('Duration') || selectedMeasurementTypes.includes('Rate')) {
-                    newHeaders.push(<th key="duration">Duration:</th>);
-                }    
-                return newHeaders;
-            };
-
-            setHeaders(generateTargetTableHeaders());
+            setHeaders(buildBehaviorTableHeaders(selectedMeasurementTypes));
         }
         else if (activeTab === 'Skill') {
-            const generateSkillTableHeaders = () => {
-                const newHeaders: JSX.Element[] = [
-                    <th key="remove"></th>,
-                    <th key="target">Target:</th>,
-                    <th key="sessionDate">Session Date:</th>,
-                    <th key="time">Time:</th>
-                ];
-                    
-                return newHeaders;
-            };
-    
-            setHeaders(generateSkillTableHeaders());
+            setHeaders(buildSkillTableHeaders());
         }
     }, [selectedMeasurementTypes]);
 

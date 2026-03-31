@@ -123,4 +123,30 @@ describe('useAuth', () => {
     expect(screen.getByTestId('username')).toHaveTextContent('null');
     expect(screen.getByTestId('is-admin')).toHaveTextContent('false');
   });
+
+  it('registers a bootstrap completion callback only when bootstrap has not finished', () => {
+    mockGetBootstrapStatus.mockReturnValue({
+      isBootstrapped: false,
+      isBootstrapping: true,
+    });
+
+    render(<AuthProbe />);
+
+    expect(mockOnBootstrapComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not register a bootstrap callback when bootstrap is already complete', async () => {
+    mockGetBootstrapStatus.mockReturnValue({
+      isBootstrapped: true,
+      isBootstrapping: false,
+    });
+
+    render(<AuthProbe />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-ready')).toHaveTextContent('true');
+    });
+
+    expect(mockOnBootstrapComplete).not.toHaveBeenCalled();
+  });
 });
