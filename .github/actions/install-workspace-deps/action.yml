@@ -1,0 +1,27 @@
+name: Install Workspace Dependencies
+description: Install client and/or server dependencies with scripts disabled
+
+inputs:
+  install-client:
+    description: Whether to install client dependencies
+    required: false
+    default: "true"
+  install-server:
+    description: Whether to install server dependencies
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Install client dependencies
+      if: ${{ inputs.install-client == 'true' }}
+      shell: bash
+      working-directory: ./client
+      run: npm ci --ignore-scripts
+
+    - name: Install server dependencies
+      if: ${{ inputs.install-server == 'true' }}
+      shell: bash
+      working-directory: ./server
+      run: npm ci --ignore-scripts

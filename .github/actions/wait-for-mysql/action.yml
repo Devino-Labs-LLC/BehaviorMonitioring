@@ -1,0 +1,31 @@
+name: Wait For MySQL
+description: Wait for a MySQL instance to become available
+
+inputs:
+  host:
+    description: MySQL host
+    required: true
+  port:
+    description: MySQL port
+    required: true
+  user:
+    description: MySQL user
+    required: false
+    default: root
+  password:
+    description: MySQL password
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for MySQL
+      shell: bash
+      env:
+        MYSQL_PWD: ${{ inputs.password }}
+      run: |
+        until mysqladmin ping -h"${{ inputs.host }}" -P"${{ inputs.port }}" -u"${{ inputs.user }}" --silent; do
+          echo 'waiting for mysql...'
+          sleep 1
+        done

@@ -33,8 +33,10 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ./client/package-lock.json
     
-    - name: Install dependencies
-      run: npm ci --ignore-scripts
+    - name: Install client dependencies
+      uses: ./.github/actions/install-workspace-deps
+      with:
+        install-server: "false"
     
     - name: Run linter
       run: npm run lint --if-present
@@ -89,26 +91,26 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ./server/package-lock.json
     
-    - name: Install dependencies
-      run: npm ci --ignore-scripts
+    - name: Install server dependencies
+      uses: ./.github/actions/install-workspace-deps
+      with:
+        install-client: "false"
         
     - name: Wait for MySQL
-      run: |
-        until mysqladmin ping -h"127.0.0.1" -P"3306" --silent; do
-          echo 'waiting for mysql...'
-          sleep 1
-        done
+      uses: ./.github/actions/wait-for-mysql
+      with:
+        host: 127.0.0.1
+        port: 3306
     
     - name: Setup database
-      run: |
-        npm run db:reset
-      env:
-        DB_TYPE: ${{ vars.DB_TYPE }}
-        MYSQL_HOST: ${{ vars.MYSQL_HOST }}
-        MYSQL_PORT: ${{ vars.MYSQL_PORT }}
-        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ vars.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/reset-server-db
+      with:
+        db-type: ${{ vars.DB_TYPE }}
+        mysql-host: ${{ vars.MYSQL_HOST }}
+        mysql-port: ${{ vars.MYSQL_PORT }}
+        mysql-database: ${{ vars.MYSQL_DATABASE }}
+        mysql-user: ${{ vars.MYSQL_USER }}
+        mysql-password: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Run linter
       run: npm run lint --if-present
@@ -164,34 +166,24 @@ jobs:
       with:
         node-version: '24.x'
     
-    - name: Install client dependencies
-      working-directory: ./client
-      run: npm ci --ignore-scripts
-    
-    - name: Install server dependencies
-      working-directory: ./server
-      run: npm ci --ignore-scripts
+    - name: Install workspace dependencies
+      uses: ./.github/actions/install-workspace-deps
         
     - name: Wait for MySQL
-      run: |
-        until mysqladmin ping -h"${{ vars.MYSQL_HOST }}" -P"${{ vars.MYSQL_PORT }}" -uroot --silent; do
-          echo 'waiting for mysql...'
-          sleep 1
-        done
-      env:
-        MYSQL_PWD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/wait-for-mysql
+      with:
+        host: ${{ vars.MYSQL_HOST }}
+        port: ${{ vars.MYSQL_PORT }}
+        password: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Setup database
-      working-directory: ./server
-      run: |
-        npm run db:reset
-      env:
-        NODE_ENV: test
-        MYSQL_HOST: 127.0.0.1
-        MYSQL_PORT: 3306
-        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ vars.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/reset-server-db
+      with:
+        mysql-host: 127.0.0.1
+        mysql-port: 3306
+        mysql-database: ${{ vars.MYSQL_DATABASE }}
+        mysql-user: ${{ vars.MYSQL_USER }}
+        mysql-password: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Start server
       working-directory: ./server
@@ -246,36 +238,27 @@ jobs:
       with:
         node-version: '24.x'
 
-    - name: Install client dependencies
-      working-directory: ./client
-      run: npm ci --ignore-scripts
-
-    - name: Install server dependencies
-      working-directory: ./server
-      run: npm ci --ignore-scripts
+    - name: Install workspace dependencies
+      uses: ./.github/actions/install-workspace-deps
 
     - name: Install Playwright browsers
       working-directory: ./client
       run: npx playwright install --with-deps chromium
 
     - name: Wait for MySQL
-      run: |
-        until mysqladmin ping -h"127.0.0.1" -P"3306" --silent; do
-          echo 'waiting for mysql...'
-          sleep 1
-        done
+      uses: ./.github/actions/wait-for-mysql
+      with:
+        host: 127.0.0.1
+        port: 3306
 
     - name: Setup database
-      working-directory: ./server
-      run: |
-        npm run db:reset
-      env:
-        NODE_ENV: test
-        MYSQL_HOST: 127.0.0.1
-        MYSQL_PORT: 3306
-        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ vars.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/reset-server-db
+      with:
+        mysql-host: 127.0.0.1
+        mysql-port: 3306
+        mysql-database: ${{ vars.MYSQL_DATABASE }}
+        mysql-user: ${{ vars.MYSQL_USER }}
+        mysql-password: ${{ secrets.MYSQL_PASSWORD }}
 
     - name: Start server
       working-directory: ./server
@@ -339,13 +322,8 @@ jobs:
       with:
         node-version: '24.x'
     
-    - name: Install client dependencies
-      working-directory: ./client
-      run: npm ci --ignore-scripts
-    
-    - name: Install server dependencies
-      working-directory: ./server
-      run: npm ci --ignore-scripts
+    - name: Install workspace dependencies
+      uses: ./.github/actions/install-workspace-deps
     
     - name: Generate client coverage
       working-directory: ./client

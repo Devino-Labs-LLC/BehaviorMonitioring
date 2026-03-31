@@ -55,13 +55,8 @@ jobs:
         with:
           node-version: '24.x'
 
-      - name: Install client dependencies
-        working-directory: ./client
-        run: npm ci --ignore-scripts
-
-      - name: Install server dependencies
-        working-directory: ./server
-        run: npm ci --ignore-scripts
+      - name: Install workspace dependencies
+        uses: ./.github/actions/install-workspace-deps
 
       - name: Generate client coverage
         working-directory: ./client

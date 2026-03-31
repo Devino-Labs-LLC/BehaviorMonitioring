@@ -1,0 +1,43 @@
+name: Reset Server Database
+description: Reset the server database using the existing db:reset script
+
+inputs:
+  node-env:
+    description: Node environment
+    required: false
+    default: test
+  db-type:
+    description: Database type
+    required: false
+    default: ""
+  mysql-host:
+    description: MySQL host
+    required: true
+  mysql-port:
+    description: MySQL port
+    required: true
+  mysql-database:
+    description: MySQL database
+    required: true
+  mysql-user:
+    description: MySQL user
+    required: true
+  mysql-password:
+    description: MySQL password
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Reset database
+      shell: bash
+      working-directory: ./server
+      env:
+        NODE_ENV: ${{ inputs.node-env }}
+        DB_TYPE: ${{ inputs.db-type }}
+        MYSQL_HOST: ${{ inputs.mysql-host }}
+        MYSQL_PORT: ${{ inputs.mysql-port }}
+        MYSQL_DATABASE: ${{ inputs.mysql-database }}
+        MYSQL_USER: ${{ inputs.mysql-user }}
+        MYSQL_PASSWORD: ${{ inputs.mysql-password }}
+      run: npm run db:reset

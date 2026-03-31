@@ -11,6 +11,7 @@
     "!tests/**",
     "!coverage/**"
   ],
+  "coverageReporters": ["lcov", "text", "json-summary"],
   "coverageThreshold": {
     "global": {
       "branches": 2.50,
