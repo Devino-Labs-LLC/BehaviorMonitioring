@@ -1,4 +1,4 @@
-const crypto = require("crypto");
+const crypto = require("node:crypto");
 
 function getOrCreateDeviceId(req, res) {
     let deviceId = req.cookies?.bmDeviceId;

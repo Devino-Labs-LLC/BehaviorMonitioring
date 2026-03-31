@@ -25,11 +25,14 @@ const ManageAdmins: React.FC = () => {
 
     useEffect(() => {
         if (!isReady) return;
-        if (isLoggedIn && isAdmin) {
-            debounceAsync(fetchAdmins, 300)();
-        } else if (!isLoggedIn) {
+        if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
+            return;
+        }
+
+        if (isAdmin) {
+            debounceAsync(fetchAdmins, 300)();
         } else {
             navigate.push('/');
         }

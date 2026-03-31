@@ -16,7 +16,8 @@ const Input: React.FC<InputProps> = ({ name, nameOfClass, requiring, value, futu
     const localDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().split('T')[0];
     const inputId = `${name}-input`;
 
-    const field = <input id={inputId} type='date' name={name} className={nameOfClass} required={requiring} autoComplete='off' value={value} max={!futureDating ? localDate : undefined} onChange={onChange}/>;
+    const maxDate = futureDating ? undefined : localDate;
+    const field = <input id={inputId} type='date' name={name} className={nameOfClass} required={requiring} autoComplete='off' value={value} max={maxDate} onChange={onChange}/>;
 
     if (label) {
         return (

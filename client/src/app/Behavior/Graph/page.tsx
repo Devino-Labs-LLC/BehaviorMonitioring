@@ -115,7 +115,7 @@ const Graph: React.FC = () => {
     const filterDataByDateRange = (data: any[]) => {
         const now = new Date();
         const filtered = data.filter((entry: any) => {
-            if (!entry || !entry.sessionDate) return false; // Ensure valid data
+            if (!entry?.sessionDate) return false; // Ensure valid data
             const entryDate = new Date(entry.sessionDate);
             const daysDifference = (now.getTime() - entryDate.getTime()) / (1000 * 3600 * 24);
             return daysDifference <= dateRange;

@@ -268,7 +268,7 @@ const Archive: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {archivedBehaviors.map((option, index) => (
-                                            <tr key={index}>
+                                            <tr key={String(option.value)}>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.label}</div></td>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.definition}</div></td>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.measurementType}</div></td>

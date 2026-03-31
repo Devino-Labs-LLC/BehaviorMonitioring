@@ -44,7 +44,7 @@ jest.mock('../models', () => {
 });
 
 // Suppress console.error in tests
-global.console = {
+globalThis.console = {
   ...console,
   error: jest.fn(),
   warn: jest.fn(),

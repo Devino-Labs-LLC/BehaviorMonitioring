@@ -64,12 +64,7 @@ const Header: React.FC = () => {
     }
       
     const showPhoneMenuBoolean = () => {
-        if (!showMenu){
-            setShowMenu(true);
-        }
-        else {
-            setShowMenu(false);
-        }
+        setShowMenu((current) => !current);
     }
 
     if (showMenu){

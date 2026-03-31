@@ -21,9 +21,9 @@ async function initDatabase() {
         await sequelize.authenticate();
         console.log('✓ Database connection established successfully.');
 
-        const args = process.argv.slice(2);
-        const force = args.includes('--force');
-        const alter = args.includes('--alter');
+        const args = new Set(process.argv.slice(2));
+        const force = args.has('--force');
+        const alter = args.has('--alter');
 
         if (force) {
             console.log('⚠️  WARNING: Dropping all tables and recreating...');

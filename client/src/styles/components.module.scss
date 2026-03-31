@@ -1429,11 +1429,10 @@
     }
 
     .card {
-        border-radius: $radius-md;
-        border: 1px solid $border-light;
-        background: $form-background;
-        box-shadow: $shadow-md;
+        @extend %surface;
         overflow: hidden;
+        padding: 14px;
+        text-align: left;
     }
 
     .cardHeader {
@@ -1508,15 +1507,6 @@
         background: rgba(59, 130, 246, 0.10);
         border: 1px solid rgba(59, 130, 246, 0.25);
         color: $font-color;
-    }
-
-    /* End Dashboard page styles */
-
-    /* KPI Card Styles */
-    .card {
-        @extend %surface;
-        padding: 14px;
-        text-align: left;
     }
 
     .title {

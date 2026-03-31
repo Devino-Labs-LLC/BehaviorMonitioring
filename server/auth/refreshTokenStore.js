@@ -8,6 +8,9 @@ function addDaysISO(days) {
 
 async function insertRefreshToken({ userId, token, ttlDays, userAgent, ipAddress, deviceId, lastUsedAt }) {
     const expiresAt = addDaysISO(ttlDays);
+    const normalizedLastUsedAt = lastUsedAt instanceof Date
+        ? lastUsedAt.toISOString()
+        : lastUsedAt || new Date().toISOString();
 
     await RefreshToken.create({
         user_id: userId,
@@ -16,7 +19,7 @@ async function insertRefreshToken({ userId, token, ttlDays, userAgent, ipAddress
         user_agent: userAgent || null,
         ip_address: ipAddress || null,
         device_id: deviceId || null,
-        last_used_at: lastUsedAt ? (lastUsedAt instanceof Date ? lastUsedAt.toISOString() : lastUsedAt) : new Date().toISOString()
+        last_used_at: normalizedLastUsedAt
     });
 
     return expiresAt;
