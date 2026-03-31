@@ -18,6 +18,12 @@ export function getBootstrapStatus() {
     return { isBootstrapped, isBootstrapping };
 }
 
+export function resetBootstrapState() {
+    isBootstrapped = false;
+    isBootstrapping = false;
+    bootstrapListeners = [];
+}
+
 // Allow components to wait for bootstrap to complete
 export function onBootstrapComplete(callback: () => void) {
     if (isBootstrapped) {

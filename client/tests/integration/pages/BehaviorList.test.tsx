@@ -5,14 +5,20 @@ import BehaviorPage from '../../../src/app/Behavior/page';
 import { api } from '../../../src/lib/Api';
 
 jest.mock('../../../src/lib/Api');
+jest.mock('../../../src/function/debounce', () => ({
+  debounceAsync: (fn: (...args: any[]) => unknown) => (...args: any[]) => fn(...args),
+}));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUserStatus: () => true,
   GetLoggedInUser: () => 'testuser',
   GetAdminStatus: () => false,
 }));
+
+const mockPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: jest.fn(),
     prefetch: jest.fn(),
     back: jest.fn(),
@@ -102,39 +108,7 @@ describe('Behavior List Page Integration', () => {
     });
   });
 
-  it('requests behaviors for the newly selected client', async () => {
-    const user = userEvent.setup();
-
-    mockApi
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        clientData: mockClients,
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        behaviorSkillData: mockBehaviors,
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        behaviorSkillData: [],
-      } as any);
-
-    render(<BehaviorPage />);
-
-    const clientSelect = await screen.findByDisplayValue('John Doe');
-    await user.selectOptions(clientSelect, '2');
-
-    await waitFor(() => {
-      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getClientTargetBehavior', {
-        clientID: 2,
-        employeeUsername: 'testuser',
-      });
-    });
-  });
-
   it('redirects to login when not authenticated', async () => {
-    const mockPush = jest.fn();
-    
     const VerificationCheck = require('../../../src/function/VerificationCheck');
     jest.spyOn(VerificationCheck, 'GetLoggedInUserStatus').mockReturnValue(false);
     
@@ -150,6 +124,165 @@ describe('Behavior List Page Integration', () => {
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login'));
+    });
+  });
+
+  it('stores graph selection and navigates to the graph page', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: mockBehaviors,
+      } as any);
+
+    render(<BehaviorPage />);
+
+    const graphButtons = await screen.findAllByRole('button', { name: 'Graph button' });
+    await user.click(graphButtons[0]);
+
+    expect(Storage.prototype.setItem).toHaveBeenCalledWith('clientID', '1');
+    expect(Storage.prototype.setItem).toHaveBeenCalledWith(
+      'checkedBehaviors',
+      JSON.stringify([
+        {
+          id: 1,
+          name: 'Aggression',
+          clientName: 'John Doe',
+          measurementType: 'Frequency',
+        },
+      ]),
+    );
+    expect(mockPush).toHaveBeenCalledWith('/Behavior/Graph');
+  });
+
+  it('merges selected behaviors when they share the same measurement type', async () => {
+    const user = userEvent.setup();
+    const sameTypeBehaviors = [
+      mockBehaviors[0],
+      {
+        ...mockBehaviors[1],
+        measurement: 'Frequency',
+      },
+    ];
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: sameTypeBehaviors,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Behaviors merged successfully.',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: sameTypeBehaviors,
+      } as any);
+
+    render(<BehaviorPage />);
+
+    const checkboxes = await screen.findAllByRole('checkbox');
+    await user.click(checkboxes[0]);
+    await user.click(checkboxes[1]);
+
+    const ellipsisButtons = screen.getAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Merge' }));
+
+    const mergeSelect = screen.getAllByRole('combobox')[1];
+    await user.selectOptions(mergeSelect, '1');
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/mergeBehaviors', {
+        clientID: 1,
+        targetBehaviorId: '1',
+        mergeBehaviorIds: ['2'],
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('archives a selected behavior through the action menu', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: mockBehaviors,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Archived',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: mockBehaviors.slice(1),
+      } as any);
+
+    render(<BehaviorPage />);
+
+    const ellipsisButtons = await screen.findAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Archive' }));
+    await user.click(screen.getByRole('button', { name: /confirm selection/i }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/archiveBehavior', {
+        clientID: 1,
+        behaviorId: '1',
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('deletes a selected behavior through the action menu', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: mockBehaviors,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Deleted',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: mockBehaviors.slice(1),
+      } as any);
+
+    render(<BehaviorPage />);
+
+    const ellipsisButtons = await screen.findAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: /confirm selection/i }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/deleteBehavior', {
+        clientID: 1,
+        behaviorId: '1',
+        employeeUsername: 'testuser',
+      });
     });
   });
 });

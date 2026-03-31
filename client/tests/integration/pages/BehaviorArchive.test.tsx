@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import BehaviorArchive from '../../../src/app/Behavior/Archive/page';
 import { api } from '../../../src/lib/Api';
 
@@ -172,5 +173,112 @@ describe('Behavior Archive Page Integration', () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
     });
+  });
+
+  it('reactivates an archived behavior after confirmation', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Behavior restored',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reactivate' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', 'aba/activateBehavior', {
+        clientID: 1,
+        behaviorId: '7',
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('deletes an archived behavior after confirmation', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Behavior deleted',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/deleteBehavior', {
+        clientID: 1,
+        behaviorId: '7',
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('navigates back when escape is pressed', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await screen.findByText('Archived Behavior');
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
+
+    expect(mockBack).toHaveBeenCalled();
   });
 });

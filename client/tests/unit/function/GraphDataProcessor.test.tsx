@@ -15,6 +15,12 @@ jest.mock('../../../src/components/LineGraph', () => ({
 describe('GraphDataProcessor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-31T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('shows a loading message when no data has been fetched yet', () => {

@@ -342,11 +342,16 @@ const DataEntry: React.FC = () => {
     };
     
     useEffect(() => {
-        const newSelectedMeasurements = selectedTargets.map(targetValue => {
-            const selectedOption = targetOptions.find(option => String(option.value) === targetValue);
-            return selectedOption ? selectedOption.measurementType || '' : '';
-        });
-        setSelectedMeasurementTypes(newSelectedMeasurements);
+        setSelectedMeasurementTypes((previousMeasurements) =>
+            selectedTargets.map((targetValue, index) => {
+                const selectedOption = targetOptions.find(option => String(option.value) === targetValue);
+                if (selectedOption) {
+                    return selectedOption.measurementType || '';
+                }
+
+                return previousMeasurements[index] || '';
+            })
+        );
     }, [selectedTargets, targetOptions]);
 
     const handleDateChange = (index: number, value: string) => {
@@ -545,6 +550,11 @@ const DataEntry: React.FC = () => {
             const newSelectedTargets = [...selectedTargets];
             newSelectedTargets.splice(index, 1);
             setSelectedTargets(newSelectedTargets);
+            setSelectedMeasurementTypes(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setDates(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setTimes(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setCount(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setDuration(prev => prev.filter((_, itemIndex) => itemIndex !== index));
 
             if (index === 0 && targetOptions.length > 0) {
                 handleOptionChange(index, String(targetOptions[0].value));
@@ -556,6 +566,8 @@ const DataEntry: React.FC = () => {
             const newSelectedSkills = [...selectedSkills];
             newSelectedSkills.splice(index, 1);
             setSelectedSkills(newSelectedSkills);
+            setDates(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setTimes(prev => prev.filter((_, itemIndex) => itemIndex !== index));
             handleSkillAMTChange(skillAmt - 1);
         }
     }

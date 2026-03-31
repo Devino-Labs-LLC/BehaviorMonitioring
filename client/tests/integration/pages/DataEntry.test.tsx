@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import DataEntry from '../../../src/app/DataEntry/page';
 import { api } from '../../../src/lib/Api';
 
@@ -24,7 +25,9 @@ jest.mock('../../../src/components/header', () => () => <div data-testid="header
 jest.mock('../../../src/components/loading', () => () => <div data-testid="loading" />);
 jest.mock('../../../src/components/Inputfield', () => (props: any) => {
   const { requiring, nameOfClass, ...rest } = props;
-  return <input {...rest} />;
+  const normalizedValue =
+    typeof rest.value === 'number' && Number.isNaN(rest.value) ? '' : rest.value;
+  return <input {...rest} value={normalizedValue} />;
 });
 jest.mock('../../../src/components/Selectdropdown', () => (props: any) => (
   <select
@@ -194,6 +197,84 @@ describe('Data Entry Page Integration', () => {
     expect(screen.getByText('Session notes saved')).toBeInTheDocument();
   });
 
+  it('submits behavior data for the selected target', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 11, name: 'Aggression', measurement: 'Rate' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 201,
+        serverMessage: 'Behavior entry saved',
+      } as any);
+
+    render(<DataEntry />);
+
+    const targetSelect = await screen.findByLabelText('Target-0');
+    await waitFor(() => {
+      expect(within(targetSelect).getByRole('option', { name: 'Aggression' })).toBeInTheDocument();
+    });
+    await user.selectOptions(targetSelect, '11');
+
+    const countInput = document.querySelector('input[name="count-0"]') as HTMLInputElement;
+    expect(countInput).not.toBeNull();
+
+    fireEvent.change(countInput, {
+      target: { value: '3' },
+    });
+    await user.click(screen.getByRole('button', { name: 'timer-duration-0' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/submitTargetBehavior', {
+        clientID: 1,
+        targetAmt: 1,
+        selectedTargets: ['11'],
+        selectedMeasurementTypes: ['Rate'],
+        dates: ['2026-03-31'],
+        times: ['09:30'],
+        count: [3],
+        duration: ['0:10:0'],
+        employeeUsername: 'testuser',
+      });
+    });
+
+    expect(screen.getByText('Behavior entry saved')).toBeInTheDocument();
+  });
+
+  it('handles invalid stored state gracefully', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'dataEntryState') return '{invalid-json';
+      return null;
+    });
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<DataEntry />);
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it('redirects unauthenticated users to login', async () => {
     mockGetLoggedInUserStatus.mockReturnValue(false);
     mockApi.mockResolvedValueOnce({
@@ -205,6 +286,83 @@ describe('Data Entry Page Integration', () => {
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('adds and removes behavior rows while normalizing invalid target amount input', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 11, name: 'Aggression', measurement: 'Frequency' }],
+      } as any);
+
+    render(<DataEntry />);
+
+    const targetAmtInput = await screen.findByRole('spinbutton');
+    fireEvent.change(targetAmtInput, { target: { value: '2' } });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Target-1')).toBeInTheDocument();
+    });
+
+    const removeButtons = screen.getAllByRole('button', { name: 'Remove' });
+    await user.click(removeButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Target-1')).not.toBeInTheDocument();
+    });
+
+    await user.clear(targetAmtInput);
+    fireEvent.change(targetAmtInput, { target: { value: '0' } });
+
+    expect((targetAmtInput as HTMLInputElement).value).toBe('1');
+  });
+
+  it('hydrates stored selection state for an existing behavior entry', async () => {
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'dataEntryState') {
+        return JSON.stringify({
+          activeTab: 'Behavior',
+          targetAmt: 1,
+          selectedClient: 'John Doe',
+          selectedClientID: 1,
+          selectedTargets: ['11'],
+          selectedMeasurementTypes: ['Frequency'],
+          dates: ['2026-03-30'],
+          times: ['08:15'],
+          count: [4],
+          duration: [null],
+        });
+      }
+
+      return null;
+    });
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 11, name: 'Aggression', measurement: 'Frequency' }],
+      } as any);
+
+    render(<DataEntry />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('2026-03-30')).toBeInTheDocument();
+    });
+
+    expect(screen.getByDisplayValue('08:15')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('4')).toBeInTheDocument();
     });
   });
 });

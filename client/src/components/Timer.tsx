@@ -50,15 +50,13 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     };
 
     const decrementMinute = () => {
-        let newMinute = (minute - 1 + 60) % 60;
-        let newHour = newMinute === 59 ? hour - 1 : hour;
-        if (newMinute <= -1) {
-            newMinute = 0;
+        if (hour === 0 && minute === 0) {
+            updateTime(0, 0, second);
+            return;
         }
-        
-        if (newHour <= 0) {
-            newHour = 0;
-        }
+
+        const newMinute = minute === 0 ? 59 : minute - 1;
+        const newHour = minute === 0 ? Math.max(hour - 1, 0) : hour;
         updateTime(newHour, newMinute, second);
     };
 
@@ -70,20 +68,18 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     };
 
     const decrementSecond = () => {
-        let newSecond = (second - 1 + 60) % 60;
-        let newMinute = newSecond === 59 ? minute - 1 : minute;
-        let newHour = newMinute === -1 ? hour - 1 : hour;
-        if (newSecond <= -1) {
-            newSecond = 0;
-        }
-        if (newMinute <= 0) {
-            newMinute = 0;
-        }
-        if (newHour <= 0) {
-            newHour = 0;
+        if (hour === 0 && minute === 0 && second === 0) {
+            updateTime(0, 0, 0);
+            return;
         }
 
-        updateTime(newHour, (newMinute + 60) % 60, newSecond);
+        const newSecond = second === 0 ? 59 : second - 1;
+        const shouldBorrowMinute = second === 0;
+        const shouldBorrowHour = shouldBorrowMinute && minute === 0;
+        const newMinute = shouldBorrowMinute ? (minute === 0 ? 59 : minute - 1) : minute;
+        const newHour = shouldBorrowHour ? Math.max(hour - 1, 0) : hour;
+
+        updateTime(newHour, newMinute, newSecond);
     };
 
     const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {

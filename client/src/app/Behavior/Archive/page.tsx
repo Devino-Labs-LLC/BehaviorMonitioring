@@ -160,9 +160,9 @@ const Archive: React.FC = () => {
 
     const handleReactivationDelete = async () => {
         if (popupAction === 'Reactivate') {
-            debounceAsync(() => reactivateBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300);
+            debounceAsync(() => reactivateBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300)();
         } else if (popupAction === 'Delete') {
-            debounceAsync(() => deleteBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300 );
+            debounceAsync(() => deleteBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300)();
         }
         setIsPopoutVisible(false); // Close the popout after action
     };
