@@ -20,6 +20,35 @@ import { debounceAsync } from '../../function/debounce';
 import { api } from '../../lib/Api';
 import type { GetAllClientsResponse, ClientOption, BehaviorSkillOption, GetBehaviorResponse, CreateBehaviorDataResponse, CreateSessionNoteResponse } from '../../dto';
 
+type StoredDataEntryState = {
+    activeTab?: string;
+    targetAmt?: number;
+    skillAmt?: number;
+    selectedClient?: string;
+    selectedClientID?: number;
+    selectedTargets?: string[];
+    selectedSkills?: string[];
+    selectedMeasurementTypes?: string[];
+    dates?: string[];
+    times?: string[];
+    count?: number[];
+    duration?: (string | null)[];
+};
+
+const parseStoredDataEntryState = (): StoredDataEntryState | null => {
+    const storedData = sessionStorage.getItem('dataEntryState');
+    if (!storedData) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(storedData);
+    } catch (error) {
+        console.error('Failed to parse sessionStorage data:', error);
+        return null;
+    }
+};
+
 const DataEntry: React.FC = () => {
     const navigate = useRouter();
     const userLoggedIn = GetLoggedInUserStatus();
@@ -49,30 +78,31 @@ const DataEntry: React.FC = () => {
     const [timerCount, setTimerCount] = useState<number>(0);
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
+
+    const hydrateStoredState = (parsedData: StoredDataEntryState | null) => {
+        if (!parsedData) {
+            setIsInitialized(true);
+            return;
+        }
+
+        if (parsedData.activeTab) setActiveTab(parsedData.activeTab);
+        if (parsedData.targetAmt) setTargetAmt(parsedData.targetAmt);
+        if (parsedData.skillAmt) setSkillAmt(parsedData.skillAmt);
+        if (parsedData.selectedClient) setSelectedClient(parsedData.selectedClient);
+        if (parsedData.selectedClientID) setSelectedClientID(parsedData.selectedClientID);
+        if (parsedData.selectedTargets) setSelectedTargets(parsedData.selectedTargets);
+        if (parsedData.selectedSkills) setSelectedSkills(parsedData.selectedSkills);
+        if (parsedData.selectedMeasurementTypes) setSelectedMeasurementTypes(parsedData.selectedMeasurementTypes);
+        if (parsedData.dates) setDates(parsedData.dates);
+        if (parsedData.times) setTimes(parsedData.times);
+        if (parsedData.count) setCount(parsedData.count);
+        if (parsedData.duration) setDuration(parsedData.duration);
+        setIsInitialized(true);
+    };
     
     // Load from sessionStorage on mount
     useEffect(() => {
-        const storedData = sessionStorage.getItem('dataEntryState');
-        if (storedData) {
-            try {
-                const parsedData = JSON.parse(storedData);
-                if (parsedData.activeTab) setActiveTab(parsedData.activeTab);
-                if (parsedData.targetAmt) setTargetAmt(parsedData.targetAmt);
-                if (parsedData.skillAmt) setSkillAmt(parsedData.skillAmt);
-                if (parsedData.selectedClient) setSelectedClient(parsedData.selectedClient);
-                if (parsedData.selectedClientID) setSelectedClientID(parsedData.selectedClientID);
-                if (parsedData.selectedTargets) setSelectedTargets(parsedData.selectedTargets);
-                if (parsedData.selectedSkills) setSelectedSkills(parsedData.selectedSkills);
-                if (parsedData.selectedMeasurementTypes) setSelectedMeasurementTypes(parsedData.selectedMeasurementTypes);
-                if (parsedData.dates) setDates(parsedData.dates);
-                if (parsedData.times) setTimes(parsedData.times);
-                if (parsedData.count) setCount(parsedData.count);
-                if (parsedData.duration) setDuration(parsedData.duration);
-            } catch (error) {
-                console.error('Failed to parse sessionStorage data:', error);
-            }
-        }
-        setIsInitialized(true);
+        hydrateStoredState(parseStoredDataEntryState());
     }, []);
         
     // Update storage

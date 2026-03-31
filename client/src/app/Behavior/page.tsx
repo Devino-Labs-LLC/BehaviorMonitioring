@@ -50,6 +50,38 @@ const TargetBehavior: React.FC = () => {
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
+    const updateCheckedBehaviorState = (nextCheckedBehaviors: SelectedBehaviorSkill[]) => {
+        sessionStorage.setItem('checkedBehaviors', JSON.stringify(nextCheckedBehaviors));
+        setCheckedBehaviors(nextCheckedBehaviors);
+    };
+
+    const buildCheckedBehavior = (selectedBehavior: BehaviorSkillOption): SelectedBehaviorSkill => ({
+        id: String(selectedBehavior.value),
+        name: selectedBehavior.label,
+        clientName: selectedClient,
+        measurementType: selectedBehavior.measurementType,
+    });
+
+    const addCheckedBehavior = (selectedBehavior: BehaviorSkillOption) => {
+        updateCheckedBehaviorState([
+            ...checkedBehaviors,
+            buildCheckedBehavior(selectedBehavior),
+        ]);
+    };
+
+    const removeCheckedBehavior = (selectedBehavior: BehaviorSkillOption) => {
+        updateCheckedBehaviorState(
+            checkedBehaviors.filter((behavior) => behavior.id !== String(selectedBehavior.value))
+        );
+    };
+
+    const updateCheckboxStateAtIndex = (index: number, isChecked: boolean) => {
+        const updatedCheckedState = [...checkedState];
+        updatedCheckedState[index] = isChecked;
+        setCheckedState(updatedCheckedState);
+        return updatedCheckedState;
+    };
+
     useEffect(() => {
         sessionStorage.removeItem('clientID');
         sessionStorage.removeItem('checkedBehaviors');
@@ -168,39 +200,18 @@ const TargetBehavior: React.FC = () => {
     };
 
     const handleCheckBoxChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        const updatedCheckedState = [...checkedState];
         const selectedBehavior = targetOptions[index];
         
         if (e.target.checked) {
-            const currentCheckedCount = updatedCheckedState.filter(Boolean).length;
+            const currentCheckedCount = checkedState.filter(Boolean).length;
         
             if (currentCheckedCount < maxCheckedLimit) {
-                updatedCheckedState[index] = true;
-                setCheckedState(updatedCheckedState);
-                
-                // Add clientName and measurementType to the checked behavior data
-                setCheckedBehaviors(prev => {
-                    const newCheckedBehaviors = [
-                        ...prev, 
-                        {
-                            id: String(selectedBehavior.value),
-                            name: selectedBehavior.label,
-                            clientName: selectedClient,  // Add clientName
-                            measurementType: selectedBehavior.measurementType,  // Add measurementType
-                        }
-                    ];
-                    sessionStorage.setItem('checkedBehaviors', JSON.stringify(newCheckedBehaviors));
-                    return newCheckedBehaviors;
-                });
+                updateCheckboxStateAtIndex(index, true);
+                addCheckedBehavior(selectedBehavior);
             }
         } else {
-            updatedCheckedState[index] = false;
-            setCheckedState(updatedCheckedState);
-            setCheckedBehaviors(prev => {
-                const newCheckedBehaviors = prev.filter(behavior => behavior.id !== String(selectedBehavior.value));
-                sessionStorage.setItem('checkedBehaviors', JSON.stringify(newCheckedBehaviors));
-                return newCheckedBehaviors;
-            });
+            updateCheckboxStateAtIndex(index, false);
+            removeCheckedBehavior(selectedBehavior);
         }
     };
         
