@@ -53,6 +53,15 @@ describe('JWT Token Functions', () => {
         'JWT_SECRET environment variable is not set. Cannot create access token.',
       );
     });
+
+    it('uses a custom access token ttl when configured', () => {
+      process.env.ACCESS_TOKEN_TTL = '30m';
+
+      const token = createAccessToken(mockUser);
+      const decoded = jwt.decode(token);
+
+      expect(decoded.exp - decoded.iat).toBe(1800);
+    });
   });
 
   describe('createRefreshToken', () => {
@@ -76,6 +85,15 @@ describe('JWT Token Functions', () => {
       expect(() => createRefreshToken(mockUser)).toThrow(
         'JWT_REFRESH_SECRET environment variable is not set. Cannot create refresh token.',
       );
+    });
+
+    it('uses a custom refresh token ttl when configured', () => {
+      process.env.REFRESH_TOKEN_TTL_DAYS = '14';
+
+      const token = createRefreshToken(123);
+      const decoded = jwt.decode(token);
+
+      expect(decoded.exp - decoded.iat).toBe(1209600);
     });
   });
 
@@ -121,6 +139,32 @@ describe('JWT Token Functions', () => {
       expect(() => {
         verifyRefreshToken('invalid-token');
       }).toThrow();
+    });
+
+    it('verifies tokens created with a production issuer', () => {
+      jest.resetModules();
+      process.env = {
+        ...process.env,
+        IN_PROD: 'true',
+        HOST: 'https://api.example.com',
+        PORT: '8443',
+        JWT_SECRET: 'test-secret',
+        JWT_REFRESH_SECRET: 'test-refresh-secret',
+        ClientHost: 'http://localhost:3000',
+      };
+
+      const {
+        createAccessToken: createProdAccessToken,
+        createRefreshToken: createProdRefreshToken,
+        verifyAccessToken: verifyProdAccessToken,
+        verifyRefreshToken: verifyProdRefreshToken,
+      } = require('../../../auth/tokens');
+
+      const accessToken = createProdAccessToken(mockUser);
+      const refreshToken = createProdRefreshToken(321);
+
+      expect(verifyProdAccessToken(accessToken).valid).toBe(true);
+      expect(verifyProdRefreshToken(refreshToken).sub).toBe(321);
     });
   });
 });

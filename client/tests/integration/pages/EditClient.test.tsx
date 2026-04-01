@@ -458,4 +458,50 @@ describe('EditClient Page Integration', () => {
 
     expect(mockBack).toHaveBeenCalled();
   });
+
+  it('shows a non-success update response message from the API', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [{ homeID: 4, homeName: 'Sunrise Home' }],
+        } as any);
+      }
+
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [
+            {
+              clientID: 1,
+              fName: 'Jane',
+              lName: 'Doe',
+              DOB: '2005-01-01',
+              homeID: 4,
+              intake_Date: '2026-03-01',
+              medicaid_id_number: 'MED-123',
+              behavior_plan_due_date: '2026-04-30',
+              companyID: 1,
+            },
+          ],
+        } as any);
+      }
+
+      if (path === '/admin/updateClient') {
+        return Promise.resolve({
+          statusCode: 400,
+          serverMessage: 'Unable to update client',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditClient />);
+
+    expect(await screen.findByDisplayValue('Jane')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Update Client' }));
+
+    expect(await screen.findByText('Error: Unable to update client')).toBeInTheDocument();
+  });
 });

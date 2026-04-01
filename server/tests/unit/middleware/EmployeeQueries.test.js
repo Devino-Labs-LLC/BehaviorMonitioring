@@ -42,6 +42,13 @@ describe('EmployeeQueries', () => {
       });
     });
 
+    it('returns false when employee existence lookups do not match', async () => {
+      Employee.findOne.mockResolvedValue(null);
+
+      await expect(employeeQueries.employeeExistByUsername('missing')).resolves.toBe(false);
+      await expect(employeeQueries.employeeExistByID(404)).resolves.toBe(false);
+    });
+
     it('returns employee data by username as plain data', async () => {
       Employee.findOne.mockResolvedValue({
         get: jest.fn(() => ({
@@ -124,6 +131,23 @@ describe('EmployeeQueries', () => {
       Employee.findOne.mockResolvedValue(null);
 
       await expect(employeeQueries.employeeDataByResetToken('missing-token')).resolves.toBeNull();
+    });
+
+    it('returns employee data by reset token as plain data', async () => {
+      Employee.findOne.mockResolvedValue({
+        get: jest.fn(() => ({
+          employeeID: 12,
+          username: 'janedoe',
+          password_reset_expires: '2026-04-02T00:00:00.000Z',
+        })),
+      });
+
+      await expect(employeeQueries.employeeDataByResetToken('valid-token')).resolves.toEqual(
+        expect.objectContaining({
+          employeeID: 12,
+          password_reset_expires: '2026-04-02T00:00:00.000Z',
+        }),
+      );
     });
 
     it('returns employee data by email as plain data', async () => {
@@ -420,6 +444,12 @@ describe('EmployeeQueries', () => {
       });
     });
 
+    it('returns false when a behavior skill does not exist', async () => {
+      BehaviorAndSkill.findOne.mockResolvedValue(null);
+
+      await expect(employeeQueries.behaviorSkillExistByID(999, 11)).resolves.toBe(false);
+    });
+
     it('creates frequency behavior data with active status', async () => {
       BehaviorData.create.mockResolvedValue({ behaviorDataID: 5 });
 
@@ -511,7 +541,112 @@ describe('EmployeeQueries', () => {
     it('rethrows lookup errors as Error instances', async () => {
       Employee.findOne.mockRejectedValue('lookup failed');
 
+      await expect(employeeQueries.employeeExistByUsername('jdoe')).rejects.toThrow('lookup failed');
       await expect(employeeQueries.employeeExistByID(4)).rejects.toThrow('lookup failed');
+    });
+
+    it.each([
+      ['employeeDataByUsername', () => employeeQueries.employeeDataByUsername('jdoe')],
+      ['employeeDataById', () => employeeQueries.employeeDataById(7)],
+      ['employeePasswordByUsername', () => employeeQueries.employeePasswordByUsername('jdoe')],
+      ['employeePasswordById', () => employeeQueries.employeePasswordById(7)],
+      ['employeeDataByEmail', () => employeeQueries.employeeDataByEmail('jane@example.com')],
+      ['employeeDataByResetToken', () => employeeQueries.employeeDataByResetToken('reset-token')],
+      [
+        'behaviorSkillExistByID',
+        () => employeeQueries.behaviorSkillExistByID(3, 11),
+      ],
+    ])('rethrows lookup errors for %s', async (_name, runQuery) => {
+      Employee.findOne.mockRejectedValue(new Error('lookup failed'));
+      BehaviorAndSkill.findOne.mockRejectedValue(new Error('lookup failed'));
+
+      await expect(runQuery()).rejects.toThrow('lookup failed');
+    });
+
+    it.each([
+      [
+        'employeeUpdateEmployeeAccountByUsername',
+        () =>
+          employeeQueries.employeeUpdateEmployeeAccountByUsername(
+            'John',
+            'Doe',
+            'john@example.com',
+            '555-111-2222',
+            'hashed-password',
+            'jdoe',
+            4,
+          ),
+      ],
+      [
+        'employeeUpdateEmployeeAccountByID',
+        () =>
+          employeeQueries.employeeUpdateEmployeeAccountByID(
+            'John',
+            'Doe',
+            'john@example.com',
+            '555-111-2222',
+            'hashed-password',
+            8,
+            4,
+          ),
+      ],
+      [
+        'employeeUpdateEmployeeAccountWithoutPasswordByUsername',
+        () =>
+          employeeQueries.employeeUpdateEmployeeAccountWithoutPasswordByUsername(
+            'Jane',
+            'Smith',
+            'jane@example.com',
+            '555-333-4444',
+            'jsmith',
+            12,
+          ),
+      ],
+      [
+        'employeeUpdateEmployeeAccountWithoutPasswordByID',
+        () =>
+          employeeQueries.employeeUpdateEmployeeAccountWithoutPasswordByID(
+            'Jane',
+            'Smith',
+            'jane@example.com',
+            '555-333-4444',
+            8,
+            12,
+          ),
+      ],
+      [
+        'employeeUpdateEmployeeAccountStatusByUsername',
+        () => employeeQueries.employeeUpdateEmployeeAccountStatusByUsername('Active', 'jdoe', 4),
+      ],
+      [
+        'employeeUpdateEmployeeStatusAccountByID',
+        () => employeeQueries.employeeUpdateEmployeeStatusAccountByID('Inactive', 8, 4),
+      ],
+      [
+        'employeeSetEmployeeCredentialsByUsername',
+        () => employeeQueries.employeeSetEmployeeCredentialsByUsername('new-hash', 'jdoe', 4),
+      ],
+      [
+        'employeeSetEmployeeCredentialsByID',
+        () => employeeQueries.employeeSetEmployeeCredentialsByID('new-hash', 8, 4),
+      ],
+      [
+        'employeeSetPasswordResetToken',
+        () =>
+          employeeQueries.employeeSetPasswordResetToken(
+            8,
+            'reset-token',
+            new Date('2026-04-01T12:00:00.000Z'),
+          ),
+      ],
+      [
+        'employeeResetPassword',
+        () => employeeQueries.employeeResetPassword(8, 'new-hash'),
+      ],
+    ])('rethrows update errors for %s', async (_name, runQuery) => {
+      Employee.update.mockRejectedValue(new Error('update failed'));
+
+      await expect(runQuery()).rejects.toThrow('update failed');
     });
 
     it('rethrows behavior creation errors', async () => {
@@ -530,6 +665,45 @@ describe('EmployeeQueries', () => {
           compName: 'BMetrics',
           dateEntered: '2026-03-31',
           timeEntered: '10:05',
+        }),
+      ).rejects.toThrow('create failed');
+    });
+
+    it('rethrows rate and duration behavior creation errors', async () => {
+      BehaviorData.create
+        .mockRejectedValueOnce(new Error('create failed'))
+        .mockRejectedValueOnce(new Error('create failed'));
+
+      await expect(
+        employeeQueries.employeeAddRateBehaviorData({
+          bsID: 3,
+          cID: 10,
+          cName: 'John Doe',
+          sDate: '2026-03-31',
+          sTime: '11:00',
+          count: 2,
+          duration: '00:15:00',
+          enteredBy: 'testuser',
+          compID: 11,
+          compName: 'BMetrics',
+          dateEntered: '2026-03-31',
+          timeEntered: '11:05',
+        }),
+      ).rejects.toThrow('create failed');
+
+      await expect(
+        employeeQueries.employeeAddDurationBehaviorData({
+          bsID: 3,
+          cID: 10,
+          cName: 'John Doe',
+          sDate: '2026-03-31',
+          sTime: '12:00',
+          trial: '00:02:30',
+          enteredBy: 'testuser',
+          compID: 11,
+          compName: 'BMetrics',
+          dateEntered: '2026-03-31',
+          timeEntered: '12:05',
         }),
       ).rejects.toThrow('create failed');
     });

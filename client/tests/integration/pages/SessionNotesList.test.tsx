@@ -291,4 +291,28 @@ describe('SessionNotes List Page Integration', () => {
 
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
+
+  it('shows an error when deleting a session note fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockSessionNotes,
+      } as any)
+      .mockRejectedValueOnce(new Error('delete failed'));
+
+    render(<SessionNotesPage />);
+
+    const ellipsisButtons = await screen.findAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: /confirm selection/i }));
+
+    expect(await screen.findByText('Error: delete failed')).toBeInTheDocument();
+  });
 });

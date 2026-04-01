@@ -294,4 +294,118 @@ describe('AddClient Page Integration', () => {
 
     expect(await screen.findByText('create failed')).toBeInTheDocument();
   });
+
+  it('redirects logged-out users to login', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: false,
+      isAdmin: false,
+      username: '',
+    });
+
+    render(<AddClient />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('redirects non-admin users to the home page', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: false,
+      username: 'testuser',
+    });
+
+    render(<AddClient />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('closes the confirmation modal when review is selected', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [{ homeID: 4, homeName: 'Sunrise Home' }],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<AddClient />);
+
+    await screen.findByRole('option', { name: 'Sunrise Home' });
+
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Doe' } });
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '2005-01-01' } });
+    fireEvent.change(screen.getByLabelText('Home'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Intake Date'), { target: { value: '2026-03-31' } });
+    fireEvent.change(screen.getByLabelText('Medicaid ID Number'), { target: { value: 'MED-123' } });
+    fireEvent.change(screen.getByLabelText('Behavior Plan Due Date'), {
+      target: { value: '2026-04-30' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Client' }));
+
+    expect(
+      await screen.findByText(
+        'Please confirm the client details are correct before creating this client record.',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(
+          'Please confirm the client details are correct before creating this client record.',
+        ),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a server error when create-client returns a non-success status', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [{ homeID: 4, homeName: 'Sunrise Home' }],
+        } as any);
+      }
+
+      if (path === '/admin/createClient') {
+        return Promise.resolve({
+          statusCode: 400,
+          serverMessage: 'Client already exists',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<AddClient />);
+
+    await screen.findByRole('option', { name: 'Sunrise Home' });
+
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Doe' } });
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '2005-01-01' } });
+    fireEvent.change(screen.getByLabelText('Home'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Intake Date'), { target: { value: '2026-03-31' } });
+    fireEvent.change(screen.getByLabelText('Medicaid ID Number'), { target: { value: 'MED-123' } });
+    fireEvent.change(screen.getByLabelText('Behavior Plan Due Date'), {
+      target: { value: '2026-04-30' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Client' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create Client' })[1]);
+
+    expect(await screen.findByText('Client already exists')).toBeInTheDocument();
+  });
 });

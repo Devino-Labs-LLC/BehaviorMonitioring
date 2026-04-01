@@ -118,6 +118,25 @@ describe('authorizationHelper', () => {
     });
   });
 
+  it('rejects basic authentication when the user is not assigned to a valid company', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({
+      username: 'employee.user',
+      role: 'employee',
+      companyID: 0,
+    });
+    const res = { json: jest.fn() };
+
+    await expect(
+      verifyBasicAuthentication({ body: { employeeUsername: 'employee.user' } }, res)
+    ).resolves.toBeNull();
+
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 403,
+      serverMessage: 'User is not assigned to a valid company',
+    });
+  });
+
   it('rejects unauthenticated users during authorization and basic authentication', async () => {
     employeeQueries.employeeExistByUsername.mockResolvedValue(false);
     const res = { json: jest.fn() };

@@ -46,6 +46,23 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
     });
 
     describe('sendSignupVerification', () => {
+        it('should bypass outbound email delivery during GitHub Actions test startup', async () => {
+            process.env.GITHUB_ACTIONS = 'true';
+            process.env.NODE_ENV = 'test';
+            delete process.env.JEST_WORKER_ID;
+
+            const result = await emailTemplate.sendSignupVerification(
+                'user@example.com',
+                'John',
+                'Doe',
+                'test-token-123'
+            );
+
+            expect(result).toBe(true);
+            expect(mockResendEmails.send).not.toHaveBeenCalled();
+            expect(mockSendMail).not.toHaveBeenCalled();
+        });
+
         it('should send signup verification email using Resend', async () => {
             mockResendEmails.send.mockResolvedValue({
                 error: null,
@@ -88,6 +105,7 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
             expect(result).toBe(true);
             expect(mockSendMail).toHaveBeenCalledWith(
                 expect.objectContaining({
+                    from: expect.stringContaining('BMetrics'),
                     to: 'user@example.com',
                     subject: 'BMetrics - Verify Your Account'
                 })

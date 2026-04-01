@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Dashboard from '../../../src/app/Dashboard/page';
 import { api } from '../../../src/lib/Api';
 
@@ -120,6 +120,58 @@ describe('Dashboard Page Integration', () => {
 
     await waitFor(() => {
       expect(screen.getByText('User is not assigned to a valid company')).toBeInTheDocument();
+    });
+  });
+
+  it('shows an empty-state message when the selected client has no behaviors', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText('No data available within range.')).toBeInTheDocument();
+  });
+
+  it('updates the dashboard when a different client is selected', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 10, name: 'Aggression', measurement: 'Frequency' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 20, name: 'Elopement', measurement: 'Duration' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<Dashboard />);
+
+    const clientSelect = await screen.findByLabelText('Client');
+    fireEvent.change(clientSelect, { target: { value: '2' } });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getClientTargetBehavior', {
+        clientID: '2',
+        employeeUsername: 'testuser',
+      });
     });
   });
 

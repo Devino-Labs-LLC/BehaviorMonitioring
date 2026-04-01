@@ -85,6 +85,18 @@ describe('VerificationCheck Utility Functions', () => {
       expect(GetLoggedInUserStatus()).toBe(false);
     });
 
+    it('returns false when stored user data marks the user as logged out', () => {
+      jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() =>
+        JSON.stringify({
+          bmLoggedInStatus: false,
+          bmUsername: 'janedoe',
+          bmAdmin: false,
+        }),
+      );
+
+      expect(GetLoggedInUserStatus()).toBe(false);
+    });
+
     it('returns true while bootstrap is in progress when stored user data exists', () => {
       mockGetBootstrapStatus.mockReturnValue({
         isBootstrapped: false,
@@ -118,6 +130,23 @@ describe('VerificationCheck Utility Functions', () => {
       expect(GetLoggedInUserStatus()).toBe(false);
       expect(mockClearScheduledRefresh).toHaveBeenCalled();
       expect(Storage.prototype.removeItem).toHaveBeenCalledWith('bmUserData');
+    });
+
+    it('returns true after bootstrap completes when an access token still exists', () => {
+      mockGetBootstrapStatus.mockReturnValue({
+        isBootstrapped: true,
+        isBootstrapping: false,
+      });
+      mockGetAccessToken.mockReturnValue('still-valid-token');
+      jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() =>
+        JSON.stringify({
+          bmLoggedInStatus: true,
+          bmUsername: 'janedoe',
+          bmAdmin: true,
+        }),
+      );
+
+      expect(GetLoggedInUserStatus()).toBe(true);
     });
 
     it('returns username and admin status when a valid session exists', () => {
@@ -177,6 +206,17 @@ describe('VerificationCheck Utility Functions', () => {
       );
 
       expect(NeedToLogout('janedoe')).toBe(false);
+    });
+
+    it('returns null username and false admin status when no active session exists', () => {
+      expect(GetLoggedInUser()).toBeNull();
+      expect(GetAdminStatus()).toBe(false);
+    });
+
+    it('forces logout when there is no active session to preserve', () => {
+      expect(NeedToLogout('janedoe')).toBe(true);
+      expect(mockClearScheduledRefresh).toHaveBeenCalled();
+      expect(Storage.prototype.removeItem).toHaveBeenCalledWith('bmUserData');
     });
   });
 
