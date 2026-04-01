@@ -1,11 +1,12 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EditClient from '../../../src/app/Admin/manageClients/edit/page';
 import { api } from '../../../src/lib/Api';
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockSearchParamGet = jest.fn();
+const mockUseAuth = jest.fn();
 const mockRouter = {
   push: mockPush,
   replace: jest.fn(),
@@ -20,12 +21,7 @@ jest.mock('../../../src/lib/Api', () => ({
   api: jest.fn(),
 }));
 jest.mock('../../../src/hooks/useAuth', () => ({
-  useAuth: () => ({
-    isReady: true,
-    isLoggedIn: true,
-    isAdmin: true,
-    username: 'testadmin',
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 jest.mock('../../../src/function/debounce', () => ({
   debounceAsync: (fn: (...args: any[]) => unknown) => (...args: any[]) => fn(...args),
@@ -99,7 +95,14 @@ const mockApi = api as jest.MockedFunction<typeof api>;
 describe('EditClient Page Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     mockSearchParamGet.mockReturnValue('1');
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: 'testadmin',
+    });
   });
 
   it('redirects back to the list when no client ID is provided', async () => {
@@ -156,7 +159,119 @@ describe('EditClient Page Integration', () => {
     });
   });
 
+  it('redirects logged-out users to login', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: false,
+      isAdmin: false,
+      username: '',
+    });
+
+    render(<EditClient />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('redirects non-admin users to the home page', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: false,
+      username: 'testadmin',
+    });
+
+    render(<EditClient />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('shows a validation error when required fields are missing', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [{ homeID: 4, homeName: 'Sunrise Home' }],
+        } as any);
+      }
+
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [
+            {
+              clientID: 1,
+              fName: 'Jane',
+              lName: 'Doe',
+              DOB: '2005-01-01',
+              homeID: 4,
+              intake_Date: '2026-03-01',
+              medicaid_id_number: 'MED-123',
+              behavior_plan_due_date: '2026-04-30',
+              companyID: 1,
+            },
+          ],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditClient />);
+
+    expect(await screen.findByDisplayValue('Jane')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update Client' }));
+
+    expect(await screen.findByText('First name is required')).toBeInTheDocument();
+    expect(mockApi).not.toHaveBeenCalledWith('post', '/admin/updateClient', expect.anything());
+  });
+
+  it('falls back to a default home option when home lookup fails', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.reject(new Error('home lookup failed'));
+      }
+
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [
+            {
+              clientID: 1,
+              fName: 'Jane',
+              lName: 'Doe',
+              DOB: '2005-01-01',
+              homeID: 1,
+              intake_Date: '2026-03-01',
+              medicaid_id_number: 'MED-123',
+              behavior_plan_due_date: '2026-04-30',
+              companyID: 1,
+            },
+          ],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    render(<EditClient />);
+
+    expect(await screen.findByDisplayValue('Jane')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Main Home' })).toBeInTheDocument();
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it('updates the client and returns to the list', async () => {
+    jest.useFakeTimers();
+
     mockApi.mockImplementation((method, path) => {
       if (path === '/admin/getAllHomes') {
         return Promise.resolve({
@@ -215,5 +330,11 @@ describe('EditClient Page Integration', () => {
         employeeUsername: 'testadmin',
       });
     });
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/Admin/manageClients');
   });
 });

@@ -4,11 +4,34 @@ import LineGraph from '../../../src/components/LineGraph';
 
 const mockLine = jest.fn(() => <div data-testid="line-chart" />);
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __chartRegisterArgs__: any[] | undefined;
+}
+
 jest.mock('react-chartjs-2', () => ({
   Line: (props: any) => {
     mockLine(props);
     return <div data-testid="line-chart" />;
   },
+}));
+jest.mock('chart.js', () => ({
+  Chart: {
+    register: (...args: any[]) => {
+      globalThis.__chartRegisterArgs__ = args;
+    },
+  },
+  CategoryScale: {},
+  LinearScale: {},
+  PointElement: {},
+  LineElement: {},
+  Title: {},
+  Tooltip: {},
+  Legend: {},
+}));
+jest.mock('chartjs-plugin-annotation', () => ({
+  __esModule: true,
+  default: { id: 'annotationPlugin' },
 }));
 
 describe('LineGraph component', () => {
@@ -88,5 +111,81 @@ describe('LineGraph component', () => {
       dataset: { label: '' },
       raw: null,
     })).toBe(': 0');
+  });
+
+  it('builds average markers at the midpoint and avg annotation labels with decimals', () => {
+    render(
+      <LineGraph
+        average={0}
+        data={{
+          labels: ['day1', 'day2', 'day3', 'day4', 'day5'],
+          title: 'Midpoint Coverage',
+          measurementType: 'Rate',
+          datasets: [
+            {
+              label: 'Target',
+              data: [1, 2, 3, 4, 5],
+              borderColor: 'green',
+            },
+          ],
+        }}
+      />,
+    );
+
+    const props = mockLine.mock.calls[mockLine.mock.calls.length - 1][0];
+    expect(props.data.datasets[1].data).toEqual([null, null, 3, null, null]);
+    expect(props.data.datasets[1].pointBorderColor).toBe('green');
+    expect(props.options.plugins.annotation.annotations['averageLine-0'].label.content).toBe(
+      'Target Avg: 3.00',
+    );
+  });
+
+  it('registers and runs the custom background plugin safely', () => {
+    const backgroundPlugin = globalThis.__chartRegisterArgs__?.find(
+      (plugin: any) => plugin?.id === 'backgroundColor',
+    );
+    expect(backgroundPlugin).toBeDefined();
+
+    const fillRect = jest.fn();
+    const save = jest.fn();
+    const restore = jest.fn();
+
+    backgroundPlugin.beforeDraw({
+      ctx: {
+        save,
+        restore,
+        fillRect,
+        fillStyle: '',
+      },
+      chartArea: {
+        left: 10,
+        top: 40,
+        right: 110,
+      },
+      width: 200,
+      height: 100,
+      options: {
+        plugins: {
+          title: {
+            display: true,
+          },
+        },
+      },
+    });
+
+    expect(save).toHaveBeenCalled();
+    expect(fillRect).toHaveBeenCalledWith(0, 0, 200, 100);
+    expect(fillRect).toHaveBeenCalledWith(10, 10, 100, 30);
+    expect(restore).toHaveBeenCalled();
+
+    expect(() =>
+      backgroundPlugin.beforeDraw({
+        ctx: null,
+        chartArea: {},
+        width: null,
+        height: null,
+        options: {},
+      }),
+    ).not.toThrow();
   });
 });

@@ -1,11 +1,12 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EditAdmin from '../../../src/app/Admin/manageAdmins/edit/page';
 import { api } from '../../../src/lib/Api';
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockSearchParamGet = jest.fn();
+const mockUseAuth = jest.fn();
 const mockRouter = {
   push: mockPush,
   replace: jest.fn(),
@@ -17,12 +18,7 @@ jest.mock('../../../src/lib/Api', () => ({
   api: jest.fn(),
 }));
 jest.mock('../../../src/hooks/useAuth', () => ({
-  useAuth: () => ({
-    isReady: true,
-    isLoggedIn: true,
-    isAdmin: true,
-    username: 'testadmin',
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUser: () => 'testadmin',
@@ -80,7 +76,14 @@ const mockApi = api as jest.MockedFunction<typeof api>;
 describe('EditAdmin Page Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     mockSearchParamGet.mockReturnValue('7');
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: 'testadmin',
+    });
   });
 
   it('redirects back to the admin list when no admin id is provided', async () => {
@@ -126,7 +129,74 @@ describe('EditAdmin Page Integration', () => {
     expect(screen.getByDisplayValue('5551234567')).toBeInTheDocument();
   });
 
+  it('redirects logged-out users to login', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: false,
+      isAdmin: false,
+      username: '',
+    });
+
+    render(<EditAdmin />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('redirects non-admin users to the home page', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: false,
+      username: 'testadmin',
+    });
+
+    render(<EditAdmin />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('shows a validation error for invalid email input', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllAdmins') {
+        return Promise.resolve({
+          statusCode: 200,
+          admins: [
+            {
+              adminID: 7,
+              firstName: 'Jane',
+              lastName: 'Doe',
+              email: 'jane@example.com',
+              phone: '5551234567',
+              role: 'manager',
+              isActive: true,
+            },
+          ],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditAdmin />);
+
+    await screen.findByDisplayValue('Jane');
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: 'Update Admin' }).closest('form')!);
+
+    expect(await screen.findByText('Invalid email format')).toBeInTheDocument();
+    expect(mockApi).not.toHaveBeenCalledWith('post', '/admin/updateAnEmployeeDetail', expect.anything());
+  });
+
   it('updates the admin and account status', async () => {
+    jest.useFakeTimers();
+
     mockApi.mockImplementation((method, path) => {
       if (path === '/admin/getAllAdmins') {
         return Promise.resolve({
@@ -192,5 +262,42 @@ describe('EditAdmin Page Integration', () => {
       accountStatus: 'Inactive',
       employeeUsername: 'testadmin',
     });
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/Admin/manageAdmins');
+  });
+
+  it('supports the back action from the toolbar', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllAdmins') {
+        return Promise.resolve({
+          statusCode: 200,
+          admins: [
+            {
+              adminID: 7,
+              firstName: 'Jane',
+              lastName: 'Doe',
+              email: 'jane@example.com',
+              phone: '5551234567',
+              role: 'manager',
+              isActive: true,
+            },
+          ],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditAdmin />);
+
+    await screen.findByDisplayValue('Jane');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(mockBack).toHaveBeenCalled();
   });
 });

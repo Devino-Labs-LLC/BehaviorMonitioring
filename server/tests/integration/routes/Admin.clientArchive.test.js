@@ -44,6 +44,135 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
     jest.clearAllMocks();
   });
 
+  describe('POST /admin/createClient', () => {
+    it('should create a client successfully', async () => {
+      adminQueries.adminAddNewClient = jest.fn().mockResolvedValue({
+        clientID: 10,
+        fName: 'John',
+        lName: 'Doe',
+      });
+
+      const response = await request(app)
+        .post('/admin/createClient')
+        .send({
+          fName: 'John',
+          lName: 'Doe',
+          DOB: '2000-01-01',
+          intakeDate: '2026-01-29',
+          groupHomeName: 'Sunrise',
+          medicaidIdNumber: '123456',
+          behaviorPlanDueDate: '2026-02-15',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        statusCode: 201,
+        serverMessage: 'Client created successfully',
+        client: {
+          clientID: 10,
+          fName: 'John',
+          lName: 'Doe',
+        },
+      });
+      expect(adminQueries.adminAddNewClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fName: 'John',
+          lName: 'Doe',
+          enteredBy: 'Admin User',
+          compID: 1,
+          compName: 'Test Company',
+        })
+      );
+    });
+  });
+
+  describe('POST /admin/updateClient', () => {
+    it('should return 404 when the client does not exist', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/updateClient')
+        .send({
+          clientID: 999,
+          fName: 'John',
+          lName: 'Doe',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        statusCode: 404,
+        serverMessage: 'Client not found',
+      });
+    });
+
+    it('should update a client successfully', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(true);
+      adminQueries.adminUpdateClient = jest.fn().mockResolvedValue(true);
+
+      const response = await request(app)
+        .post('/admin/updateClient')
+        .send({
+          clientID: 5,
+          fName: 'Jane',
+          lName: 'Smith',
+          DOB: '2001-02-03',
+          intakeDate: '2026-01-29',
+          groupHomeName: 'Sunrise',
+          medicaidIdNumber: 'ABC123',
+          behaviorPlanDueDate: '2026-02-15',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        statusCode: 200,
+        serverMessage: 'Client updated successfully',
+      });
+      expect(adminQueries.adminUpdateClient).toHaveBeenCalledWith({
+        clientID: 5,
+        fName: 'Jane',
+        lName: 'Smith',
+        DOB: '2001-02-03',
+        intakeDate: '2026-01-29',
+        groupHomeName: 'Sunrise',
+        medicaidIdNumber: 'ABC123',
+        behaviorPlanDueDate: '2026-02-15',
+        compID: 1,
+      });
+    });
+  });
+
+  describe('POST /admin/deleteClient', () => {
+    it('should return 404 when the client does not exist', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/deleteClient')
+        .send({ clientID: 404 });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        statusCode: 404,
+        serverMessage: 'Client not found',
+      });
+    });
+
+    it('should delete a client successfully', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(true);
+      adminQueries.adminDeleteClient = jest.fn().mockResolvedValue(true);
+
+      const response = await request(app)
+        .post('/admin/deleteClient')
+        .send({ clientID: 5 });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        statusCode: 200,
+        serverMessage: 'Client deleted successfully',
+      });
+      expect(adminQueries.adminDeleteClient).toHaveBeenCalledWith(5, 1);
+    });
+  });
+
   describe('POST /admin/archiveClient', () => {
     it('should archive a client successfully', async () => {
       adminQueries.clientDataById = jest.fn().mockResolvedValue({

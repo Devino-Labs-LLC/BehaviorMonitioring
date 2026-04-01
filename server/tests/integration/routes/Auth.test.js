@@ -309,6 +309,66 @@ describe('Auth API Integration Tests', () => {
       expect(insertRefreshToken).toHaveBeenCalled();
       expect(setRefreshCookie).toHaveBeenCalledWith(expect.any(Object), 'refresh-token');
     });
+
+    it('returns 401 when the stored refresh token is expired', async () => {
+      verifyRefreshToken.mockReturnValue({ sub: 1 });
+      findRefreshToken.mockResolvedValue([
+        {
+          expires_at: new Date(Date.now() - 60_000).toISOString(),
+          revoked: 0,
+          device_id: 'device-123',
+        },
+      ]);
+
+      const response = await postWithCsrfAndCookies('/auth/refresh', ['bmRefreshToken=refresh-token']);
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Invalid refresh token');
+      expect(clearRefreshCookie).toHaveBeenCalled();
+    });
+
+    it('returns 401 when the user for the refresh token no longer exists', async () => {
+      verifyRefreshToken.mockReturnValue({ sub: 1 });
+      findRefreshToken.mockResolvedValue([
+        {
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+          revoked: 0,
+          device_id: 'device-123',
+        },
+      ]);
+      employeeQueries.employeeDataById = jest.fn().mockResolvedValue(null);
+
+      const response = await postWithCsrfAndCookies('/auth/refresh', ['bmRefreshToken=refresh-token']);
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('User not found');
+      expect(clearRefreshCookie).toHaveBeenCalled();
+    });
+
+    it('still returns an access token when refresh token insertion races on a duplicate row', async () => {
+      verifyRefreshToken.mockReturnValue({ sub: 1 });
+      findRefreshToken.mockResolvedValue([
+        {
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+          revoked: 0,
+          device_id: 'device-123',
+        },
+      ]);
+      employeeQueries.employeeDataById = jest.fn().mockResolvedValue({
+        employeeID: 1,
+        email: 'test@example.com',
+        role: 'admin',
+        companyID: 1,
+      });
+      rotateRefreshToken.mockResolvedValue(true);
+      insertRefreshToken.mockRejectedValue({ name: 'SequelizeUniqueConstraintError' });
+
+      const response = await postWithCsrfAndCookies('/auth/refresh', ['bmRefreshToken=refresh-token']);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ accessToken: 'access-token' });
+      expect(setRefreshCookie).toHaveBeenCalledWith(expect.any(Object), 'refresh-token');
+    });
   });
 
   describe('POST /auth/verifyEmployeeLogout', () => {
@@ -370,6 +430,46 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('POST /auth/reset-password', () => {
+    it('rejects requests with missing fields', async () => {
+      const response = await postWithCsrf('/auth/reset-password', {
+        token: 'token-only',
+      });
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        success: false,
+        message: 'All fields are required',
+      });
+    });
+
+    it('rejects mismatched passwords', async () => {
+      const response = await postWithCsrf('/auth/reset-password', {
+        token: 'token',
+        newPassword: 'NewPassword123',
+        confirmPassword: 'DifferentPassword123',
+      });
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        success: false,
+        message: 'Passwords do not match',
+      });
+    });
+
+    it('rejects weak passwords', async () => {
+      const response = await postWithCsrf('/auth/reset-password', {
+        token: 'token',
+        newPassword: 'weak',
+        confirmPassword: 'weak',
+      });
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        success: false,
+        message: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number',
+      });
+    });
+
     it('rejects invalid reset tokens', async () => {
       employeeQueries.employeeDataByResetToken = jest.fn().mockResolvedValue(null);
 
@@ -383,6 +483,26 @@ describe('Auth API Integration Tests', () => {
         statusCode: 400,
         success: false,
         message: 'Invalid or expired reset token',
+      });
+    });
+
+    it('rejects expired reset tokens', async () => {
+      employeeQueries.employeeDataByResetToken = jest.fn().mockResolvedValue({
+        employeeID: 1,
+        email: 'user@example.com',
+        password_reset_expires: new Date(Date.now() - 60_000).toISOString(),
+      });
+
+      const response = await postWithCsrf('/auth/reset-password', {
+        token: 'expired-token',
+        newPassword: 'NewPassword123',
+        confirmPassword: 'NewPassword123',
+      });
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        success: false,
+        message: 'Reset token has expired. Please request a new one.',
       });
     });
 
@@ -411,6 +531,16 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('POST /auth/verify-email', () => {
+    it('rejects requests without a verification token', async () => {
+      const response = await postWithCsrf('/auth/verify-email', {});
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        success: false,
+        message: 'Verification token is required',
+      });
+    });
+
     it('rejects invalid verification tokens', async () => {
       Employee.findOne.mockResolvedValue(null);
 
@@ -422,6 +552,25 @@ describe('Auth API Integration Tests', () => {
         statusCode: 400,
         success: false,
         message: 'Invalid verification token',
+      });
+    });
+
+    it('rejects expired verification tokens', async () => {
+      Employee.findOne.mockResolvedValue({
+        employeeID: 1,
+        email: 'user@example.com',
+        email_verified: false,
+        verification_token_expires: new Date(Date.now() - 60_000).toISOString(),
+      });
+
+      const response = await postWithCsrf('/auth/verify-email', {
+        token: 'expired-token',
+      });
+
+      expect(response.body).toEqual({
+        statusCode: 400,
+        success: false,
+        message: 'Verification token has expired. Please request a new one.',
       });
     });
 
@@ -439,6 +588,37 @@ describe('Auth API Integration Tests', () => {
         success: true,
         message: 'Email is already verified. You can now log in.',
       });
+    });
+
+    it('verifies email and activates accounts that should be auto-activated', async () => {
+      Employee.findOne.mockResolvedValue({
+        employeeID: 7,
+        email: 'admin@example.com',
+        role: 'admin',
+        account_status: 'In Verification',
+        email_verified: false,
+        verification_token_expires: new Date(Date.now() + 60_000).toISOString(),
+      });
+      Employee.update.mockResolvedValue([1]);
+
+      const response = await postWithCsrf('/auth/verify-email', {
+        token: 'good-token',
+      });
+
+      expect(response.body).toEqual({
+        statusCode: 200,
+        success: true,
+        message: 'Email successfully verified! You can now log in.',
+      });
+      expect(Employee.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email_verified: true,
+          verification_token: null,
+          verification_token_expires: null,
+          account_status: 'Active',
+        }),
+        { where: { employeeID: 7 } }
+      );
     });
   });
 });
