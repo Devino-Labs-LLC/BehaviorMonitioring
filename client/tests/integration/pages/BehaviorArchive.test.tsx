@@ -52,7 +52,12 @@ jest.mock('../../../src/components/PopoutPrompt', () => (props: any) =>
   ) : null,
 );
 jest.mock('../../../src/components/NoClientsPrompt', () => (props: any) =>
-  props.isVisible ? <div>No clients prompt</div> : null,
+  props.isVisible ? (
+    <div>
+      <p>No clients prompt</p>
+      <button type="button" onClick={props.onClose}>Dismiss prompt</button>
+    </div>
+  ) : null,
 );
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -148,6 +153,36 @@ describe('Behavior Archive Page Integration', () => {
     expect(mockPush).toHaveBeenCalledWith('/Behavior/Archive_Detail');
   });
 
+  it('opens behavior detail when the definition or measurement cell is clicked', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await screen.findByText('Aggressive behavior');
+    fireEvent.click(screen.getByText('Aggressive behavior'));
+    fireEvent.click(screen.getByText('Frequency'));
+
+    expect(Storage.prototype.setItem).toHaveBeenCalledWith('archivedBehaviorID', '7');
+    expect(mockPush).toHaveBeenCalledWith('/Behavior/Archive_Detail');
+  });
+
   it('shows the no-clients prompt when no clients are available', async () => {
     mockApi.mockResolvedValueOnce({
       statusCode: 200,
@@ -158,6 +193,23 @@ describe('Behavior Archive Page Integration', () => {
 
     await waitFor(() => {
       expect(screen.getByText('No clients prompt')).toBeInTheDocument();
+    });
+  });
+
+  it('closes the no-clients prompt when dismissed', async () => {
+    const user = userEvent.setup();
+
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      clientData: [],
+    } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Dismiss prompt' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('No clients prompt')).not.toBeInTheDocument();
     });
   });
 
@@ -335,6 +387,36 @@ describe('Behavior Archive Page Integration', () => {
     render(<BehaviorArchive />);
 
     expect(await screen.findByText('Error: Failed to load archived behaviors')).toBeInTheDocument();
+  });
+
+  it('shows the server message when archived behavior fetch returns a non-200 status', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Archive lookup failed',
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    expect(await screen.findByText('Error: Archive lookup failed')).toBeInTheDocument();
+  });
+
+  it('redirects to login when loading clients throws an unauthorized error', async () => {
+    mockApi.mockRejectedValueOnce({
+      response: {
+        status: 401,
+      },
+    });
+
+    render(<BehaviorArchive />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
   });
 
   it('closes the popout when the user cancels the action', async () => {

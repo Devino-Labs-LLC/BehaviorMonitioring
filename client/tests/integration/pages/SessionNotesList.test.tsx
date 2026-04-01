@@ -206,6 +206,28 @@ describe('SessionNotes List Page Integration', () => {
     expect(screen.getByRole('button', { name: /add new home/i })).toBeInTheDocument();
   });
 
+  it('closes the empty-state prompt when dismissed', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        homes: [],
+      } as any);
+
+    render(<SessionNotesPage />);
+
+    await user.click(await screen.findByRole('button', { name: /close/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/no homes found/i)).not.toBeInTheDocument();
+    });
+  });
+
   it('loads session notes for a newly selected client', async () => {
     const user = userEvent.setup();
 
@@ -270,6 +292,30 @@ describe('SessionNotes List Page Integration', () => {
     expect(checkboxes[4]).toBeDisabled();
   });
 
+  it('removes a note from session storage when a checked box is unchecked', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockSessionNotes,
+      } as any);
+
+    Storage.prototype.getItem = jest.fn(() => JSON.stringify([{ id: '1', name: 'Client showed improvement.', clientName: 'John Doe' }]));
+
+    render(<SessionNotesPage />);
+
+    const checkboxes = await screen.findAllByRole('checkbox');
+    await user.click(checkboxes[0]);
+    await user.click(checkboxes[0]);
+
+    expect(Storage.prototype.setItem).toHaveBeenLastCalledWith('checkedNotes', JSON.stringify([]));
+  });
+
   it('closes the row action menu without taking action', async () => {
     const user = userEvent.setup();
 
@@ -314,5 +360,75 @@ describe('SessionNotes List Page Integration', () => {
     await user.click(screen.getByRole('button', { name: /confirm selection/i }));
 
     expect(await screen.findByText('Error: delete failed')).toBeInTheDocument();
+  });
+
+  it('shows a server-side fetch failure when session note loading returns a non-200 status', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Failed to load notes',
+      } as any);
+
+    render(<SessionNotesPage />);
+
+    expect(await screen.findByText('Error: Failed to load notes')).toBeInTheDocument();
+  });
+
+  it('redirects to login when fetching clients returns an unauthorized status', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 401,
+      serverMessage: 'Unauthorized user',
+    } as any);
+
+    render(<SessionNotesPage />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('redirects to login when fetching clients throws an unauthorized error', async () => {
+    mockApi.mockRejectedValueOnce({
+      response: {
+        status: 401,
+      },
+    });
+
+    render(<SessionNotesPage />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('shows the server-side delete failure message when deletion returns a non-200 status', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockSessionNotes,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Delete failed',
+      } as any);
+
+    render(<SessionNotesPage />);
+
+    const ellipsisButtons = await screen.findAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: /confirm selection/i }));
+
+    expect(await screen.findByText('Error: Failed to delete "1".')).toBeInTheDocument();
   });
 });
