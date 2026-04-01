@@ -21,7 +21,6 @@ const VerifyEmailContent: React.FC = () => {
     const navigate = useRouter();
     const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading');
     const [message, setMessage] = useState<string>('');
-    const [token, setToken] = useState<string | null>(null);
 
     useEffect(() => {
         const tokenParam = searchParams.get('token');
@@ -32,7 +31,6 @@ const VerifyEmailContent: React.FC = () => {
             return;
         }
 
-        setToken(tokenParam);
         verifyEmail(tokenParam);
     }, [searchParams]);
 

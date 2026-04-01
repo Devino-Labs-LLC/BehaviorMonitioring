@@ -18,7 +18,7 @@ apiClient.interceptors.request.use(async (config) => {
         const csrfToken = await getCsrfToken();
         if (csrfToken) {
             config.headers = {
-                ...(config.headers || {}),
+                ...config.headers,
                 'x-csrf-token': csrfToken,
             };
         }
@@ -79,7 +79,7 @@ export async function api<T = any>(
         const retryConfig: AxiosRequestConfig = {
             ...config,
             headers: {
-            ...(config.headers || {}),
+            ...config.headers,
             Authorization: `Bearer ${newAccess}`,
             },
         };

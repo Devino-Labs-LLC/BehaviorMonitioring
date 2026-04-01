@@ -40,6 +40,28 @@ describe('Refresh Token Store', () => {
       expect(createCall.user_id).toBe(1);
       expect(createCall.token).toBe('test-token');
     });
+
+    it('normalizes missing optional fields and defaults last used time', async () => {
+      RefreshToken.create.mockResolvedValue({});
+
+      const result = await insertRefreshToken({
+        userId: 2,
+        token: 'another-token',
+        ttlDays: 14,
+      });
+
+      expect(typeof result).toBe('string');
+      expect(RefreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 2,
+          token: 'another-token',
+          user_agent: null,
+          ip_address: null,
+          device_id: null,
+          last_used_at: expect.any(String),
+        })
+      );
+    });
   });
 
   describe('findRefreshToken', () => {
@@ -108,12 +130,13 @@ describe('Refresh Token Store', () => {
     it('updates last used timestamp', async () => {
       RefreshToken.update.mockResolvedValue([1]);
 
-      await touchRefreshToken('test-token');
+      const result = await touchRefreshToken('test-token');
 
       expect(RefreshToken.update).toHaveBeenCalled();
       const updateCall = RefreshToken.update.mock.calls[0];
       expect(updateCall[0].last_used_at).toBeInstanceOf(Date);
       expect(updateCall[1].where.token).toBe('test-token');
+      expect(result).toEqual([1]);
     });
   });
 });

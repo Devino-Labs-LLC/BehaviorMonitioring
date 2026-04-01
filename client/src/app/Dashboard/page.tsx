@@ -51,6 +51,24 @@ function getRangeDates(range: DateRangeKey) {
     return { start: isoDateOnly(start), end: isoDateOnly(end) };
 }
 
+function toBehaviorEntries(
+    behavior: NonNullable<GetBehaviorResponse['behaviorSkillData']>[number],
+    behaviorSkillData: NonNullable<GetBehaviorDataResponse['behaviorSkillData']>
+): BehaviorEntry[] {
+    return behaviorSkillData.map((entry) => ({
+        id: entry.behaviorDataID,
+        bsID: entry.bsID,
+        clientID: entry.clientID,
+        clientName: entry.clientName,
+        behaviorName: behavior.name,
+        sessionDate: entry.sessionDate,
+        measurementType: behavior.measurement,
+        count: entry.count,
+        duration: entry.duration,
+        trial: entry.trial ?? null,
+    }));
+}
+
 export default function DashboardClient() {
     const navigate = useRouter();
     const { isReady, isLoggedIn, username } = useAuth();
@@ -62,56 +80,115 @@ export default function DashboardClient() {
     const [err, setErr] = useState<string>('');
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
+    const redirectToLogin = () => {
+        const previousUrl = encodeURIComponent(location.pathname);
+        navigate.push(`/Login?previousUrl=${previousUrl}`);
+    };
+
+    const loadClients = async (mounted: boolean) => {
+        try {
+            setErr('');
+            const data = await api<GetAllClientsResponse>('post', '/aba/getAllClientInfo', {
+                employeeUsername: username
+            });
+
+            if (!mounted) return;
+
+            if (data.statusCode === 200 && data.clientData) {
+                setClients(data.clientData);
+                if (data.clientData.length === 0) {
+                    setShowNoClientsPrompt(true);
+                    return;
+                }
+
+                setClientID((currentClientID) => currentClientID || String(data.clientData[0].clientID));
+                return;
+            }
+
+            if (data.statusCode === 401) {
+                redirectToLogin();
+                return;
+            }
+
+            throw new Error(data.serverMessage || 'Failed to load clients');
+        } catch (e: any) {
+            if (!mounted) return;
+
+            if (e?.response?.status === 401 || e?.response?.data?.serverMessage === 'Unauthorized user') {
+                redirectToLogin();
+                return;
+            }
+
+            setErr(e?.response?.data?.serverMessage || e?.message || 'Failed to load clients.');
+        }
+    };
+
+    const loadBehaviorEntries = async (mounted: boolean) => {
+        try {
+            setLoading(true);
+            setErr('');
+
+            const { start, end } = getRangeDates(range);
+            const behaviorListResponse = await api<GetBehaviorResponse>('post', '/aba/getClientTargetBehavior', {
+                clientID,
+                employeeUsername: username
+            });
+
+            if (behaviorListResponse.statusCode !== 200) {
+                throw new Error(behaviorListResponse.serverMessage || 'Failed to load behaviors');
+            }
+
+            const behaviors = behaviorListResponse.behaviorSkillData || [];
+            if (behaviors.length === 0) {
+                if (mounted) {
+                    setEntries([]);
+                }
+                return;
+            }
+
+            const behaviorDataResponses = await Promise.all(
+                behaviors.map(async (behavior) => {
+                    const behaviorDataResponse = await api<GetBehaviorDataResponse>('post', '/aba/getTargetBehavior', {
+                        clientID,
+                        behaviorID: behavior.bsID,
+                        employeeUsername: username
+                    });
+
+                    if (behaviorDataResponse.statusCode !== 200) {
+                        return [];
+                    }
+
+                    return toBehaviorEntries(behavior, behaviorDataResponse.behaviorSkillData || []);
+                })
+            );
+
+            if (!mounted) return;
+
+            const normalizedEntries = behaviorDataResponses.flat().filter((entry) => (
+                entry.sessionDate >= start && entry.sessionDate <= end
+            ));
+            setEntries(normalizedEntries);
+        } catch (e: any) {
+            if (!mounted) return;
+            setEntries([]);
+            setErr(e?.response?.data?.serverMessage || e?.message || 'Failed to load behavior entries.');
+        } finally {
+            if (mounted) setLoading(false);
+        }
+    };
+
     useEffect(() => {
         // Wait for auth to be ready before checking login status
         if (!isReady) return;
 
         if (!isLoggedIn) {
-            const previousUrl = encodeURIComponent(location.pathname);
-            navigate.push(`/Login?previousUrl=${previousUrl}`);
+            redirectToLogin();
             return;
         }
 
         let mounted = true;
 
-        (async () => {
-            try {
-                setErr('');
-                const data = await api<GetAllClientsResponse>('post', '/aba/getAllClientInfo', { 
-                    employeeUsername: username 
-                });
-
-                if (!mounted) return;
-
-                if (data.statusCode === 200 && data.clientData) {
-                    setClients(data.clientData);
-                    // Check if no clients exist
-                    if (data.clientData.length === 0) {
-                        setShowNoClientsPrompt(true);
-                    } else {
-                        // auto select first client
-                        if (!clientID) {
-                            setClientID(String(data.clientData[0].clientID));
-                        }
-                    }
-                } else if (data.statusCode === 401) {
-                    // Handle unauthorized - redirect to login or show appropriate message
-                    const previousUrl = encodeURIComponent(location.pathname);
-                    navigate.push(`/Login?previousUrl=${previousUrl}`);
-                } else {
-                    throw new Error(data.serverMessage || 'Failed to load clients');
-                }
-            } catch (e: any) {
-                if (!mounted) return;
-                // Check if it's an authorization error
-                if (e?.response?.status === 401 || e?.response?.data?.serverMessage === 'Unauthorized user') {
-                    const previousUrl = encodeURIComponent(location.pathname);
-                    navigate.push(`/Login?previousUrl=${previousUrl}`);
-                } else {
-                    setErr(e?.response?.data?.serverMessage || e?.message || 'Failed to load clients.');
-                }
-            }
-        })();
+        void loadClients(mounted);
 
         return () => {
             mounted = false;
@@ -123,75 +200,12 @@ export default function DashboardClient() {
 
         let mounted = true;
 
-        (async () => {
-            try {
-                setLoading(true);
-                setErr('');
-
-                const { start, end } = getRangeDates(range);
-                
-                const behaviorListResponse = await api<GetBehaviorResponse>('post', '/aba/getClientTargetBehavior', {
-                    clientID,
-                    employeeUsername: username
-                });
-
-                if (behaviorListResponse.statusCode !== 200) {
-                    throw new Error(behaviorListResponse.serverMessage || 'Failed to load behaviors');
-                }
-
-                const behaviors = behaviorListResponse.behaviorSkillData || [];
-
-                if (behaviors.length === 0) {
-                    if (!mounted) return;
-                    setEntries([]);
-                    return;
-                }
-
-                const behaviorDataResponses = await Promise.all(
-                    behaviors.map(async (behavior) => {
-                        const behaviorDataResponse = await api<GetBehaviorDataResponse>('post', '/aba/getTargetBehavior', {
-                            clientID,
-                            behaviorID: behavior.bsID,
-                            employeeUsername: username
-                        });
-
-                        if (behaviorDataResponse.statusCode !== 200) {
-                            return [];
-                        }
-
-                        return behaviorDataResponse.behaviorSkillData.map((entry) => ({
-                            id: entry.behaviorDataID,
-                            bsID: entry.bsID,
-                            clientID: entry.clientID,
-                            clientName: entry.clientName,
-                            behaviorName: behavior.name,
-                            sessionDate: entry.sessionDate,
-                            measurementType: behavior.measurement,
-                            count: entry.count,
-                            duration: entry.duration,
-                            trial: entry.trial ?? null,
-                        }));
-                    })
-                );
-
-                if (!mounted) return;
-                const normalizedEntries = behaviorDataResponses.flat().filter((entry) => {
-                    return entry.sessionDate >= start && entry.sessionDate <= end;
-                });
-                setEntries(normalizedEntries);
-            } catch (e: any) {
-                if (!mounted) return;
-                setEntries([]);
-                setErr(e?.response?.data?.serverMessage || e?.message || 'Failed to load behavior entries.');
-            } finally {
-                if (mounted) setLoading(false);
-            }
-        })();
+        void loadBehaviorEntries(mounted);
 
         return () => {
             mounted = false;
         };
-    }, [clientID, range]);
+    }, [clientID, range, username]);
 
     const view = useMemo(() => {
         const { start, end } = getRangeDates(range);
@@ -227,8 +241,9 @@ export default function DashboardClient() {
             {/* Sticky filter bar */}
             <div className={styles.filterBar}>
                 <div className={styles.filterGroup}>
-                    <label className={styles.label}>Client</label>
+                    <label className={styles.label} htmlFor="dashboard-client-select">Client</label>
                     <select
+                        id="dashboard-client-select"
                         className={styles.select}
                         value={clientID}
                         onChange={(e) => setClientID(e.target.value)}
@@ -242,8 +257,8 @@ export default function DashboardClient() {
                 </div>
 
                 <div className={styles.filterGroup}>
-                    <label className={styles.label}>Range</label>
-                    <select className={styles.select} value={range} onChange={(e) => setRange(e.target.value as DateRangeKey)}>
+                    <label className={styles.label} htmlFor="dashboard-range-select">Range</label>
+                    <select id="dashboard-range-select" className={styles.select} value={range} onChange={(e) => setRange(e.target.value as DateRangeKey)}>
                         {RANGE_OPTIONS.map((r) => (
                             <option key={r.key} value={r.key}>
                                 {r.label}

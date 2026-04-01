@@ -1,7 +1,13 @@
 import React from 'react';
 import styles from '../styles/KpiCard.module.scss';
 
-export default function KpiCard(props: { title: string; value: string; sub?: string }) {
+type KpiCardProps = {
+  readonly title: string;
+  readonly value: string;
+  readonly sub?: string;
+};
+
+export default function KpiCard(props: KpiCardProps) {
   return (
     <div className={styles.card}>
       <div className={styles.title}>{props.title}</div>

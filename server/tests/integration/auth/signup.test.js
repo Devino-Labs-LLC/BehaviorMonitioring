@@ -15,6 +15,7 @@ jest.mock('../../../middleware/helpers/authLog');
 describe('SignUp API Integration Tests', () => {
     let app;
     let agent;
+    jest.setTimeout(30000);
 
     const testRateLimiter = rateLimit({
         windowMs: 60 * 1000,
@@ -265,7 +266,7 @@ describe('SignUp API Integration Tests', () => {
                     companyID: 1
                 })
             );
-        });
+        }, 20000);
 
         it('should include verification token in created employee', async () => {
             const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');

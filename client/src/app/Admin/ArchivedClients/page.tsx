@@ -28,14 +28,19 @@ const ArchivedClients: React.FC = () => {
 
     useEffect(() => {
         if (!isReady) return;
+
+        if (isLoggedIn && isAdmin) {
+            loadArchivedClients();
+            return;
+        }
+
         if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!isAdmin) {
-            navigate.push('/');
-        } else {
-            loadArchivedClients();
+            return;
         }
+
+        navigate.push('/');
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const loadArchivedClients = async () => {

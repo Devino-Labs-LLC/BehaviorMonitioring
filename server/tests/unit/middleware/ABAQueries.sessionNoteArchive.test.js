@@ -54,9 +54,7 @@ describe('ABAQueries - Session Note Archive Functions', () => {
     it('should throw error when database query fails', async () => {
       SessionNoteData.findAll.mockRejectedValue(new Error('Database error'));
 
-      await expect(abaGetArchivedSessionNoteDataByClientID(10, 1)).rejects.toEqual({
-        message: 'Database error',
-      });
+      await expect(abaGetArchivedSessionNoteDataByClientID(10, 1)).rejects.toThrow('Database error');
     });
   });
 
@@ -117,9 +115,7 @@ describe('ABAQueries - Session Note Archive Functions', () => {
     it('should throw error when update fails', async () => {
       SessionNoteData.update.mockRejectedValue(new Error('Update failed'));
 
-      await expect(abaReactivateSessionNoteByID(10, 5, 1)).rejects.toEqual({
-        message: 'Update failed',
-      });
+      await expect(abaReactivateSessionNoteByID(10, 5, 1)).rejects.toThrow('Update failed');
     });
   });
 
@@ -177,9 +173,7 @@ describe('ABAQueries - Session Note Archive Functions', () => {
     it('should throw error when deletion fails', async () => {
       SessionNoteData.destroy.mockRejectedValue(new Error('Delete failed'));
 
-      await expect(abaDeleteArchivedSessionNoteByID(10, 5, 1)).rejects.toEqual({
-        message: 'Delete failed',
-      });
+      await expect(abaDeleteArchivedSessionNoteByID(10, 5, 1)).rejects.toThrow('Delete failed');
     });
   });
 });

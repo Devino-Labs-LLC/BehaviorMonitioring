@@ -3,6 +3,9 @@ const logAuthEvent = require('./helpers/authLog');
 
 const secret = process.env.JWT_SECRET;
 const prodStatus = process.env.IN_PROD === "true";
+const host = process.env.HOST || '';
+const port = process.env.PORT ? `:${process.env.PORT}` : '';
+const issuer = prodStatus ? host : `${host}${port}`;
 
 function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization || '';
@@ -21,7 +24,7 @@ function authMiddleware(req, res, next) {
     try {
         const payload = jwt.verify(token, secret, {
             algorithms: ['HS256'],
-            issuer: prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`,
+            issuer,
             audience: process.env.ClientHost,
         });
 

@@ -46,7 +46,7 @@ describe('DateTimes Utility Functions', () => {
     it('returns today\'s date', () => {
       // Mock Date to ensure consistent behavior
       const mockDate = new Date('2026-01-29T12:00:00Z');
-      jest.spyOn(global, 'Date').mockImplementation((() => mockDate) as any);
+      jest.spyOn(globalThis, 'Date').mockImplementation((() => mockDate) as any);
       
       const result = getCurrentDate();
       expect(result).toBe('2026-01-29');

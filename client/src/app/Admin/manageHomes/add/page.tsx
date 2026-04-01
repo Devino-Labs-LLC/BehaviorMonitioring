@@ -11,7 +11,7 @@ import ConfirmActionModal from '../../../../components/ConfirmActionModal';
 import { useAuth } from '../../../../hooks/useAuth';
 import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
-import type { CreateHomeRequest, CreateHomeResponse } from '../../../../dto';
+import type { CreateHomeResponse } from '../../../../dto';
 
 const getErrorMessage = (error: unknown): string => {
     const e = error as any;
@@ -61,8 +61,8 @@ const AddHome: React.FC = () => {
         if (!formData.zip.trim()) return 'ZIP code is required';
         if (!/^\d{5}(-\d{4})?$/.test(formData.zip.trim())) return 'ZIP code must be 5 digits or ZIP+4 format';
         if (!formData.capacity.trim()) return 'Capacity is required';
-        const capacity = parseInt(formData.capacity);
-        if (isNaN(capacity) || capacity <= 0) return 'Capacity must be a positive number';
+        const capacity = Number.parseInt(formData.capacity, 10);
+        if (Number.isNaN(capacity) || capacity <= 0) return 'Capacity must be a positive number';
         return null;
     };
 
@@ -100,7 +100,7 @@ const AddHome: React.FC = () => {
                 city: formData.city.trim(),
                 state: formData.state.trim().toUpperCase(),
                 zipCode: formData.zip.trim(),
-                capacity: parseInt(formData.capacity),
+                capacity: Number.parseInt(formData.capacity, 10),
                 employeeUsername: username
             };
 

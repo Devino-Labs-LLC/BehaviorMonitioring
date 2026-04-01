@@ -10,13 +10,14 @@ import InputFields from '../../components/Inputfield';
 import Button from '../../components/Button';
 import Loading from '../../components/loading';
 import { GetLoggedInUserStatus } from '../../function/VerificationCheck';
+import { CheckEmail } from '../../function/EntryCheck';
 import { debounceAsync } from '../../function/debounce';
 import { api } from '../../lib/Api';
 import type { SignUpRequest, SignUpResponse } from '../../dto';
 
 const SignUpPage: React.FC = () => {
     const navigate = useRouter();
-    const [userStatus, setUserStatus] = useState<boolean>(GetLoggedInUserStatus());
+    const userStatus = GetLoggedInUserStatus();
     const [firstName, setFirstName] = useState<string>('');
     const [lastName, setLastName] = useState<string>('');
     const [username, setUsername] = useState<string>('');
@@ -35,11 +36,6 @@ const SignUpPage: React.FC = () => {
         }
     }, [userStatus, navigate]);
 
-    // Don't render anything if user is logged in (redirect in progress)
-    if (userStatus) {
-        return null;
-    }
-
     const validateForm = (): string | null => {
         if (!firstName.trim()) return 'First name is required';
         if (!lastName.trim()) return 'Last name is required';
@@ -50,13 +46,12 @@ const SignUpPage: React.FC = () => {
         if (!companyName.trim()) return 'Company name is required';
 
         // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!CheckEmail(email)) {
             return 'Please enter a valid email address';
         }
 
         // Username validation (alphanumeric and underscore only)
-        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        const usernameRegex = /^\w{3,20}$/;
         if (!usernameRegex.test(username)) {
             return 'Username must be 3-20 characters and contain only letters, numbers, and underscores';
         }
@@ -75,7 +70,7 @@ const SignUpPage: React.FC = () => {
         return null;
     };
 
-    const submitSignUpForm = React.useCallback(async () => {
+    const submitSignUpForm = async () => {
         setIsLoading(true);
         setStatusMessage('');
 
@@ -112,7 +107,7 @@ const SignUpPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [firstName, lastName, username, email, phoneNumber, password, confirmPassword, companyName]);
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -127,9 +122,14 @@ const SignUpPage: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.window.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
     }, [submitSignUpForm, signupSuccess]);
+
+    // Don't render anything if user is logged in (redirect in progress)
+    if (userStatus) {
+        return null;
+    }
 
     if (signupSuccess) {
         return (

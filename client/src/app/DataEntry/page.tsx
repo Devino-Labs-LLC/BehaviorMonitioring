@@ -20,6 +20,70 @@ import { debounceAsync } from '../../function/debounce';
 import { api } from '../../lib/Api';
 import type { GetAllClientsResponse, ClientOption, BehaviorSkillOption, GetBehaviorResponse, CreateBehaviorDataResponse, CreateSessionNoteResponse } from '../../dto';
 
+type StoredDataEntryState = {
+    activeTab?: string;
+    targetAmt?: number;
+    skillAmt?: number;
+    selectedClient?: string;
+    selectedClientID?: number;
+    selectedTargets?: string[];
+    selectedSkills?: string[];
+    selectedMeasurementTypes?: string[];
+    dates?: string[];
+    times?: string[];
+    count?: number[];
+    duration?: (string | null)[];
+};
+
+const buildSharedEntryHeaders = (): JSX.Element[] => [
+    <th key="remove"></th>,
+    <th key="target">Target:</th>,
+    <th key="sessionDate">Session Date:</th>,
+    <th key="time">Time:</th>
+];
+
+const getMeasurementTypeForTarget = (
+    targetValue: string,
+    previousMeasurement: string,
+    targetOptions: BehaviorSkillOption[]
+) => {
+    const selectedOption = targetOptions.find((option) => String(option.value) === targetValue);
+    if (selectedOption) {
+        return selectedOption.measurementType || '';
+    }
+
+    return previousMeasurement || '';
+};
+
+const buildBehaviorTableHeaders = (selectedMeasurementTypes: string[]) => {
+    const newHeaders = buildSharedEntryHeaders();
+
+    if (selectedMeasurementTypes.includes('Frequency') || selectedMeasurementTypes.includes('Rate')) {
+        newHeaders.push(<th key="count">Count:</th>);
+    }
+    if (selectedMeasurementTypes.includes('Duration') || selectedMeasurementTypes.includes('Rate')) {
+        newHeaders.push(<th key="duration">Duration:</th>);
+    }
+
+    return newHeaders;
+};
+
+const buildSkillTableHeaders = () => buildSharedEntryHeaders();
+
+const parseStoredDataEntryState = (): StoredDataEntryState | null => {
+    const storedData = sessionStorage.getItem('dataEntryState');
+    if (!storedData) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(storedData);
+    } catch (error) {
+        console.error('Failed to parse sessionStorage data:', error);
+        return null;
+    }
+};
+
 const DataEntry: React.FC = () => {
     const navigate = useRouter();
     const userLoggedIn = GetLoggedInUserStatus();
@@ -49,30 +113,31 @@ const DataEntry: React.FC = () => {
     const [timerCount, setTimerCount] = useState<number>(0);
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
+
+    const hydrateStoredState = (parsedData: StoredDataEntryState | null) => {
+        if (!parsedData) {
+            setIsInitialized(true);
+            return;
+        }
+
+        if (parsedData.activeTab) setActiveTab(parsedData.activeTab);
+        if (parsedData.targetAmt) setTargetAmt(parsedData.targetAmt);
+        if (parsedData.skillAmt) setSkillAmt(parsedData.skillAmt);
+        if (parsedData.selectedClient) setSelectedClient(parsedData.selectedClient);
+        if (parsedData.selectedClientID) setSelectedClientID(parsedData.selectedClientID);
+        if (parsedData.selectedTargets) setSelectedTargets(parsedData.selectedTargets);
+        if (parsedData.selectedSkills) setSelectedSkills(parsedData.selectedSkills);
+        if (parsedData.selectedMeasurementTypes) setSelectedMeasurementTypes(parsedData.selectedMeasurementTypes);
+        if (parsedData.dates) setDates(parsedData.dates);
+        if (parsedData.times) setTimes(parsedData.times);
+        if (parsedData.count) setCount(parsedData.count);
+        if (parsedData.duration) setDuration(parsedData.duration);
+        setIsInitialized(true);
+    };
     
     // Load from sessionStorage on mount
     useEffect(() => {
-        const storedData = sessionStorage.getItem('dataEntryState');
-        if (storedData) {
-            try {
-                const parsedData = JSON.parse(storedData);
-                if (parsedData.activeTab) setActiveTab(parsedData.activeTab);
-                if (parsedData.targetAmt) setTargetAmt(parsedData.targetAmt);
-                if (parsedData.skillAmt) setSkillAmt(parsedData.skillAmt);
-                if (parsedData.selectedClient) setSelectedClient(parsedData.selectedClient);
-                if (parsedData.selectedClientID) setSelectedClientID(parsedData.selectedClientID);
-                if (parsedData.selectedTargets) setSelectedTargets(parsedData.selectedTargets);
-                if (parsedData.selectedSkills) setSelectedSkills(parsedData.selectedSkills);
-                if (parsedData.selectedMeasurementTypes) setSelectedMeasurementTypes(parsedData.selectedMeasurementTypes);
-                if (parsedData.dates) setDates(parsedData.dates);
-                if (parsedData.times) setTimes(parsedData.times);
-                if (parsedData.count) setCount(parsedData.count);
-                if (parsedData.duration) setDuration(parsedData.duration);
-            } catch (error) {
-                console.error('Failed to parse sessionStorage data:', error);
-            }
-        }
-        setIsInitialized(true);
+        hydrateStoredState(parseStoredDataEntryState());
     }, []);
         
     // Update storage
@@ -207,11 +272,11 @@ const DataEntry: React.FC = () => {
         if (typeof input === 'number') {
             numericValue = input;
         } else {
-            let value = input.target.value;
-            numericValue = value === '' ? NaN : parseFloat(value);
+            const value = input.target.value;
+            numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         }
     
-        if (numericValue <= 0 || isNaN(numericValue)) {
+        if (numericValue <= 0 || Number.isNaN(numericValue)) {
             numericValue = 1;
         }
     
@@ -224,11 +289,11 @@ const DataEntry: React.FC = () => {
         if (typeof input === 'number') {
             numericValue = input;
         } else {
-            let value = input.target.value;
-            numericValue = value === '' ? NaN : parseFloat(value);
+            const value = input.target.value;
+            numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         }
     
-        if (numericValue <= 0 || isNaN(numericValue)) {
+        if (numericValue <= 0 || Number.isNaN(numericValue)) {
             numericValue = 1;
         }
     
@@ -238,32 +303,32 @@ const DataEntry: React.FC = () => {
     useEffect(() => {
         if (activeTab === 'Behavior' && isInitialized) {
             setSelectedTargets(prev => {
-                const newTargets = Array(targetAmt).fill(''); // Initialize with empty strings instead of null
+                const newTargets = new Array(targetAmt).fill(''); // Initialize with empty strings instead of null
                 return newTargets.map((_, i) => prev[i] || '');
             });
                 
             setDates(prev => {
-                const newDates = Array(targetAmt).fill(getCurrentDate());
+                const newDates = new Array(targetAmt).fill(getCurrentDate());
                 return newDates.map((_, i) => prev[i] || getCurrentDate());
             });
     
             setTimes(prev => {
-                const newTimes = Array(targetAmt).fill(getCurrentTime());
+                const newTimes = new Array(targetAmt).fill(getCurrentTime());
                 return newTimes.map((_, i) => prev[i] || getCurrentTime());
             });
         } else if (activeTab === 'Skill' && isInitialized) {
             setSelectedSkills(prev => {
-                const newSkills = Array(skillAmt).fill(''); // Initialize with empty strings instead of null
+                const newSkills = new Array(skillAmt).fill(''); // Initialize with empty strings instead of null
                 return newSkills.map((_, i) => prev[i] || '');
             });
                 
             setDates(prev => {
-                const newDates = Array(skillAmt).fill(getCurrentDate());
+                const newDates = new Array(skillAmt).fill(getCurrentDate());
                 return newDates.map((_, i) => prev[i] || getCurrentDate());
             });
     
             setTimes(prev => {
-                const newTimes = Array(skillAmt).fill(getCurrentTime());
+                const newTimes = new Array(skillAmt).fill(getCurrentTime());
                 return newTimes.map((_, i) => prev[i] || getCurrentTime());
             });        }
     }, [targetAmt, skillAmt, activeTab, isInitialized]);
@@ -272,7 +337,7 @@ const DataEntry: React.FC = () => {
     const handleClientChange = (value: any) => {
         setStatusMessage('')
         setSelectedClient(value.name);
-        let numericValue = value.id === '' ? NaN : parseFloat(value.id);
+        const numericValue = value.id === '' ? Number.NaN : Number.parseFloat(value.id);
         setSelectedClientID(numericValue);
     };
 
@@ -305,18 +370,18 @@ const DataEntry: React.FC = () => {
     
             setCount(prevCounts => {
                 const newCounts = [...prevCounts];
-                newCounts[index] = NaN; // Set to null or default value
+                newCounts[index] = Number.NaN; // Set to null or default value
                 return newCounts;
             });
         }
     };
     
     useEffect(() => {
-        const newSelectedMeasurements = selectedTargets.map(targetValue => {
-            const selectedOption = targetOptions.find(option => String(option.value) === targetValue);
-            return selectedOption ? selectedOption.measurementType || '' : '';
-        });
-        setSelectedMeasurementTypes(newSelectedMeasurements);
+        setSelectedMeasurementTypes((previousMeasurements) =>
+            selectedTargets.map((targetValue, index) => {
+                return getMeasurementTypeForTarget(targetValue, previousMeasurements[index], targetOptions);
+            })
+        );
     }, [selectedTargets, targetOptions]);
 
     const handleDateChange = (index: number, value: string) => {
@@ -334,60 +399,11 @@ const DataEntry: React.FC = () => {
     };
 
     useEffect(() => {
-        const loadData = () => {
-            if (selectedClient.length > 0) { setSelectedClient(selectedClient); }
-            if (selectedClientID > 0) setSelectedClientID(selectedClientID);
-            if (selectedTargets.length > 0) setSelectedTargets(selectedTargets);
-            if (dates.length > 0) setDates(dates);
-            if (times.length > 0) setTimes(times);
-            if (count.length > 0) setCount(count);
-            if (selectedMeasurementTypes.length > 0) setSelectedMeasurementTypes(selectedMeasurementTypes);
-            // TODO: Add logic for skill data collection
-        };
-
         if (activeTab === 'Behavior') {
-            const generateTargetTableHeaders = () => {
-                const newHeaders: JSX.Element[] = [
-                    <th key="remove"></th>,
-                    <th key="target">Target:</th>,
-                    <th key="sessionDate">Session Date:</th>,
-                    <th key="time">Time:</th>
-                ];
-
-                if (selectedMeasurementTypes.includes('Frequency') || selectedMeasurementTypes.includes('Rate')) {
-                    newHeaders.push(<th key="count">Count:</th>);
-                }
-                if (selectedMeasurementTypes.includes('Duration') || selectedMeasurementTypes.includes('Rate')) {
-                    newHeaders.push(<th key="duration">Duration:</th>);
-                }    
-                return newHeaders;
-            };
-
-            if (isInitialized) {
-                loadData();  // Load data when component mounts
-            }    
-
-            setHeaders(generateTargetTableHeaders());
+            setHeaders(buildBehaviorTableHeaders(selectedMeasurementTypes));
         }
         else if (activeTab === 'Skill') {
-            const generateSkillTableHeaders = () => {
-                const newHeaders: JSX.Element[] = [
-                    <th key="remove"></th>,
-                    <th key="target">Target:</th>,
-                    <th key="sessionDate">Session Date:</th>,
-                    <th key="time">Time:</th>
-                ];
-    
-                // TODO: Add logic for skill data collection
-                    
-                return newHeaders;
-            };
-
-            if (isInitialized) {
-                loadData();  // Load data when component mounts
-            }
-    
-            setHeaders(generateSkillTableHeaders());
+            setHeaders(buildSkillTableHeaders());
         }
     }, [selectedMeasurementTypes]);
 
@@ -427,14 +443,12 @@ const DataEntry: React.FC = () => {
             <td key={`time-${index}`}><TimeFields name={`SessionTime-${index}`} requiring={true} value={times[index]} onChange={(e) => handleTimeChange(index, e.target.value)} /></td>
         ];
 
-        // TODO: Add logic for skill data collection
-
         return cells;
     };
 
     const handleCountChange  = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        let numericValue = value === '' ? NaN : parseFloat(value);
+        let numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         if (numericValue <= -1) {
             numericValue = 0;
         }
@@ -538,6 +552,11 @@ const DataEntry: React.FC = () => {
             const newSelectedTargets = [...selectedTargets];
             newSelectedTargets.splice(index, 1);
             setSelectedTargets(newSelectedTargets);
+            setSelectedMeasurementTypes(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setDates(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setTimes(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setCount(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setDuration(prev => prev.filter((_, itemIndex) => itemIndex !== index));
 
             if (index === 0 && targetOptions.length > 0) {
                 handleOptionChange(index, String(targetOptions[0].value));
@@ -549,6 +568,8 @@ const DataEntry: React.FC = () => {
             const newSelectedSkills = [...selectedSkills];
             newSelectedSkills.splice(index, 1);
             setSelectedSkills(newSelectedSkills);
+            setDates(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+            setTimes(prev => prev.filter((_, itemIndex) => itemIndex !== index));
             handleSkillAMTChange(skillAmt - 1);
         }
     }
@@ -611,7 +632,7 @@ const DataEntry: React.FC = () => {
                                         </thead>
                                         <tbody>
                                             {targetAmt > 0 && dates.map((date, index) =>
-                                                <tr key={index}>
+                                                <tr key={`behavior-${selectedTargets[index] || 'empty'}-${dates[index] || 'date'}-${times[index] || 'time'}-${index}`}>
                                                     {renderTargetTableData(index)}
                                                 </tr>
                                             )}
@@ -621,11 +642,13 @@ const DataEntry: React.FC = () => {
                                 {activeTab === 'Skill' && (
                                     <table className={componentStyles.dataEntryTable}>
                                         <thead>
-                                            {headers}
+                                            <tr>
+                                                {headers}
+                                            </tr>
                                         </thead>
                                         <tbody>
                                             {skillAmt > 0 && dates.map((date, index) =>
-                                                <tr key={index}>
+                                                <tr key={`skill-${selectedSkills[index] || 'empty'}-${dates[index] || 'date'}-${times[index] || 'time'}-${index}`}>
                                                     {renderSkillTableData(index)}
                                                 </tr>
                                             )}

@@ -6,7 +6,7 @@ function behaviorPlanExpirationCountDown(targetDate) {
             const now = new Date();
             const target = new Date(targetDate);
 
-            if (isNaN(target.getTime())) {
+            if (Number.isNaN(target.getTime())) {
                 reject(new Error('Invalid target date'));
                 return;
             }

@@ -61,7 +61,7 @@ describe('AdminQueries - Client Archive Functions', () => {
 
       await expect(
         adminQueries.adminArchiveClient(10, 1, 'John Doe', '2026-01-29', '2033-01-29')
-      ).rejects.toEqual({ message: 'Database error' });
+      ).rejects.toThrow('Database error');
     });
   });
 
@@ -116,9 +116,7 @@ describe('AdminQueries - Client Archive Functions', () => {
     it('should throw error on database failure', async () => {
       Client.findAll.mockRejectedValue(new Error('Database error'));
 
-      await expect(adminQueries.adminGetArchivedClients(1)).rejects.toEqual({
-        message: 'Database error'
-      });
+      await expect(adminQueries.adminGetArchivedClients(1)).rejects.toThrow('Database error');
     });
   });
 
@@ -157,9 +155,7 @@ describe('AdminQueries - Client Archive Functions', () => {
     it('should throw error on database failure', async () => {
       Client.findOne.mockRejectedValue(new Error('Database error'));
 
-      await expect(adminQueries.adminGetArchivedClientById(1, 1)).rejects.toEqual({
-        message: 'Database error'
-      });
+      await expect(adminQueries.adminGetArchivedClientById(1, 1)).rejects.toThrow('Database error');
     });
   });
 
@@ -195,9 +191,7 @@ describe('AdminQueries - Client Archive Functions', () => {
     it('should throw error on database failure', async () => {
       Client.update.mockRejectedValue(new Error('Database error'));
 
-      await expect(adminQueries.adminUnarchiveClient(1, 1)).rejects.toEqual({
-        message: 'Database error'
-      });
+      await expect(adminQueries.adminUnarchiveClient(1, 1)).rejects.toThrow('Database error');
     });
   });
 
@@ -224,9 +218,7 @@ describe('AdminQueries - Client Archive Functions', () => {
     it('should throw error on database failure', async () => {
       Client.destroy.mockRejectedValue(new Error('Database error'));
 
-      await expect(adminQueries.adminDeleteArchivedClient(1, 1)).rejects.toEqual({
-        message: 'Database error'
-      });
+      await expect(adminQueries.adminDeleteArchivedClient(1, 1)).rejects.toThrow('Database error');
     });
   });
 
@@ -279,9 +271,7 @@ describe('AdminQueries - Client Archive Functions', () => {
     it('should throw error on database failure', async () => {
       Client.findAll.mockRejectedValue(new Error('Database error'));
 
-      await expect(adminQueries.adminGetClientsForDeletion(0)).rejects.toEqual({
-        message: 'Database error'
-      });
+      await expect(adminQueries.adminGetClientsForDeletion(0)).rejects.toThrow('Database error');
     });
   });
 
@@ -333,9 +323,7 @@ describe('AdminQueries - Client Archive Functions', () => {
     it('should throw error on database failure', async () => {
       Client.update.mockRejectedValue(new Error('Database error'));
 
-      await expect(adminQueries.adminUpdateReminderSent(1, '90')).rejects.toEqual({
-        message: 'Database error'
-      });
+      await expect(adminQueries.adminUpdateReminderSent(1, '90')).rejects.toThrow('Database error');
     });
   });
 });

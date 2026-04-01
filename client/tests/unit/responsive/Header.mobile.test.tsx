@@ -69,7 +69,6 @@ describe('Header - Mobile Responsive', () => {
       render(<Header />);
       
       // At 768px (< 950px), mobile nav should be active
-      const mobileNav = document.querySelector('.mobileNav');
       // Note: Actual visibility depends on state, but class should exist
       expect(document.body).toBeTruthy(); // Component renders
     });

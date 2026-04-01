@@ -26,13 +26,10 @@ const SessionNotes: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<string>('');
     const [selectedClientID, setSelectedClientID] = useState<number>(0);
     const [notesOptions, setNotesOptions] = useState<SessionNote[]>([]);
-    const [checkedNotes, setCheckedNotes] = useState<{ id: string; name: string; }[]>([]);
     const [checkedState, setCheckedState] = useState<boolean[]>([]); // Track checked state
     const maxCheckedLimit = 4; // Define a limit for checkboxes
     const [activeMenu, setActiveMenu] = useState<number | null>(null);
-    const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [isPopoutVisible, setIsPopoutVisible] = useState<boolean>(false);
-    const [mergeBehaviorList, setMergeBehaviorList] = useState<{ id: string; name: string }[]>([]);
     const [popupAction, setPopupAction] = useState<string>('');
     const [sessionNotesToActOn, setSessionNotesToActOn] = useState<string>('');
     const [sessionNotesIdToActOn, setSessionNotesIdToActOn] = useState<string>('');
@@ -69,14 +66,15 @@ const SessionNotes: React.FC = () => {
         }
         try {
             const data = await api<GetAllClientsResponse>('post','/aba/getAllClientInfo', { "employeeUsername": loggedInUser });
+            const clientData = Array.isArray(data.clientData) ? data.clientData : [];
             if (data.statusCode === 200) {
-                if (data.clientData.length === 0) {
+                if (clientData.length === 0) {
                     setShowNoClientsPrompt(true);
                     return;
                 }
-                setSelectedClient(data.clientData[0].fName + " " + data.clientData[0].lName);
-                setSelectedClientID(data.clientData[0].clientID);
-                const fetchedOptions = data.clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
+                setSelectedClient(clientData[0].fName + " " + clientData[0].lName);
+                setSelectedClientID(clientData[0].clientID);
+                const fetchedOptions = clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
                     value: String(clientData.clientID),
                     label: `${clientData.fName} ${clientData.lName}`,
                 }));
@@ -115,13 +113,13 @@ const SessionNotes: React.FC = () => {
             });
 
             if (response.statusCode === 200) {
+                const sessionNotesData = Array.isArray(response.sessionNotesData) ? response.sessionNotesData : [];
                 const labelLength = 50;
                 setNotesOptions([]);
                 setCheckedState([]);
-                setCheckedNotes([]);
                 sessionStorage.removeItem('checkedNotes');
 
-                const fetchedOptions = response.sessionNotesData.map((notes) => ({
+                const fetchedOptions = sessionNotesData.map((notes) => ({
                     ...notes,
                     value: notes.sessionNoteDataID,
                     label: notes.sessionNotes.length > labelLength ? notes.sessionNotes.substring(0, labelLength) + '...' : notes.sessionNotes,
@@ -144,9 +142,32 @@ const SessionNotes: React.FC = () => {
         setNotesOptions([]);
         const selectedLabel = e.target.options[e.target.selectedIndex]?.text || '';
         setSelectedClient(selectedLabel);
-        const numericValue = e.target.value === '' ? NaN : Number(e.target.value);
+        const numericValue = e.target.value === '' ? Number.NaN : Number(e.target.value);
         setSelectedClientID(numericValue);
         setCheckedState(new Array(notesOptions.length).fill(false)); // Reset checkboxes
+    };
+
+    const saveCheckedNotes = (nextCheckedNotes: { id: string; name: string; clientName: string }[]) => {
+        sessionStorage.setItem('checkedNotes', JSON.stringify(nextCheckedNotes));
+    };
+
+    const addCheckedNote = (selectedNotes: SessionNote) => {
+        const storedNotes = JSON.parse(sessionStorage.getItem('checkedNotes') || '[]');
+        const nextCheckedNotes = [
+            ...storedNotes,
+            {
+                id: String(selectedNotes.value || ''),
+                name: selectedNotes.label || '',
+                clientName: selectedClient,
+            }
+        ];
+        saveCheckedNotes(nextCheckedNotes);
+    };
+
+    const removeCheckedNote = (selectedNotes: SessionNote) => {
+        const storedNotes = JSON.parse(sessionStorage.getItem('checkedNotes') || '[]');
+        const nextCheckedNotes = storedNotes.filter((behavior: { id: string }) => behavior.id !== String(selectedNotes.value));
+        saveCheckedNotes(nextCheckedNotes);
     };
 
     const handleCheckBoxChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,29 +180,12 @@ const SessionNotes: React.FC = () => {
             if (currentCheckedCount < maxCheckedLimit) {
                 updatedCheckedState[index] = true;
                 setCheckedState(updatedCheckedState);
-                
-                // Add clientName and measurementType to the checked behavior data
-                setCheckedNotes(prev => {
-                    const newCheckedBehaviors = [
-                        ...prev, 
-                        {
-                            id: String(selectedNotes.value || ''),
-                            name: selectedNotes.label || '',
-                            clientName: selectedClient,  // Add clientName
-                        }
-                    ];
-                    sessionStorage.setItem('checkedNotes', JSON.stringify(newCheckedBehaviors));
-                    return newCheckedBehaviors;
-                });
+                addCheckedNote(selectedNotes);
             }
         } else {
             updatedCheckedState[index] = false;
             setCheckedState(updatedCheckedState);
-            setCheckedNotes(prev => {
-                const newCheckedBehaviors = prev.filter(behavior => behavior.id !== String(selectedNotes.value));
-                sessionStorage.setItem('checkedNotes', JSON.stringify(newCheckedBehaviors));
-                return newCheckedBehaviors;
-            });
+            removeCheckedNote(selectedNotes);
         }
     };
         
@@ -228,7 +232,23 @@ const SessionNotes: React.FC = () => {
         sessionStorage.setItem('clientID', String(selectedClientID));
         sessionStorage.setItem('sessionNoteId', String(id));
         navigate.push(`/SessionNotes/Detail`);
-    }
+    };
+
+    const renderDetailButton = (content: React.ReactNode, id: string | number) => (
+        <button
+            type="button"
+            onClick={() => openNotesDetail(id)}
+            style={{
+                all: 'unset',
+                display: 'block',
+                width: '100%',
+                minHeight: '2.5em',
+                cursor: 'pointer',
+            }}
+        >
+            {content}
+        </button>
+    );
 
     const handleDelete = async () => {
         setIsPopoutVisible(false);
@@ -305,11 +325,11 @@ const SessionNotes: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {notesOptions.map((option, index) => (
-                                            <tr key={index}>
+                                            <tr key={String(option.value || `${option.sessionDate}-${option.entered_by}`)}>
                                                 <td><div><Checkbox nameOfClass='tbGraphTable' label={option.label || ''} isChecked={checkedState[index]} onChange={handleCheckBoxChange(index)} disabled={isCheckboxDisabled(index)}/></div></td>
-                                                <td onClick={() => openNotesDetail(option.value || '')}><div>{option.sessionDate}</div></td>
-                                                <td onClick={() => openNotesDetail(option.value || '')}><div>{option.label}</div></td>
-                                                <td onClick={() => openNotesDetail(option.value || '')}><div>{option.entered_by}</div></td>
+                                                <td><div>{renderDetailButton(option.sessionDate, option.value || '')}</div></td>
+                                                <td><div>{renderDetailButton(option.label, option.value || '')}</div></td>
+                                                <td><div>{renderDetailButton(option.entered_by, option.value || '')}</div></td>
                                                 <td><div><Button nameOfClass='tbHRSEllipsesButton' btnName='More options' placeholder='...' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); handleEllipsisClick(index)}}/></div></td>
                                             </tr>
                                         ))}
@@ -318,8 +338,26 @@ const SessionNotes: React.FC = () => {
                                 {activeMenu !== null && (
                                     <div className={componentStyles.popoutMenu} style={getMenuPosition(activeMenu)}>
                                         <ul>
-                                            <li onClick={() => { const selectedNotes = notesOptions[activeMenu]; closeMenu(); openPopout('Delete', String(selectedNotes.value || ''), selectedNotes.label || ''); }}>Delete</li>
-                                            <li onClick={closeMenu}>Close Menu</li>
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const selectedNotes = notesOptions[activeMenu];
+                                                        closeMenu();
+                                                        openPopout('Delete', String(selectedNotes.value || ''), selectedNotes.label || '');
+                                                    }}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    onClick={closeMenu}
+                                                >
+                                                    Close Menu
+                                                </button>
+                                            </li>
                                         </ul>
                                     </div>
                                 )}
@@ -331,6 +369,6 @@ const SessionNotes: React.FC = () => {
             </div>
         </>
     );
-}
+};
 
 export default SessionNotes;

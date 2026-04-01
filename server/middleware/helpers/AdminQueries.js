@@ -1,5 +1,7 @@
 const { Employee, Home, Client } = require('../../models');
 
+const toError = (err) => err instanceof Error ? err : new Error(err?.message || String(err));
+
 /*-----------------------------------------------Employee-----------------------------------------------*/
 async function adminGetAllEmployees(compID) {
     try {
@@ -10,7 +12,7 @@ async function adminGetAllEmployees(compID) {
         });
         return employees.map(emp => emp.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -21,7 +23,7 @@ async function adminExistByUsername(uName) {
         });
         return employee !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -32,7 +34,7 @@ async function adminExistByID(uID) {
         });
         return employee !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -44,7 +46,7 @@ async function adminDataByUsername(uName) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -56,11 +58,24 @@ async function adminDataById(uID) {
         });
         return employee ? employee.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function adminAddNewEmployee(fName, lName, username, email, phone_number, role, account_status, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function adminAddNewEmployee({
+    fName,
+    lName,
+    username,
+    email,
+    phone_number,
+    role,
+    account_status,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await Employee.create({
             fName, 
@@ -78,7 +93,7 @@ async function adminAddNewEmployee(fName, lName, username, email, phone_number, 
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -89,7 +104,7 @@ async function adminDeleteAnEmployeeByID(eID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -100,7 +115,7 @@ async function adminDeleteAnEmployeeByUsername(uName, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -112,7 +127,7 @@ async function adminUpdateEmployeeAccountStatusByUsername(accountStatus, uName, 
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -124,7 +139,7 @@ async function adminUpdateEmployeeAccountStatusByID(accountStatus, eID, compID) 
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -136,7 +151,7 @@ async function adminUpdateEmployeeAccountByUsername(fName, lName, email, phone_n
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -148,7 +163,7 @@ async function adminUpdateEmployeeAccountByID(fName, lName, email, phone_number,
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -162,7 +177,7 @@ async function adminGetAllHomes(compID) {
         });
         return homes.map(home => home.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -173,7 +188,7 @@ async function homeExistByName(name, compID) {
         });
         return home !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -184,7 +199,7 @@ async function homeExistByID(hID, compID) {
         });
         return home !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -196,7 +211,7 @@ async function homeDataByName(name, compID) {
         });
         return home ? home.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -208,11 +223,24 @@ async function homeDataById(hID, compID) {
         });
         return home ? home.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function adminAddNewHome(name, streetAddress, city, state, zipCode, capacity, currentOccupancy, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function adminAddNewHome({
+    name,
+    streetAddress,
+    city,
+    state,
+    zipCode,
+    capacity,
+    currentOccupancy,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         await Home.create({
             name, 
@@ -230,7 +258,7 @@ async function adminAddNewHome(name, streetAddress, city, state, zipCode, capaci
         });
         return true;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -241,7 +269,7 @@ async function adminDeleteAHomeByID(hID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -252,7 +280,7 @@ async function adminDeleteAHomeByName(name, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -264,11 +292,20 @@ async function adminUpdateHomeByName(name, streetAddress, city, state, zipCode, 
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function adminUpdateHomeByID(name, streetAddress, city, state, zipCode, capacity, hID, compID) {
+async function adminUpdateHomeByID({
+    name,
+    streetAddress,
+    city,
+    state,
+    zipCode,
+    capacity,
+    hID,
+    compID
+}) {
     try {
         const [rowsUpdated] = await Home.update(
             { name, street_address: streetAddress, city, state, zip_code: zipCode, capacity },
@@ -276,7 +313,7 @@ async function adminUpdateHomeByID(name, streetAddress, city, state, zipCode, ca
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -288,7 +325,7 @@ async function clientExistByID(clientID, compID) {
         });
         return client !== null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -300,11 +337,24 @@ async function clientDataById(clientID, compID) {
         });
         return client ? client.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function adminAddNewClient(fName, lName, DOB, intakeDate, groupHomeName, medicaidIdNumber, behaviorPlanDueDate, enteredBy, compID, compName, dateEntered, timeEntered) {
+async function adminAddNewClient({
+    fName,
+    lName,
+    DOB,
+    intakeDate,
+    groupHomeName,
+    medicaidIdNumber,
+    behaviorPlanDueDate,
+    enteredBy,
+    compID,
+    compName,
+    dateEntered,
+    timeEntered
+}) {
     try {
         const result = await Client.create({
             fName,
@@ -322,11 +372,21 @@ async function adminAddNewClient(fName, lName, DOB, intakeDate, groupHomeName, m
         });
         return result.get({ plain: true });
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
-async function adminUpdateClient(clientID, fName, lName, DOB, intakeDate, groupHomeName, medicaidIdNumber, behaviorPlanDueDate, compID) {
+async function adminUpdateClient({
+    clientID,
+    fName,
+    lName,
+    DOB,
+    intakeDate,
+    groupHomeName,
+    medicaidIdNumber,
+    behaviorPlanDueDate,
+    compID
+}) {
     try {
         const [rowsUpdated] = await Client.update(
             { 
@@ -342,7 +402,7 @@ async function adminUpdateClient(clientID, fName, lName, DOB, intakeDate, groupH
         );
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -353,7 +413,7 @@ async function adminDeleteClient(clientID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -378,7 +438,7 @@ async function adminArchiveClient(clientID, compID, archivedBy, archiveDate, del
         });
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -396,7 +456,7 @@ async function adminGetArchivedClients(compID) {
         });
         return clients.map(client => client.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -414,7 +474,7 @@ async function adminGetArchivedClientById(clientID, compID) {
         });
         return client ? client.get({ plain: true }) : null;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -436,7 +496,7 @@ async function adminUnarchiveClient(clientID, compID) {
         });
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -454,7 +514,7 @@ async function adminDeleteArchivedClient(clientID, compID) {
         });
         return rowsDeleted > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -482,7 +542,7 @@ async function adminGetClientsForDeletion(daysUntilDeletion = 0) {
         });
         return clients.map(client => client.get({ plain: true }));
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 
@@ -499,7 +559,7 @@ async function adminUpdateReminderSent(clientID, reminderType) {
         });
         return rowsUpdated > 0;
     } catch (err) {
-        throw { message: err.message };
+        throw toError(err);
     }
 }
 

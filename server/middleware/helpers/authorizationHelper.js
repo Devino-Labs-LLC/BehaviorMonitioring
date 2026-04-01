@@ -22,7 +22,7 @@ async function getAuthenticatedUser(username) {
  * @returns {boolean} True if user has one of the allowed roles
  */
 function hasRole(employeeData, allowedRoles = ['root', 'admin']) {
-    if (!employeeData || !employeeData.role) return false;
+    if (!employeeData?.role) return false;
     const normalizedRole = String(employeeData.role).toLowerCase();
     const normalizedAllowedRoles = allowedRoles.map((role) => String(role).toLowerCase());
     return normalizedAllowedRoles.includes(normalizedRole);

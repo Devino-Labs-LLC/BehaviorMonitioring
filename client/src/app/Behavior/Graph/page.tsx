@@ -8,7 +8,7 @@ import Loading from '../../../components/loading';
 import { GetLoggedInUserStatus, GetLoggedInUser } from '../../../function/VerificationCheck';
 import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
-import type { SelectedBehaviorSkill, DropdownOption, GetBehaviorDataResponse } from '../../../dto';
+import type { SelectedBehaviorSkill, GetBehaviorDataResponse } from '../../../dto';
 import { DATE_RANGES } from '../../../dto';
 import SelectDropdown from '../../../components/Selectdropdown';
 import GraphDataProcessor from '../../../function/GraphDataProcessor';
@@ -41,8 +41,8 @@ const Graph: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const handleDateRangeChange = (range: number) => {
@@ -78,7 +78,7 @@ const Graph: React.FC = () => {
                 namesMap[item.id] = item.name;
             });
             return setBehaviorNames(namesMap); // Update the state with the behavior names
-        } catch (error) {
+        } catch {
             setStatusMessage("Selected IDs are not found");
         }
         finally {
@@ -115,7 +115,7 @@ const Graph: React.FC = () => {
     const filterDataByDateRange = (data: any[]) => {
         const now = new Date();
         const filtered = data.filter((entry: any) => {
-            if (!entry || !entry.sessionDate) return false; // Ensure valid data
+            if (!entry?.sessionDate) return false; // Ensure valid data
             const entryDate = new Date(entry.sessionDate);
             const daysDifference = (now.getTime() - entryDate.getTime()) / (1000 * 3600 * 24);
             return daysDifference <= dateRange;
@@ -130,16 +130,13 @@ const Graph: React.FC = () => {
         if (selectedData.length > 0) { // Ensure there's data to fetch
             setIsLoading(true);
 
-            // Create a mapping of behavior names based on selectedData
-            const behaviorNames = Object.fromEntries(selectedData.map(item => [item.id, item.name]));
-
             Promise.all([...new Set(selectedData.map(item => item.id))].map(id => debounceAsync(() => getTargetData(Number(id)), 300)()))
                 .then((allData) => {
                     const flattenedData = allData.flat().filter(entry => entry !== null);
                     const filteredData = filterDataByDateRange(flattenedData); // Filter data based on date range
                     
                     const isEmptyData = filteredData.length === 0 || 
-                        (filteredData.length === 1 && filteredData[0].count === 0 && !filteredData[0].behaviorDataID);
+                        (filteredData.length === 1 && filteredData[0]?.count === 0 && !filteredData[0]?.behaviorDataID);
 
                     if (isEmptyData) {
                         return setStatusMessage("No data available within range");

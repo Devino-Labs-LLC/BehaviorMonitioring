@@ -28,10 +28,13 @@ const ManageAdmins: React.FC = () => {
         if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!isAdmin) {
-            navigate.push('/');
-        } else {
+            return;
+        }
+
+        if (isAdmin) {
             debounceAsync(fetchAdmins, 300)();
+        } else {
+            navigate.push('/');
         }
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 
@@ -66,7 +69,7 @@ const ManageAdmins: React.FC = () => {
     };
 
     const handleDeleteClick = async (admin: AdminEmployee) => {
-        if (!window.confirm(`Are you sure you want to delete admin "${admin.username}"? This action cannot be undone.`)) {
+        if (!globalThis.confirm(`Are you sure you want to delete admin "${admin.username}"? This action cannot be undone.`)) {
             return;
         }
 

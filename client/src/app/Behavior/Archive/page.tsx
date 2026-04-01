@@ -34,10 +34,7 @@ const Archive: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<string>('');
     const [selectedClientID, setSelectedClientID] = useState<number>(0);
     const [archivedBehaviors, setArchivedBehaviors] = useState<BehaviorSkillOption[]>([]);
-    const [activeMenu, setActiveMenu] = useState<number | null>(null);
-    const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [isPopoutVisible, setIsPopoutVisible] = useState<boolean>(false);
-    const [mergeBehaviorList, setMergeBehaviorList] = useState<{ id: string; name: string }[]>([]);
     const [popupAction, setPopupAction] = useState<string>('');
     const [behaviorNameToActOn, setBehaviorNameToActOn] = useState<string>('');
     const [behaviorIdToActOn, setBehaviorIdToActOn] = useState<string>('');
@@ -62,7 +59,7 @@ const Archive: React.FC = () => {
             setClearMessageStatus(false);
             setStatusMessage('')
         }
-    }, [timerCount, clearMessageStatus]);;
+    }, [timerCount, clearMessageStatus]);
 
     const getClientNames = async () => {
         setIsLoading(true);
@@ -144,7 +141,7 @@ const Archive: React.FC = () => {
         setStatusMessage('');
         setArchivedBehaviors([]);
         setSelectedClient(value);
-        const numericValue = value === '' ? NaN : parseFloat(value);
+        const numericValue = value === '' ? Number.NaN : Number.parseFloat(value);
         setSelectedClientID(numericValue);
     };
 
@@ -163,9 +160,9 @@ const Archive: React.FC = () => {
 
     const handleReactivationDelete = async () => {
         if (popupAction === 'Reactivate') {
-            debounceAsync(() => reactivateBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300);
+            debounceAsync(() => reactivateBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300)();
         } else if (popupAction === 'Delete') {
-            debounceAsync(() => deleteBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300 );
+            debounceAsync(() => deleteBehaviorCall(behaviorIdToActOn, behaviorNameToActOn), 300)();
         }
         setIsPopoutVisible(false); // Close the popout after action
     };
@@ -229,8 +226,8 @@ const Archive: React.FC = () => {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     return (
@@ -271,7 +268,7 @@ const Archive: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {archivedBehaviors.map((option, index) => (
-                                            <tr key={index}>
+                                            <tr key={String(option.value)}>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.label}</div></td>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.definition}</div></td>
                                                 <td onClick={() => openBehaviorDetail(option.value)}><div>{option.measurementType}</div></td>

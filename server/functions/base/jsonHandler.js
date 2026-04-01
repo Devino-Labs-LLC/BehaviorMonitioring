@@ -1,17 +1,15 @@
-const fs = require('fs');
+const fs = require('node:fs');
 const backupImportInfoPath = './config/database/backupImportInfo.json';
 
 function testJson () {
     // Read the JSON file
     fs.readFile(backupImportInfoPath, 'utf8', (err, data) => {
-    if (err) {
-        console.error('Error reading json file:', err);
-        return;
-    }
-    else {
+        if (err) {
+            console.error('Error reading json file:', err);
+            return;
+        }
+
         console.error('Json file is readable');
-        return;
-    }
     });
 }
 

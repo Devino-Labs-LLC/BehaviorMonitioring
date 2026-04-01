@@ -19,6 +19,7 @@
     "!src/index.tsx",
     "!src/reportWebVitals.ts"
   ],
+  "coverageReporters": ["lcov", "text", "json-summary"],
   "coverageThreshold": {
     "global": {
       "branches": 2.5,

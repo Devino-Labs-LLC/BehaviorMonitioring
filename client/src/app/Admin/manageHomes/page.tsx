@@ -7,7 +7,6 @@ import Header from '../../../components/header';
 import Loading from '../../../components/loading';
 import Button from '../../../components/Button';
 import { useAuth } from '../../../hooks/useAuth';
-import { debounceAsync } from '../../../function/debounce';
 import { api } from '../../../lib/Api';
 import type { GetHomesResponse, DeleteHomeResponse } from '../../../dto';
 
@@ -21,14 +20,18 @@ const ManageHomes: React.FC = () => {
     useEffect(() => {
         if (!isReady) return;
 
+        if (isLoggedIn && isAdmin) {
+            fetchHomes();
+            return;
+        }
+
         if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!isAdmin) {
-            navigate.push('/');
-        } else {
-            fetchHomes();
+            return;
         }
+
+        navigate.push('/');
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 
     const fetchHomes = async () => {
@@ -55,7 +58,7 @@ const ManageHomes: React.FC = () => {
     };
 
     const handleDeleteClick = async (homeID: number, homeName: string) => {
-        if (!window.confirm(`Are you sure you want to delete home "${homeName}"? This action cannot be undone.`)) {
+        if (!globalThis.confirm(`Are you sure you want to delete home "${homeName}"? This action cannot be undone.`)) {
             return;
         }
 

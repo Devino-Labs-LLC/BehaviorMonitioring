@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import Dashboard from '../../../src/app/Dashboard/page';
 import { api } from '../../../src/lib/Api';
 import { setViewport, resetViewport } from '../../utils/viewportUtils';

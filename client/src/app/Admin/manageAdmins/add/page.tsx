@@ -8,11 +8,11 @@ import Loading from '../../../../components/loading';
 import Button from '../../../../components/Button';
 import InputFields from '../../../../components/Inputfield';
 import Selectdropdown from '../../../../components/Selectdropdown';
+import { CheckEmail } from '../../../../function/EntryCheck';
 import { GetLoggedInUser } from '../../../../function/VerificationCheck';
 import { useAuth } from '../../../../hooks/useAuth';
-import { debounceAsync } from '../../../../function/debounce';
 import { api } from '../../../../lib/Api';
-import type { CreateAdminRequest, CreateAdminResponse } from '../../../../dto';
+import type { CreateAdminResponse } from '../../../../dto';
 
 const AddAdmin: React.FC = () => {
     const navigate = useRouter();
@@ -47,7 +47,7 @@ const AddAdmin: React.FC = () => {
         if (!formData.firstName.trim()) return 'First name is required';
         if (!formData.lastName.trim()) return 'Last name is required';
         if (!formData.email.trim()) return 'Email is required';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
+        if (!CheckEmail(formData.email)) return 'Invalid email format';
         return null;
     };
 

@@ -73,3 +73,7 @@
 .DS_STORE*
 node_modules*
 .vscode/
+
+# SonarCloud
+*sonarcloud*.csv
+*sonarcloud*.json

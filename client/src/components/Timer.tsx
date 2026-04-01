@@ -11,6 +11,14 @@ interface CustomTimerProps {
 }
 
 const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", name, required, onChange }) => {
+    const getDecrementedMinute = (currentMinute: number, shouldBorrowMinute: boolean) => {
+        if (!shouldBorrowMinute) {
+            return currentMinute;
+        }
+
+        return currentMinute === 0 ? 59 : currentMinute - 1;
+    };
+
     const parseTimeString = (timeString: string) => {
         const [hour, minute, second] = timeString.split(':').map(Number);
         return { hour, minute, second };
@@ -50,15 +58,13 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     };
 
     const decrementMinute = () => {
-        let newMinute = (minute - 1 + 60) % 60;
-        let newHour = newMinute === 59 ? hour - 1 : hour;
-        if (newMinute <= -1) {
-            newMinute = 0;
+        if (hour === 0 && minute === 0) {
+            updateTime(0, 0, second);
+            return;
         }
-        
-        if (newHour <= 0) {
-            newHour = 0;
-        }
+
+        const newMinute = minute === 0 ? 59 : minute - 1;
+        const newHour = minute === 0 ? Math.max(hour - 1, 0) : hour;
         updateTime(newHour, newMinute, second);
     };
 
@@ -70,41 +76,39 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     };
 
     const decrementSecond = () => {
-        let newSecond = (second - 1 + 60) % 60;
-        let newMinute = newSecond === 59 ? minute - 1 : minute;
-        let newHour = newMinute === -1 ? hour - 1 : hour;
-        if (newSecond <= -1) {
-            newSecond = 0;
-        }
-        if (newMinute <= 0) {
-            newMinute = 0;
-        }
-        if (newHour <= 0) {
-            newHour = 0;
+        if (hour === 0 && minute === 0 && second === 0) {
+            updateTime(0, 0, 0);
+            return;
         }
 
-        updateTime(newHour, (newMinute + 60) % 60, newSecond);
+        const newSecond = second === 0 ? 59 : second - 1;
+        const shouldBorrowMinute = second === 0;
+        const shouldBorrowHour = shouldBorrowMinute && minute === 0;
+        const newMinute = getDecrementedMinute(minute, shouldBorrowMinute);
+        const newHour = shouldBorrowHour ? Math.max(hour - 1, 0) : hour;
+
+        updateTime(newHour, newMinute, newSecond);
     };
 
     const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value) && value >= 0) {
+        const value = Number.parseInt(e.target.value, 10);
+        if (!Number.isNaN(value) && value >= 0) {
             setHour(value);
             updateTime(value, minute, second);
         }
     };
 
     const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value) && value >= 0 && value < 60) {
+        const value = Number.parseInt(e.target.value, 10);
+        if (!Number.isNaN(value) && value >= 0 && value < 60) {
             setMinute(value);
             updateTime(hour, value, second);
         }
     };
 
     const handleSecondChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value) && value >= 0 && value < 60) {
+        const value = Number.parseInt(e.target.value, 10);
+        if (!Number.isNaN(value) && value >= 0 && value < 60) {
             setSecond(value);
             updateTime(hour, minute, value);
         }
@@ -113,6 +117,15 @@ const CustomTimer: React.FC<CustomTimerProps> = ({ initialValue = "00:00:00", na
     return (
         <div className={`ng-timepicker ${name}`}>
             <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Hours</th>
+                        <th scope="col"></th>
+                        <th scope="col">Minutes</th>
+                        <th scope="col"></th>
+                        <th scope="col">Seconds</th>
+                    </tr>
+                </thead>
                 <tbody>
                     <tr>
                         <td className="act noselect" onClick={incrementHour}><FaAngleUp /></td>

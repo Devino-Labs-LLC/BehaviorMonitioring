@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 const prodStatus = process.env.IN_PROD === "true";
+const host = process.env.HOST || '';
+const port = process.env.PORT ? `:${process.env.PORT}` : '';
+const issuer = prodStatus ? host : `${host}${port}`;
 
 function createJWTToken(payload) {
     if (!process.env.JWT_SECRET) {
@@ -10,7 +13,7 @@ function createJWTToken(payload) {
         process.env.JWT_SECRET,
         {
             expiresIn: "1h",
-            issuer: prodStatus ? `${process.env.HOST}` : `${process.env.HOST}${process.env.PORT ? `:${process.env.PORT}` : ''}`,
+            issuer,
             audience: process.env.ClientHost
         }
     );

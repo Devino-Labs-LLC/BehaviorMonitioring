@@ -6,13 +6,18 @@ let emailTemplate;
 
 describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
     let mockResendEmails;
-    let mockResend;
     let mockSendMail;
     let mockNodemailer;
+    let originalGithubActions;
+    let originalNodeEnv;
+    let originalJestWorkerId;
 
     beforeEach(() => {
         jest.clearAllMocks();
         jest.resetModules(); // Clear the module cache
+        originalGithubActions = process.env.GITHUB_ACTIONS;
+        originalNodeEnv = process.env.NODE_ENV;
+        originalJestWorkerId = process.env.JEST_WORKER_ID;
         
         // Setup Resend mock BEFORE importing emailTemplate
         const { Resend } = require('resend');
@@ -22,8 +27,6 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
         Resend.mockImplementation(() => ({
             emails: mockResendEmails
         }));
-        mockResend = Resend;
-
         // Setup nodemailer mock BEFORE importing emailTemplate
         mockSendMail = jest.fn();
         mockNodemailer = require('nodemailer');
@@ -36,10 +39,30 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
     });
 
     afterEach(() => {
+        process.env.GITHUB_ACTIONS = originalGithubActions;
+        process.env.NODE_ENV = originalNodeEnv;
+        process.env.JEST_WORKER_ID = originalJestWorkerId;
         jest.resetModules();
     });
 
     describe('sendSignupVerification', () => {
+        it('should bypass outbound email delivery during GitHub Actions test startup', async () => {
+            process.env.GITHUB_ACTIONS = 'true';
+            process.env.NODE_ENV = 'test';
+            delete process.env.JEST_WORKER_ID;
+
+            const result = await emailTemplate.sendSignupVerification(
+                'user@example.com',
+                'John',
+                'Doe',
+                'test-token-123'
+            );
+
+            expect(result).toBe(true);
+            expect(mockResendEmails.send).not.toHaveBeenCalled();
+            expect(mockSendMail).not.toHaveBeenCalled();
+        });
+
         it('should send signup verification email using Resend', async () => {
             mockResendEmails.send.mockResolvedValue({
                 error: null,
@@ -82,6 +105,7 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
             expect(result).toBe(true);
             expect(mockSendMail).toHaveBeenCalledWith(
                 expect.objectContaining({
+                    from: expect.stringContaining('BMetrics'),
                     to: 'user@example.com',
                     subject: 'BMetrics - Verify Your Account'
                 })
@@ -370,6 +394,54 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
         });
     });
 
+    describe('archived client notifications', () => {
+        it('should send a deletion reminder email with archival metadata', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-reminder' }
+            });
+
+            const result = await emailTemplate.sendClientDataDeletionReminder(
+                'John Doe',
+                30,
+                '2032-01-01',
+                '2025-01-01'
+            );
+
+            expect(result).toBe(true);
+
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
+            expect(emailCall.subject).toContain('30 Days');
+            expect(emailCall.html).toContain('John Doe');
+            expect(emailCall.html).toContain('2025-01-01');
+            expect(emailCall.html).toContain('2032-01-01');
+            expect(emailCall.html).toContain('30 days');
+            expect(emailCall.html).toContain('/Admin/ArchivedClients');
+        });
+
+        it('should send a deleted-data notification email', async () => {
+            mockResendEmails.send.mockResolvedValue({
+                error: null,
+                data: { id: 'email-deleted' }
+            });
+
+            const result = await emailTemplate.sendClientDataDeleted(
+                'Jane Smith',
+                '2032-02-01',
+                '2025-02-01'
+            );
+
+            expect(result).toBe(true);
+
+            const emailCall = mockResendEmails.send.mock.calls[0][0];
+            expect(emailCall.subject).toContain('Jane Smith');
+            expect(emailCall.html).toContain('Client Data Deleted');
+            expect(emailCall.html).toContain('2025-02-01');
+            expect(emailCall.html).toContain('2032-02-01');
+            expect(emailCall.html).toContain('permanently removed');
+        });
+    });
+
     describe('Error Handling with Fallback Strategy', () => {
         it('should handle Resend API errors and fallback to Brevo SMTP', async () => {
             const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
@@ -426,6 +498,30 @@ describe('Email Template Unit Tests - Resend with Brevo SMTP Fallback', () => {
             );
 
             expect(result).toBe(false);
+        });
+
+        it('bypasses outbound delivery during GitHub Actions test startup flows', async () => {
+            process.env.GITHUB_ACTIONS = 'true';
+            process.env.NODE_ENV = 'test';
+            delete process.env.JEST_WORKER_ID;
+
+            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+            const result = await emailTemplate.sendSignupVerification(
+                'user@example.com',
+                'John',
+                'Doe',
+                'token'
+            );
+
+            expect(result).toBe(true);
+            expect(mockResendEmails.send).not.toHaveBeenCalled();
+            expect(mockSendMail).not.toHaveBeenCalled();
+            expect(consoleLogSpy).toHaveBeenCalledWith(
+                'Skipping outbound email delivery during GitHub Actions test run.'
+            );
+
+            consoleLogSpy.mockRestore();
         });
     });
 });

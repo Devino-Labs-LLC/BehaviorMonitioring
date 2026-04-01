@@ -50,6 +50,38 @@ const TargetBehavior: React.FC = () => {
     const [clearMessageStatus, setClearMessageStatus] = useState<boolean>(false);
     const [showNoClientsPrompt, setShowNoClientsPrompt] = useState(false);
 
+    const updateCheckedBehaviorState = (nextCheckedBehaviors: SelectedBehaviorSkill[]) => {
+        sessionStorage.setItem('checkedBehaviors', JSON.stringify(nextCheckedBehaviors));
+        setCheckedBehaviors(nextCheckedBehaviors);
+    };
+
+    const buildCheckedBehavior = (selectedBehavior: BehaviorSkillOption): SelectedBehaviorSkill => ({
+        id: String(selectedBehavior.value),
+        name: selectedBehavior.label,
+        clientName: selectedClient,
+        measurementType: selectedBehavior.measurementType,
+    });
+
+    const addCheckedBehavior = (selectedBehavior: BehaviorSkillOption) => {
+        updateCheckedBehaviorState([
+            ...checkedBehaviors,
+            buildCheckedBehavior(selectedBehavior),
+        ]);
+    };
+
+    const removeCheckedBehavior = (selectedBehavior: BehaviorSkillOption) => {
+        updateCheckedBehaviorState(
+            checkedBehaviors.filter((behavior) => behavior.id !== String(selectedBehavior.value))
+        );
+    };
+
+    const updateCheckboxStateAtIndex = (index: number, isChecked: boolean) => {
+        const updatedCheckedState = [...checkedState];
+        updatedCheckedState[index] = isChecked;
+        setCheckedState(updatedCheckedState);
+        return updatedCheckedState;
+    };
+
     useEffect(() => {
         sessionStorage.removeItem('clientID');
         sessionStorage.removeItem('checkedBehaviors');
@@ -82,14 +114,15 @@ const TargetBehavior: React.FC = () => {
         }
         try {
             const data = await api<GetAllClientsResponse>('post','/aba/getAllClientInfo', { "employeeUsername": loggedInUser });
+            const clientData = Array.isArray(data.clientData) ? data.clientData : [];
             if (data.statusCode === 200) {
-                if (data.clientData.length === 0) {
+                if (clientData.length === 0) {
                     setShowNoClientsPrompt(true);
                     return;
                 }
-                setSelectedClient(data.clientData[0].fName + " " + data.clientData[0].lName);
-                setSelectedClientID(data.clientData[0].clientID);
-                const fetchedOptions = data.clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
+                setSelectedClient(clientData[0].fName + " " + clientData[0].lName);
+                setSelectedClientID(clientData[0].clientID);
+                const fetchedOptions = clientData.map((clientData: { clientID: number, fName: string, lName: string }) => ({
                     value: clientData.clientID,
                     label: `${clientData.fName} ${clientData.lName}`,
                 }));
@@ -128,12 +161,13 @@ const TargetBehavior: React.FC = () => {
             });
 
             if (response.statusCode === 200) {
+                const behaviorSkillData = Array.isArray(response.behaviorSkillData) ? response.behaviorSkillData : [];
                 setTargetOptions([]);
                 setCheckedState([]);
                 setCheckedBehaviors([]);
                 sessionStorage.removeItem('checkedBehaviors');
 
-                const fetchedOptions = response.behaviorSkillData.map((behavior) => ({
+                const fetchedOptions = behaviorSkillData.map((behavior) => ({
                     value: behavior.bsID,
                     label: behavior.name,
                     definition: behavior.definition,
@@ -160,45 +194,24 @@ const TargetBehavior: React.FC = () => {
         setTargetOptions([]);
         const selectedLabel = e.target.options[e.target.selectedIndex]?.text || '';
         setSelectedClient(selectedLabel);
-        const numericValue = e.target.value === '' ? NaN : Number(e.target.value);
+        const numericValue = e.target.value === '' ? Number.NaN : Number(e.target.value);
         setSelectedClientID(numericValue);
         setCheckedState(new Array(targetOptions.length).fill(false)); // Reset checkboxes
     };
 
     const handleCheckBoxChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        const updatedCheckedState = [...checkedState];
         const selectedBehavior = targetOptions[index];
         
         if (e.target.checked) {
-            const currentCheckedCount = updatedCheckedState.filter(Boolean).length;
+            const currentCheckedCount = checkedState.filter(Boolean).length;
         
             if (currentCheckedCount < maxCheckedLimit) {
-                updatedCheckedState[index] = true;
-                setCheckedState(updatedCheckedState);
-                
-                // Add clientName and measurementType to the checked behavior data
-                setCheckedBehaviors(prev => {
-                    const newCheckedBehaviors = [
-                        ...prev, 
-                        {
-                            id: String(selectedBehavior.value),
-                            name: selectedBehavior.label,
-                            clientName: selectedClient,  // Add clientName
-                            measurementType: selectedBehavior.measurementType,  // Add measurementType
-                        }
-                    ];
-                    sessionStorage.setItem('checkedBehaviors', JSON.stringify(newCheckedBehaviors));
-                    return newCheckedBehaviors;
-                });
+                updateCheckboxStateAtIndex(index, true);
+                addCheckedBehavior(selectedBehavior);
             }
         } else {
-            updatedCheckedState[index] = false;
-            setCheckedState(updatedCheckedState);
-            setCheckedBehaviors(prev => {
-                const newCheckedBehaviors = prev.filter(behavior => behavior.id !== String(selectedBehavior.value));
-                sessionStorage.setItem('checkedBehaviors', JSON.stringify(newCheckedBehaviors));
-                return newCheckedBehaviors;
-            });
+            updateCheckboxStateAtIndex(index, false);
+            removeCheckedBehavior(selectedBehavior);
         }
     };
         
@@ -218,6 +231,22 @@ const TargetBehavior: React.FC = () => {
         sessionStorage.setItem('behaviorID', String(id));
         navigate.push(`/Behavior/Detail`);
     }
+
+    const renderBehaviorDetailButton = (id: string | number, content: React.ReactNode) => (
+        <button
+            type="button"
+            onClick={() => openBehaviorDetail(id)}
+            style={{
+                all: 'unset',
+                display: 'block',
+                width: '100%',
+                minHeight: '2.5em',
+                cursor: 'pointer',
+            }}
+        >
+            {content}
+        </button>
+    );
 
     const graphBehaviorCall = (index: number | string, name: string) => {
         sessionStorage.setItem('clientID', String(selectedClientID));
@@ -251,8 +280,8 @@ const TargetBehavior: React.FC = () => {
         const ellipsisButton = document.querySelectorAll('.tbHRSEllipsesButton')[menuIndex];
         if (ellipsisButton) {
             const buttonRect = ellipsisButton.getBoundingClientRect();
-            const menuTop = buttonRect.top + window.scrollY; // Account for scrolling
-            const menuLeft = buttonRect.left + window.scrollX + buttonRect.width; // Offset for width
+            const menuTop = buttonRect.top + globalThis.scrollY; // Account for scrolling
+            const menuLeft = buttonRect.left + globalThis.scrollX + buttonRect.width; // Offset for width
             return {
                 top: `${menuTop}px`,
                 left: `${menuLeft}px`,
@@ -420,11 +449,11 @@ const TargetBehavior: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {targetOptions.map((option, index) => (
-                                            <tr key={index}>
+                                            <tr key={String(option.value)}>
                                                 <td><div><Checkbox nameOfClass='tbGraphTable' label={option.label} isChecked={checkedState[index]} onChange={handleCheckBoxChange(index)} disabled={isCheckboxDisabled(index)}/></div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>{option.label}</div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>{option.definition}</div></td>
-                                                <td onClick={() => openBehaviorDetail(option.value)}><div>{option.measurementType}</div></td>
+                                                <td><div>{renderBehaviorDetailButton(option.value, option.label)}</div></td>
+                                                <td><div>{renderBehaviorDetailButton(option.value, option.definition)}</div></td>
+                                                <td><div>{renderBehaviorDetailButton(option.value, option.measurementType)}</div></td>
                                                 <td><div><Button nameOfClass='tbHRSGraphButton' placeholder='Graph' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); graphBehaviorCall(option.value, option.label)}}/></div></td>
                                                 <td><div><Button nameOfClass='tbHRSEllipsesButton' btnName='More options' placeholder='...' btnType='button' isLoading={isLoading} onClick={(e) => {e.stopPropagation(); handleEllipsisClick(index)}}/></div></td>
                                             </tr>
@@ -434,10 +463,10 @@ const TargetBehavior: React.FC = () => {
                                 {activeMenu !== null && (
                                     <div className={componentStyles.popoutMenu} style={getMenuPosition(activeMenu)}>
                                         <ul>
-                                            <li onClick={() => { closeMenu(); mergeBehaviorCall(); }}>Merge</li>
-                                            <li onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Archive', String(selectedBehavior.value), selectedBehavior.label); }}>Archive</li>
-                                            <li onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Delete', String(selectedBehavior.value), selectedBehavior.label); }}>Delete</li>
-                                            <li onClick={closeMenu}>Close Menu</li>
+                                            <li><button type="button" onClick={() => { closeMenu(); mergeBehaviorCall(); }}>Merge</button></li>
+                                            <li><button type="button" onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Archive', String(selectedBehavior.value), selectedBehavior.label); }}>Archive</button></li>
+                                            <li><button type="button" onClick={() => { const selectedBehavior = targetOptions[activeMenu]; closeMenu(); openPopout('Delete', String(selectedBehavior.value), selectedBehavior.label); }}>Delete</button></li>
+                                            <li><button type="button" onClick={closeMenu}>Close Menu</button></li>
                                         </ul>
                                     </div>
                                 )}

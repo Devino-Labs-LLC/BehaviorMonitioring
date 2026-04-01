@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SessionNotesArchiveDetail from '../../../src/app/SessionNotes/Archive_Detail/page';
 import { api } from '../../../src/lib/Api';
 
@@ -88,5 +88,55 @@ describe('SessionNotes Archive Detail Page Integration', () => {
     render(<SessionNotesArchiveDetail />);
 
     expect(mockPush).toHaveBeenCalledWith('/SessionNotes/Archive');
+  });
+
+  it('shows an error message when archived session note loading fails', async () => {
+    mockApi.mockRejectedValueOnce(new Error('archived load failed'));
+
+    render(<SessionNotesArchiveDetail />);
+
+    expect(await screen.findByText('Error: archived load failed')).toBeInTheDocument();
+  });
+
+  it('navigates back when the Back button is clicked', async () => {
+    const mockBack = jest.fn();
+    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
+      push: jest.fn(),
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: mockBack,
+    });
+
+    mockApi.mockResolvedValueOnce(mockSessionNoteData as any);
+
+    render(<SessionNotesArchiveDetail />);
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back button' }));
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('navigates back when Escape is pressed', async () => {
+    const mockBack = jest.fn();
+    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
+      push: jest.fn(),
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: mockBack,
+    });
+
+    mockApi.mockResolvedValueOnce(mockSessionNoteData as any);
+
+    render(<SessionNotesArchiveDetail />);
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalled();
+    });
+
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
+    expect(mockBack).toHaveBeenCalled();
   });
 });

@@ -6,8 +6,63 @@ const { getOrCreateDeviceId } = require('../auth/device');
 const employeeQueries = require('../middleware/helpers/EmployeeQueries');
 const emailTemplate = require('../middleware/email/emailTemplate');
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const saltRounds = 10;
+
+const comparePassword = (plainTextPassword, hashedPassword) =>
+    new Promise((resolve, reject) => {
+        bcrypt.compare(plainTextPassword, hashedPassword, (err, result) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            resolve(result);
+        });
+    });
+
+const createVerificationTokenDetails = () => {
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpiry = new Date();
+    verificationExpiry.setHours(verificationExpiry.getHours() + 24);
+
+    return { verificationToken, verificationExpiry };
+};
+
+const isValidEmailAddress = (value) => {
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    const email = value.trim();
+    if (!email || email.includes(' ')) {
+        return false;
+    }
+
+    const atIndex = email.indexOf('@');
+    if (atIndex <= 0 || atIndex !== email.lastIndexOf('@')) {
+        return false;
+    }
+
+    const localPart = email.slice(0, atIndex);
+    const domain = email.slice(atIndex + 1);
+    if (!localPart || !domain.includes('.')) {
+        return false;
+    }
+
+    return domain
+        .split('.')
+        .every((label) => label.length > 0 && !label.startsWith('-') && !label.endsWith('-'));
+};
+
+const blockLogin = (req, identifier, details, eventName = "EMPLOYEE_LOGIN_FAILED") => {
+    logAuthEvent(eventName, {
+        email: identifier,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        details
+    });
+};
 
 class AuthController {
     /**
@@ -46,8 +101,7 @@ class AuthController {
             }
 
             // Email validation
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-            if (!emailRegex.test(email)) {
+            if (!isValidEmailAddress(email)) {
                 return res.json({ 
                     statusCode: 400, 
                     signupSuccess: false, 
@@ -79,9 +133,7 @@ class AuthController {
             const hashedPassword = await bcrypt.hash(password, saltRounds);
 
             // Generate verification token
-            const verificationToken = crypto.randomBytes(32).toString('hex');
-            const verificationExpiry = new Date();
-            verificationExpiry.setHours(verificationExpiry.getHours() + 24); // 24 hour expiry
+            const { verificationToken, verificationExpiry } = createVerificationTokenDetails();
 
             // Get current date and time
             const now = new Date();
@@ -99,25 +151,8 @@ class AuthController {
             let companyID = 0;
             let shouldBootstrapAdmin = false;
 
-            // If company doesn't exist, create it and make this user the admin
-            if (!companyRecord) {
-                companyRecord = await CompanyData.create({
-                    companyName: companyName.trim(),
-                    companyStreetAddress: 'To be updated',
-                    companyCity: 'To be updated',
-                    companyState: 'To be updated',
-                    companyZipCode: '00000',
-                    companyContact: email.toLowerCase(),
-                    companyFinanceContact: email.toLowerCase(),
-                    entered_by: username.toLowerCase(),
-                    date_entered: dateEntered,
-                    time_entered: timeEntered
-                });
-
-                // First user of a new company becomes admin.
-                shouldBootstrapAdmin = true;
-                companyID = companyRecord.companyDataID;
-            } else {
+            // If company exists, check whether it already has a privileged user.
+            if (companyRecord) {
                 companyID = companyRecord.companyDataID;
 
                 // Safety net: if company exists but has no privileged account yet,
@@ -134,6 +169,23 @@ class AuthController {
                 if (existingCompanyUsers.length === 0 || !hasPrivilegedUser) {
                     shouldBootstrapAdmin = true;
                 }
+            } else {
+                companyRecord = await CompanyData.create({
+                    companyName: companyName.trim(),
+                    companyStreetAddress: 'To be updated',
+                    companyCity: 'To be updated',
+                    companyState: 'To be updated',
+                    companyZipCode: '00000',
+                    companyContact: email.toLowerCase(),
+                    companyFinanceContact: email.toLowerCase(),
+                    entered_by: username.toLowerCase(),
+                    date_entered: dateEntered,
+                    time_entered: timeEntered
+                });
+
+                // First user of a new company becomes admin.
+                shouldBootstrapAdmin = true;
+                companyID = companyRecord.companyDataID;
             }
 
             if (shouldBootstrapAdmin) {
@@ -162,7 +214,7 @@ class AuthController {
                 signup_date: now
             });
 
-            await logAuthEvent("EMPLOYEE_SIGNUP", { 
+            logAuthEvent("EMPLOYEE_SIGNUP", { 
                 userId: newEmployee.employeeID,
                 email: email.toLowerCase(), 
                 ip: req.ip, 
@@ -201,7 +253,7 @@ class AuthController {
                 isCompanyAdmin: role === 'admin'
             });
         } catch (error) {
-            await logAuthEvent("EMPLOYEE_SIGNUP_ERROR", { 
+            logAuthEvent("EMPLOYEE_SIGNUP_ERROR", { 
                 email: req.body.email?.toLowerCase(), 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
@@ -257,152 +309,119 @@ class AuthController {
             const uName = req.body.username;
             const password = req.body.password;
 
-            if (await employeeQueries.employeeExistByUsername(uName.toLowerCase())) {
-                const employeePassword = await employeeQueries.employeePasswordByUsername(uName.toLowerCase());
-
-                if (employeePassword?.password && employeePassword.password.length > 0) {
-                    const bcryptResult = await new Promise((resolve, reject) => {
-                        bcrypt.compare(password, employeePassword.password, (err, result) => {
-                            if (err) {
-                                reject(err);
-                            }
-                            else {
-                                resolve(result);
-                            }
-                        });
-                    });
-
-                    if (bcryptResult) {
-                        const employeeData = await employeeQueries.employeeDataByUsername(uName.toLowerCase());
-                        
-                        // Check if email is verified
-                        if (!employeeData.email_verified) {
-                            // Generate new verification token
-                            const verificationToken = crypto.randomBytes(32).toString('hex');
-                            const verificationExpiry = new Date();
-                            verificationExpiry.setHours(verificationExpiry.getHours() + 24); // 24 hour expiry
-
-                            // Update verification token
-                            const Employee = require('../models/Employee');
-                            await Employee.update(
-                                {
-                                    verification_token: verificationToken,
-                                    verification_token_expires: verificationExpiry
-                                },
-                                { where: { employeeID: employeeData.employeeID } }
-                            );
-
-                            // Resend verification email
-                            await emailTemplate.sendSignupVerification(
-                                employeeData.email,
-                                employeeData.fName,
-                                employeeData.lName,
-                                verificationToken
-                            );
-
-                            await logAuthEvent("EMPLOYEE_LOGIN_BLOCKED_UNVERIFIED", { 
-                                userId: employeeData.employeeID, 
-                                email: employeeData.email, 
-                                ip: req.ip, 
-                                userAgent: req.headers['user-agent'],
-                                details: 'Login blocked - email not verified. Verification email resent.' 
-                            });
-
-                            return res.json({ 
-                                statusCode: 403, 
-                                loginStatus: false,
-                                emailNotVerified: true,
-                                serverMessage: 'Please verify your email address before logging in. A new verification email has been sent to your inbox.' 
-                            });
-                        }
-
-                        if (employeeData.account_status !== 'Active') {
-                            await logAuthEvent("EMPLOYEE_LOGIN_BLOCKED_PENDING_APPROVAL", {
-                                userId: employeeData.employeeID,
-                                email: employeeData.email,
-                                ip: req.ip,
-                                userAgent: req.headers['user-agent'],
-                                details: `Login blocked - account status is ${employeeData.account_status}`
-                            });
-
-                            return res.json({
-                                statusCode: 403,
-                                loginStatus: false,
-                                serverMessage: 'Your account is pending approval. Please contact your company administrator.'
-                            });
-                        }
-
-                        const accessPayload = {
-                            sub: employeeData.employeeID,
-                            email: employeeData.email,
-                            companyID: employeeData.companyID,
-                            roles: [employeeData.role],
-                        };
-                        const accessToken = createAccessToken(accessPayload);
-                        const refreshToken = createRefreshToken(employeeData.employeeID);
-                        const deviceId = getOrCreateDeviceId(req, res);
-
-                        await insertRefreshToken({ 
-                            userId: employeeData.employeeID, 
-                            token: refreshToken, 
-                            ttlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS || 7), 
-                            userAgent: req.headers['user-agent'], 
-                            ipAddress: req.ip, 
-                            deviceId, 
-                            lastUsedAt: new Date() 
-                        });
-
-                        setRefreshCookie(res, refreshToken);
-                        await logAuthEvent("EMPLOYEE_LOGIN_SUCCESS", { 
-                            userId: employeeData.employeeID, 
-                            email: employeeData.email, 
-                            ip: req.ip, 
-                            userAgent: req.headers['user-agent'] 
-                        });
-                        
-                        return res.json({ 
-                            statusCode: 200, 
-                            loginStatus: true, 
-                            accessToken: accessToken, 
-                            user: { 
-                                uName: uName.toLowerCase(), 
-                                compName: employeeData.companyName, 
-                                compID: employeeData.companyID, 
-                                isAdmin: ["root", "admin"].includes(String(employeeData.role).toLowerCase()) 
-                            } 
-                        });
-                    }
-                    else {
-                        await logAuthEvent("EMPLOYEE_LOGIN_FAILED", { 
-                            email: uName.toLowerCase(), 
-                            ip: req.ip, 
-                            userAgent: req.headers['user-agent'], 
-                            details: 'Incorrect password' 
-                        });
-                        return res.json({ statusCode: 401, serverMessage: 'Password is incorrect' });
-                    }
-                }
-                else {
-                    await logAuthEvent("EMPLOYEE_LOGIN_FAILED", { 
-                        email: uName.toLowerCase(), 
-                        ip: req.ip, 
-                        userAgent: req.headers['user-agent'], 
-                        details: 'User needs to authenticate their account' 
-                    });
-                    return res.json({ statusCode: 401, serverMessage: 'User needs to authenticate their account' });
-                }
-            }
-            else {
-                await logAuthEvent("EMPLOYEE_LOGIN_FAILED", { 
-                    email: uName.toLowerCase(), 
-                    ip: req.ip, 
-                    userAgent: req.headers['user-agent'], 
-                    details: 'Unauthorized user' 
-                });
+            const normalizedUsername = uName.toLowerCase();
+            const employeeExists = await employeeQueries.employeeExistByUsername(normalizedUsername);
+            if (!employeeExists) {
+                blockLogin(req, normalizedUsername, 'Unauthorized user');
                 return res.json({ statusCode: 401, serverMessage: 'Unauthorized user' });
             }
+
+            const employeePassword = await employeeQueries.employeePasswordByUsername(normalizedUsername);
+            if (!employeePassword?.password || employeePassword.password.length === 0) {
+                blockLogin(req, normalizedUsername, 'User needs to authenticate their account');
+                return res.json({ statusCode: 401, serverMessage: 'User needs to authenticate their account' });
+            }
+
+            const passwordMatches = await comparePassword(password, employeePassword.password);
+            if (!passwordMatches) {
+                blockLogin(req, normalizedUsername, 'Incorrect password');
+                return res.json({ statusCode: 401, serverMessage: 'Password is incorrect' });
+            }
+
+            const employeeData = await employeeQueries.employeeDataByUsername(normalizedUsername);
+
+            if (!employeeData.email_verified) {
+                const { verificationToken, verificationExpiry } = createVerificationTokenDetails();
+                const Employee = require('../models/Employee');
+
+                await Employee.update(
+                    {
+                        verification_token: verificationToken,
+                        verification_token_expires: verificationExpiry
+                    },
+                    { where: { employeeID: employeeData.employeeID } }
+                );
+
+                await emailTemplate.sendSignupVerification(
+                    employeeData.email,
+                    employeeData.fName,
+                    employeeData.lName,
+                    verificationToken
+                );
+
+                logAuthEvent("EMPLOYEE_LOGIN_BLOCKED_UNVERIFIED", {
+                    userId: employeeData.employeeID,
+                    email: employeeData.email,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    details: 'Login blocked - email not verified. Verification email resent.'
+                });
+
+                return res.json({
+                    statusCode: 403,
+                    loginStatus: false,
+                    emailNotVerified: true,
+                    serverMessage: 'Please verify your email address before logging in. A new verification email has been sent to your inbox.'
+                });
+            }
+
+            if (employeeData.account_status !== 'Active') {
+                logAuthEvent("EMPLOYEE_LOGIN_BLOCKED_PENDING_APPROVAL", {
+                    userId: employeeData.employeeID,
+                    email: employeeData.email,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    details: `Login blocked - account status is ${employeeData.account_status}`
+                });
+
+                return res.json({
+                    statusCode: 403,
+                    loginStatus: false,
+                    serverMessage: 'Your account is pending approval. Please contact your company administrator.'
+                });
+            }
+
+            const accessPayload = {
+                sub: employeeData.employeeID,
+                email: employeeData.email,
+                companyID: employeeData.companyID,
+                roles: [employeeData.role],
+            };
+            const accessToken = createAccessToken(accessPayload);
+            const refreshToken = createRefreshToken(employeeData.employeeID);
+            const deviceId = getOrCreateDeviceId(req, res);
+
+            await insertRefreshToken({
+                userId: employeeData.employeeID,
+                token: refreshToken,
+                ttlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS || 7),
+                userAgent: req.headers['user-agent'],
+                ipAddress: req.ip,
+                deviceId,
+                lastUsedAt: new Date()
+            });
+
+            setRefreshCookie(res, refreshToken);
+            logAuthEvent("EMPLOYEE_LOGIN_SUCCESS", {
+                userId: employeeData.employeeID,
+                email: employeeData.email,
+                ip: req.ip,
+                userAgent: req.headers['user-agent']
+            });
+
+            return res.json({
+                statusCode: 200,
+                loginStatus: true,
+                accessToken,
+                user: {
+                    uName: normalizedUsername,
+                    compName: employeeData.companyName,
+                    compID: employeeData.companyID,
+                    isAdmin: ["root", "admin"].includes(String(employeeData.role).toLowerCase())
+                }
+            });
         } catch (error) {
-            await logAuthEvent("EMPLOYEE_LOGIN_ERROR", { 
+            logAuthEvent("EMPLOYEE_LOGIN_ERROR", { 
                 email: req.body.username.toLowerCase(), 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
@@ -426,14 +445,14 @@ class AuthController {
 
             clearRefreshCookie(res);
 
-            await logAuthEvent("EMPLOYEE_LOGOUT", { 
+            logAuthEvent("EMPLOYEE_LOGOUT", { 
                 email: req.body.username?.toLowerCase(), 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'] 
             });
             return res.json({ statusCode: 200, loginStatus: false, isAdmin: false });
         } catch (error) {
-            await logAuthEvent("EMPLOYEE_LOGOUT_ERROR", { 
+            logAuthEvent("EMPLOYEE_LOGOUT_ERROR", { 
                 email: req.body.username?.toLowerCase(), 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
@@ -507,7 +526,12 @@ class AuthController {
             setRefreshCookie(res, newRefreshToken);
 
             return res.json({ accessToken: newAccessToken });
-        } catch (err) {
+        } catch (error) {
+            logAuthEvent("EMPLOYEE_REFRESH_FAILED", {
+                ip: req.ip,
+                userAgent: req.headers['user-agent'],
+                details: error.message
+            });
             clearRefreshCookie(res);
             return res.status(401).json({ error: "Invalid refresh token" });
         }
@@ -560,7 +584,7 @@ class AuthController {
                 resetToken
             );
 
-            await logAuthEvent("PASSWORD_RESET_REQUESTED", { 
+            logAuthEvent("PASSWORD_RESET_REQUESTED", { 
                 userId: employee.employeeID,
                 email: employee.email, 
                 ip: req.ip, 
@@ -575,7 +599,7 @@ class AuthController {
                 emailSent: emailSent
             });
         } catch (error) {
-            await logAuthEvent("PASSWORD_RESET_ERROR", { 
+            logAuthEvent("PASSWORD_RESET_ERROR", { 
                 email: req.body.email?.toLowerCase(), 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
@@ -652,7 +676,7 @@ class AuthController {
                 hashedPassword
             );
 
-            await logAuthEvent("PASSWORD_RESET_SUCCESS", { 
+            logAuthEvent("PASSWORD_RESET_SUCCESS", { 
                 userId: employee.employeeID,
                 email: employee.email, 
                 ip: req.ip, 
@@ -666,7 +690,7 @@ class AuthController {
                 message: 'Password successfully reset. You can now log in with your new password.' 
             });
         } catch (error) {
-            await logAuthEvent("PASSWORD_RESET_ERROR", { 
+            logAuthEvent("PASSWORD_RESET_ERROR", { 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
                 details: error.message 
@@ -698,7 +722,7 @@ class AuthController {
             });
 
             if (!employee) {
-                await logAuthEvent("EMAIL_VERIFICATION_FAILED", { 
+                logAuthEvent("EMAIL_VERIFICATION_FAILED", { 
                     ip: req.ip, 
                     userAgent: req.headers['user-agent'],
                     details: 'Invalid verification token'
@@ -712,7 +736,7 @@ class AuthController {
 
             // Check if token has expired
             if (new Date() > new Date(employee.verification_token_expires)) {
-                await logAuthEvent("EMAIL_VERIFICATION_EXPIRED", { 
+                logAuthEvent("EMAIL_VERIFICATION_EXPIRED", { 
                     userId: employee.employeeID,
                     email: employee.email,
                     ip: req.ip, 
@@ -754,7 +778,7 @@ class AuthController {
                 where: { employeeID: employee.employeeID }
             });
 
-            await logAuthEvent("EMAIL_VERIFICATION_SUCCESS", { 
+            logAuthEvent("EMAIL_VERIFICATION_SUCCESS", { 
                 userId: employee.employeeID,
                 email: employee.email,
                 ip: req.ip, 
@@ -768,7 +792,7 @@ class AuthController {
                 message: 'Email successfully verified! You can now log in.' 
             });
         } catch (error) {
-            await logAuthEvent("EMAIL_VERIFICATION_ERROR", { 
+            logAuthEvent("EMAIL_VERIFICATION_ERROR", { 
                 ip: req.ip, 
                 userAgent: req.headers['user-agent'], 
                 details: error.message 

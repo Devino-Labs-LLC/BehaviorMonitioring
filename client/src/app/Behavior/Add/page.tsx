@@ -39,7 +39,7 @@ const AddTargetBehavior: React.FC = () => {
     const [selectedClientID, setSelectedClientID] = useState<number>(0);
     const [behaviorName, setBehaviorName] = useState<string>('');
     const [behaviorCategorySelected, setBehaviorCategorySelected] = useState<string>('');
-    const [otherBehaviorCategories, setOtherBehaviorCategory] = useState<string>('');
+    const [otherBehaviorCategory, setOtherBehaviorCategory] = useState<string>('');
     const [behaviorDefinition, setBehaviorDefinition] = useState<string>('');
     const [behaviorMeasurementSelected, setBehaviorMeasurementSelected] = useState<string>('');
     const [behaviorsToAdd, setBehaviorsToAdd] = useState<BehaviorToAdd[]>([]);
@@ -91,7 +91,7 @@ const AddTargetBehavior: React.FC = () => {
 
     const handleClientChange = (value: any) => {
         setSelectedClient(value.name);
-        const numericValue = value.id === '' ? NaN : parseFloat(value.id);
+        const numericValue = value.id === '' ? Number.NaN : Number.parseFloat(value.id);
         setSelectedClientID(numericValue);
     };
 
@@ -119,7 +119,7 @@ const AddTargetBehavior: React.FC = () => {
                 clientName: selectedClient, 
                 clientID: selectedClientID, 
                 behaviorName: behaviorName, 
-                behaviorCategory: behaviorCategorySelected === 'Other' ? otherBehaviorCategories : behaviorCategorySelected, 
+                behaviorCategory: behaviorCategorySelected === 'Other' ? otherBehaviorCategory : behaviorCategorySelected, 
                 behaviorDefinition: behaviorDefinition, 
                 behaviorMeasurement: behaviorMeasurementSelected, 
                 type: behaviorOrSkill as 'Behavior' | 'Skill'
@@ -127,7 +127,7 @@ const AddTargetBehavior: React.FC = () => {
             setBehaviorsToAdd([...behaviorsToAdd, newBehavior]);
             setBehaviorName('');
             setBehaviorCategorySelected(BEHAVIOR_CATEGORIES[0]);
-            if (otherBehaviorCategories.length > 0) {
+            if (otherBehaviorCategory.length > 0) {
                 setOtherBehaviorCategory('');
             }
             setBehaviorDefinition('');
@@ -210,7 +210,7 @@ const AddTargetBehavior: React.FC = () => {
                                 { behaviorCategorySelected === 'Other' &&
                                     <label>
                                         <span>Enter a behavior Category:</span>
-                                        <InputFields name="behaviorCategoryField" type="text" placeholder="Behavior Category" requiring={true} value={otherBehaviorCategories} onChange={(e) => setOtherBehaviorCategory(e.target.value)}/>
+                                        <InputFields name="behaviorCategoryField" type="text" placeholder="Behavior Category" requiring={true} value={otherBehaviorCategory} onChange={(e) => setOtherBehaviorCategory(e.target.value)}/>
                                     </label>
                                 }
                                 <label>
@@ -227,11 +227,11 @@ const AddTargetBehavior: React.FC = () => {
                                 <div className={componentStyles.tbAddedBehaviors}>
                                     <h2>Behaviors to Add</h2>
                                     <ul>
-                                        {behaviorsToAdd.map((behavior, index) => (
-                                            <li key={index}>
+                                        {behaviorsToAdd.map((behavior) => (
+                                            <li key={`${behavior.clientID}-${behavior.behaviorName}-${behavior.behaviorCategory}-${behavior.behaviorMeasurement}-${behavior.behaviorDefinition}`}>
                                                 <div className={componentStyles.tbTitleButton}>
                                                     <h3>{behavior.behaviorName}</h3>
-                                                    <Button nameOfClass='tbRemoveButton' placeholder='X' btnName='Remove' btnType='button' onClick={() => removeBehavior(index)}/>
+                                                    <Button nameOfClass='tbRemoveButton' placeholder='X' btnName='Remove' btnType='button' onClick={() => removeBehavior(behaviorsToAdd.indexOf(behavior))}/>
                                                 </div>
                                                 <p><b>Client:</b> {behavior.clientName}</p>
                                                 <p><b>Category:</b> {behavior.behaviorCategory}</p>

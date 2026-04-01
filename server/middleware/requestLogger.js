@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Path to logs directory and log file
 const logsDir = path.join(__dirname, '../logs');

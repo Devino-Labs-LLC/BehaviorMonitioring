@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import Button from '../../../src/components/Button';
-import { setViewport, resetViewport, hasMobileTouchTarget } from '../../utils/viewportUtils';
+import { setViewport, resetViewport } from '../../utils/viewportUtils';
 
 describe('Touch Targets - Mobile Accessibility', () => {
   beforeEach(() => {
@@ -127,6 +127,11 @@ describe('Touch Targets - Mobile Accessibility', () => {
       
       const { container } = render(
         <table className="tbHRSTable">
+          <thead>
+            <tr>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
               <td>

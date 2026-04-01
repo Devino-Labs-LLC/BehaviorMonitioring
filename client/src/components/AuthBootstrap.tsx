@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import axios from "axios";
 import { setAccessToken, clearAccessToken } from "@/lib/tokenStore";
 import { clearScheduledRefresh, scheduleSilentRefresh } from "../lib/authScheduler";
@@ -18,6 +18,12 @@ export function getBootstrapStatus() {
     return { isBootstrapped, isBootstrapping };
 }
 
+export function resetBootstrapState() {
+    isBootstrapped = false;
+    isBootstrapping = false;
+    bootstrapListeners = [];
+}
+
 // Allow components to wait for bootstrap to complete
 export function onBootstrapComplete(callback: () => void) {
     if (isBootstrapped) {
@@ -33,9 +39,9 @@ function notifyBootstrapComplete() {
 }
 
 function hasStoredUserSession() {
-    if (typeof window === "undefined") return false;
+    if (globalThis.window === undefined) return false;
 
-    const storedUserData = localStorage.getItem('bmUserData');
+    const storedUserData = globalThis.localStorage.getItem('bmUserData');
     if (!storedUserData) return false;
 
     try {
@@ -47,8 +53,6 @@ function hasStoredUserSession() {
 }
 
 export default function AuthBootstrap() {
-    const [, setReady] = useState(false);
-
     useEffect(() => {
         if (isBootstrapping || isBootstrapped) return;
         
@@ -59,7 +63,6 @@ export default function AuthBootstrap() {
             clearAccessToken();
             isBootstrapped = true;
             isBootstrapping = false;
-            setReady(true);
             notifyBootstrapComplete();
             return;
         }
@@ -73,7 +76,7 @@ export default function AuthBootstrap() {
                 });
                 setAccessToken(res.data.accessToken);
                 scheduleSilentRefresh(res.data.accessToken);
-            } catch (error) {
+            } catch {
                 // If refresh fails and user data exists, clear it
                 clearScheduledRefresh();
                 clearAccessToken();
@@ -81,7 +84,6 @@ export default function AuthBootstrap() {
             } finally {
                 isBootstrapped = true;
                 isBootstrapping = false;
-                setReady(true);
                 notifyBootstrapComplete();
             }
         })();

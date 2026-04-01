@@ -29,10 +29,13 @@ const ManageClients: React.FC = () => {
         if (!isLoggedIn) {
             const previousUrl = encodeURIComponent(location.pathname);
             navigate.push(`/Login?previousUrl=${previousUrl}`);
-        } else if (!isAdmin) {
-            navigate.push('/');
-        } else {
+            return;
+        }
+
+        if (isAdmin) {
             debounceAsync(fetchClients, 300)();
+        } else {
+            navigate.push('/');
         }
     }, [isReady, isLoggedIn, isAdmin, navigate]);
 
@@ -73,7 +76,7 @@ const ManageClients: React.FC = () => {
     };
 
     const handleDeleteClick = async (client: Client) => {
-        if (!window.confirm(`Are you sure you want to delete client "${client.fName} ${client.lName}"? This action cannot be undone.`)) {
+        if (!globalThis.confirm(`Are you sure you want to delete client "${client.fName} ${client.lName}"? This action cannot be undone.`)) {
             return;
         }
 
@@ -105,7 +108,7 @@ const ManageClients: React.FC = () => {
     };
 
     const handleArchiveClick = async (client: Client) => {
-        if (!window.confirm(`Are you sure you want to archive client "${client.fName} ${client.lName}"? This will mark them as inactive and schedule their data for deletion in 7 years.`)) {
+        if (!globalThis.confirm(`Are you sure you want to archive client "${client.fName} ${client.lName}"? This will mark them as inactive and schedule their data for deletion in 7 years.`)) {
             return;
         }
 

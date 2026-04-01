@@ -1,5 +1,5 @@
 "use client";
-import React, {useState, useEffect} from 'react';
+import React from 'react';
 import Head from 'next/head';
 import componentStyles from '../../styles/components.module.scss';
 import Header from '../../components/header';
@@ -23,6 +23,6 @@ const About: React.FC = () => {
         <Footer/>
         </>
     );
-}
+};
 
 export default About;

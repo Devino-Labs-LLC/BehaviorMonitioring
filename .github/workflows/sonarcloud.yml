@@ -36,13 +36,45 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: read
   pull-requests: read # allows SonarCloud to decorate PRs with analysis results
 
 jobs:
   Analysis:
     runs-on: ubuntu-latest
+    environment: stellar-reverence / production
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Install workspace dependencies
+        uses: ./.github/actions/install-workspace-deps
+
+      - name: Generate client coverage
+        working-directory: ./client
+        run: npm test -- --coverage --watchAll=false
+
+      - name: Generate server coverage
+        working-directory: ./server
+        run: npm test -- --coverage --runInBand --watchAll=false "--testPathPatterns=tests/unit|tests/integration/routes/(Admin|Employee|Auth)\\.test\\.js"
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
+          MYSQL_USER: ${{ vars.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+
       - name: Analyze with SonarCloud
 
         # You can pin the exact commit or the version.
@@ -57,6 +89,12 @@ jobs:
             # mandatory
             -Dsonar.projectKey=Devino-Labs-LLC_BehaviorMonitioring
             -Dsonar.organization=devino-labs-llc
+            -Dsonar.sources=client/src,server
+            -Dsonar.tests=client/tests,server/tests
+            -Dsonar.exclusions=**/node_modules/**,**/coverage/**,client/tests/**,server/tests/**
+            -Dsonar.test.inclusions=client/tests/**/*,server/tests/**/*
+            -Dsonar.javascript.lcov.reportPaths=client/coverage/lcov.info,server/coverage/lcov.info
+            -Dsonar.scm.provider=git
             # Comma-separated paths to directories containing main source files.
             #-Dsonar.sources= # optional, default is project base directory
             # Comma-separated paths to directories containing test source files.

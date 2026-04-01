@@ -117,12 +117,15 @@ const GraphDataProcessor: React.FC<GraphDataProcessorProps> = ({ fetchedData, be
     // Step 2: Group aggregated data by behaviorID
     const groupedByBehavior = Object.values(aggregatedData).reduce((acc, { behaviorID, sessionDate, rate, count, duration }) => {
         if (!acc[behaviorID]) acc[behaviorID] = {};
-    
-        acc[behaviorID][sessionDate] = measurementType === 'Rate' 
-            ? rate 
-            : (measurementType === 'Duration' 
-            ? convertSecondsToHHMMSS(duration)
-            : count);
+
+        let sessionValue: string | number = count;
+        if (measurementType === 'Rate') {
+            sessionValue = rate;
+        } else if (measurementType === 'Duration') {
+            sessionValue = convertSecondsToHHMMSS(duration);
+        }
+
+        acc[behaviorID][sessionDate] = sessionValue;
     
         return acc;
     }, {} as Record<number, Record<string, string | number>>);
@@ -134,7 +137,7 @@ const GraphDataProcessor: React.FC<GraphDataProcessorProps> = ({ fetchedData, be
     
             if (measurementType === 'Duration') {
                 if (typeof value === 'string') {
-                    const [hours, minutes, seconds] = value.split(':').map((part) => parseInt(part, 10));
+                    const [hours, minutes, seconds] = value.split(':').map((part) => Number.parseInt(part, 10));
                     value = (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0); // Convert to seconds
                 } else {
                     value = Number(value); // Ensure it's a number, though it's already a number here

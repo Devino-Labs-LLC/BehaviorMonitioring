@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   client-tests:
@@ -34,8 +33,10 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ./client/package-lock.json
     
-    - name: Install dependencies
-      run: npm ci
+    - name: Install client dependencies
+      uses: ./.github/actions/install-workspace-deps
+      with:
+        install-server: "false"
     
     - name: Run linter
       run: npm run lint --if-present
@@ -45,7 +46,7 @@ jobs:
       run: npm test -- --testPathPatterns=tests/unit --coverage --watchAll=false
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457
       with:
         files: ./client/coverage/coverage-final.json
         flags: client
@@ -90,35 +91,26 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ./server/package-lock.json
     
-    - name: Install dependencies
-      run: npm ci
+    - name: Install server dependencies
+      uses: ./.github/actions/install-workspace-deps
+      with:
+        install-client: "false"
         
     - name: Wait for MySQL
-      run: |
-        until mysqladmin ping -h"127.0.0.1" -P"3306" --silent; do
-          echo 'waiting for mysql...'
-          sleep 1
-        done
+      uses: ./.github/actions/wait-for-mysql
+      with:
+        host: 127.0.0.1
+        port: 3306
     
     - name: Setup database
-      run: |
-        node -e "
-        const { sequelize } = require('./models');
-        sequelize.sync({ force: true }).then(() => {
-          console.log('Database synced');
-          process.exit(0);
-        }).catch(err => {
-          console.error('Database sync failed:', err);
-          process.exit(1);
-        });
-        "
-      env:
-        DB_TYPE: ${{ vars.DB_TYPE }}
-        MYSQL_HOST: ${{ vars.MYSQL_HOST }}
-        MYSQL_PORT: ${{ vars.MYSQL_PORT }}
-        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ vars.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/reset-server-db
+      with:
+        db-type: ${{ vars.DB_TYPE }}
+        mysql-host: ${{ vars.MYSQL_HOST }}
+        mysql-port: ${{ vars.MYSQL_PORT }}
+        mysql-database: ${{ vars.MYSQL_DATABASE }}
+        mysql-user: ${{ vars.MYSQL_USER }}
+        mysql-password: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Run linter
       run: npm run lint --if-present
@@ -138,7 +130,7 @@ jobs:
         MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457
       with:
         files: ./server/coverage/coverage-final.json
         flags: server
@@ -174,43 +166,24 @@ jobs:
       with:
         node-version: '24.x'
     
-    - name: Install client dependencies
-      working-directory: ./client
-      run: npm ci
-    
-    - name: Install server dependencies
-      working-directory: ./server
-      run: npm ci
+    - name: Install workspace dependencies
+      uses: ./.github/actions/install-workspace-deps
         
     - name: Wait for MySQL
-      run: |
-        until mysqladmin ping -h"${{ vars.MYSQL_HOST }}" -P"${{ vars.MYSQL_PORT }}" -uroot -p"${{ secrets.MYSQL_PASSWORD }}" --silent; do
-          echo 'waiting for mysql...'
-          sleep 1
-        done
-      env:
-        MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/wait-for-mysql
+      with:
+        host: ${{ vars.MYSQL_HOST }}
+        port: ${{ vars.MYSQL_PORT }}
+        password: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Setup database
-      working-directory: ./server
-      run: |
-        node -e "
-        const { sequelize } = require('./models');
-        sequelize.sync({ force: true }).then(() => {
-          console.log('Database synced');
-          process.exit(0);
-        }).catch(err => {
-          console.error('Database sync failed:', err);
-          process.exit(1);
-        });
-        "
-      env:
-        NODE_ENV: test
-        MYSQL_HOST: 127.0.0.1
-        MYSQL_PORT: 3306
-        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ vars.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/reset-server-db
+      with:
+        mysql-host: 127.0.0.1
+        mysql-port: 3306
+        mysql-database: ${{ vars.MYSQL_DATABASE }}
+        mysql-user: ${{ vars.MYSQL_USER }}
+        mysql-password: ${{ secrets.MYSQL_PASSWORD }}
     
     - name: Start server
       working-directory: ./server
@@ -265,45 +238,27 @@ jobs:
       with:
         node-version: '24.x'
 
-    - name: Install client dependencies
-      working-directory: ./client
-      run: npm ci
-
-    - name: Install server dependencies
-      working-directory: ./server
-      run: npm ci
+    - name: Install workspace dependencies
+      uses: ./.github/actions/install-workspace-deps
 
     - name: Install Playwright browsers
       working-directory: ./client
       run: npx playwright install --with-deps chromium
 
     - name: Wait for MySQL
-      run: |
-        until mysqladmin ping -h"127.0.0.1" -P"3306" --silent; do
-          echo 'waiting for mysql...'
-          sleep 1
-        done
+      uses: ./.github/actions/wait-for-mysql
+      with:
+        host: 127.0.0.1
+        port: 3306
 
     - name: Setup database
-      working-directory: ./server
-      run: |
-        node -e "
-        const { sequelize } = require('./models');
-        sequelize.sync({ force: true }).then(() => {
-          console.log('Database synced');
-          process.exit(0);
-        }).catch(err => {
-          console.error('Database sync failed:', err);
-          process.exit(1);
-        });
-        "
-      env:
-        NODE_ENV: test
-        MYSQL_HOST: 127.0.0.1
-        MYSQL_PORT: 3306
-        MYSQL_DATABASE: ${{ vars.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ vars.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      uses: ./.github/actions/reset-server-db
+      with:
+        mysql-host: 127.0.0.1
+        mysql-port: 3306
+        mysql-database: ${{ vars.MYSQL_DATABASE }}
+        mysql-user: ${{ vars.MYSQL_USER }}
+        mysql-password: ${{ secrets.MYSQL_PASSWORD }}
 
     - name: Start server
       working-directory: ./server
@@ -367,13 +322,8 @@ jobs:
       with:
         node-version: '24.x'
     
-    - name: Install client dependencies
-      working-directory: ./client
-      run: npm ci
-    
-    - name: Install server dependencies
-      working-directory: ./server
-      run: npm ci
+    - name: Install workspace dependencies
+      uses: ./.github/actions/install-workspace-deps
     
     - name: Generate client coverage
       working-directory: ./client
@@ -389,7 +339,7 @@ jobs:
         JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
     
     - name: Comment coverage on PR
-      uses: romeovs/lcov-reporter-action@v0.3.1
+      uses: romeovs/lcov-reporter-action@dda1c9b1fa1622b225e9acd87a248751dbcc6ada
       with:
         lcov-file: ./client/coverage/lcov.info
         github-token: ${{ secrets.GITHUB_TOKEN }}

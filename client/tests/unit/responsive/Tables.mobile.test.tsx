@@ -228,6 +228,11 @@ describe('Tables - Mobile Responsive', () => {
       
       const { container } = render(
         <table className="tbHRSTable">
+          <thead>
+            <tr>
+              <th scope="col">Value</th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
               <td>Test</td>

@@ -50,7 +50,11 @@ const localStorageMock = {
   removeItem: jest.fn(),
   clear: jest.fn(),
 };
-global.localStorage = localStorageMock as any;
+globalThis.localStorage = localStorageMock as any;
 
 // Setup window.confirm mock
-global.confirm = jest.fn(() => true);
+globalThis.confirm = jest.fn(() => true);
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
