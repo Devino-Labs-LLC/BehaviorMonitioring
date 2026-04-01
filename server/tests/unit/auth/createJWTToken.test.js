@@ -68,4 +68,30 @@ describe('createJWTToken helpers', () => {
       })
     );
   });
+
+  it('throws when the refresh token secret is missing', () => {
+    delete process.env.JWT_REFRESH_SECRET;
+    const { createRefreshToken } = require('../../../auth/createJWTToken');
+
+    expect(() => createRefreshToken({ sub: 1 })).toThrow(
+      'JWT_REFRESH_SECRET environment variable is not set. Cannot create refresh token.'
+    );
+  });
+
+  it('uses the host without the port in production mode', () => {
+    process.env.IN_PROD = 'true';
+    process.env.HOST = 'https://prod.example.com';
+    const jwt = require('jsonwebtoken');
+    const { createJWTToken } = require('../../../auth/createJWTToken');
+
+    createJWTToken({ sub: 2 });
+
+    expect(jwt.sign).toHaveBeenCalledWith(
+      { sub: 2 },
+      'jwt-secret',
+      expect.objectContaining({
+        issuer: 'https://prod.example.com',
+      })
+    );
+  });
 });

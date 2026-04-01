@@ -281,4 +281,94 @@ describe('Behavior Archive Page Integration', () => {
 
     expect(mockBack).toHaveBeenCalled();
   });
+
+  it('loads a different client archive when the selection changes', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [
+          { clientID: 1, fName: 'John', lName: 'Doe' },
+          { clientID: 2, fName: 'Jane', lName: 'Smith' },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 8,
+            name: 'Elopement',
+            definition: 'Leaves area',
+            date_entered: '2026-03-02',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await screen.findByText('Archived Behavior');
+    fireEvent.change(screen.getByLabelText('ClientName'), {
+      target: { value: '2' },
+    });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getClientArchivedBehavior', {
+        clientID: 2,
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
+  it('shows API errors when archived behavior fetch fails', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockRejectedValueOnce(new Error('Failed to load archived behaviors'));
+
+    render(<BehaviorArchive />);
+
+    expect(await screen.findByText('Error: Failed to load archived behaviors')).toBeInTheDocument();
+  });
+
+  it('closes the popout when the user cancels the action', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    expect(screen.getByText('Delete Behavior')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Delete Behavior')).not.toBeInTheDocument();
+    });
+    expect(mockApi).toHaveBeenCalledTimes(2);
+  });
 });

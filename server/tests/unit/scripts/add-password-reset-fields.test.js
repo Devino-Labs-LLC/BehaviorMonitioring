@@ -45,6 +45,29 @@ describe('add-password-reset-fields script', () => {
     exitSpy.mockRestore();
   });
 
+  it('adds both password reset columns when neither exists', async () => {
+    const { query, exitSpy } = loadScript((sql) => {
+      if (sql.includes('INFORMATION_SCHEMA.COLUMNS')) {
+        return Promise.resolve([[]]);
+      }
+
+      return Promise.resolve([[]]);
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls[1][0]).toContain('ADD COLUMN password_reset_token');
+    expect(query.mock.calls[2][0]).toContain('ADD COLUMN password_reset_expires');
+    expect(console.log).toHaveBeenCalledWith('✓ Added password_reset_token column');
+    expect(console.log).toHaveBeenCalledWith('✓ Added password_reset_expires column');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+
+    exitSpy.mockRestore();
+  });
+
   it('logs failures and exits non-zero when the migration fails', async () => {
     const { exitSpy } = loadScript(() => Promise.reject(new Error('query failed')));
 

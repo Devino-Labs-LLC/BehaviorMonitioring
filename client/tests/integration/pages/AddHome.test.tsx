@@ -70,6 +70,32 @@ describe('AddHome Page Integration', () => {
     jest.clearAllMocks();
   });
 
+  it('redirects unauthenticated users to login', () => {
+    jest.spyOn(require('../../../src/hooks/useAuth'), 'useAuth').mockReturnValue({
+      isReady: true,
+      isLoggedIn: false,
+      isAdmin: false,
+      username: null,
+    });
+
+    render(<AddHome />);
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+  });
+
+  it('redirects non-admin users home', () => {
+    jest.spyOn(require('../../../src/hooks/useAuth'), 'useAuth').mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: false,
+      username: 'testuser',
+    });
+
+    render(<AddHome />);
+
+    expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
   it('shows validation errors before opening confirmation', async () => {
     render(<AddHome />);
 
@@ -125,5 +151,125 @@ describe('AddHome Page Integration', () => {
         employeeUsername: 'testadmin',
       });
     });
+  });
+
+  it('lets the user cancel the confirmation modal', async () => {
+    render(<AddHome />);
+
+    fireEvent.change(screen.getByLabelText('Home Name'), {
+      target: { value: 'Sunrise Home' },
+    });
+    fireEvent.change(screen.getByLabelText('Street Address'), {
+      target: { value: '123 Main St' },
+    });
+    fireEvent.change(screen.getByLabelText('City'), {
+      target: { value: 'Albany' },
+    });
+    fireEvent.change(screen.getByLabelText('State'), {
+      target: { value: 'NY' },
+    });
+    fireEvent.change(screen.getByLabelText('ZIP Code'), {
+      target: { value: '12207' },
+    });
+    fireEvent.change(screen.getByLabelText('Capacity'), {
+      target: { value: '8' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Home' }));
+    expect(
+      await screen.findByText('Please confirm the home details are correct before creating this home.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Please confirm the home details are correct before creating this home.'),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows an auth error when the username is unavailable', async () => {
+    jest.spyOn(require('../../../src/hooks/useAuth'), 'useAuth').mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: '',
+    });
+
+    render(<AddHome />);
+
+    fireEvent.change(screen.getByLabelText('Home Name'), {
+      target: { value: 'Sunrise Home' },
+    });
+    fireEvent.change(screen.getByLabelText('Street Address'), {
+      target: { value: '123 Main St' },
+    });
+    fireEvent.change(screen.getByLabelText('City'), {
+      target: { value: 'Albany' },
+    });
+    fireEvent.change(screen.getByLabelText('State'), {
+      target: { value: 'NY' },
+    });
+    fireEvent.change(screen.getByLabelText('ZIP Code'), {
+      target: { value: '12207' },
+    });
+    fireEvent.change(screen.getByLabelText('Capacity'), {
+      target: { value: '8' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Home' }));
+    const createButtons = await screen.findAllByRole('button', { name: 'Create Home' });
+    fireEvent.click(createButtons[1]);
+
+    expect(
+      await screen.findByText('Unable to identify the current user. Please log in again.'),
+    ).toBeInTheDocument();
+    expect(mockApi).not.toHaveBeenCalled();
+  });
+
+  it('shows API errors when create fails', async () => {
+    mockApi.mockRejectedValueOnce({
+      response: {
+        data: {
+          serverMessage: 'Home already exists',
+        },
+      },
+    });
+
+    render(<AddHome />);
+
+    fireEvent.change(screen.getByLabelText('Home Name'), {
+      target: { value: 'Sunrise Home' },
+    });
+    fireEvent.change(screen.getByLabelText('Street Address'), {
+      target: { value: '123 Main St' },
+    });
+    fireEvent.change(screen.getByLabelText('City'), {
+      target: { value: 'Albany' },
+    });
+    fireEvent.change(screen.getByLabelText('State'), {
+      target: { value: 'NY' },
+    });
+    fireEvent.change(screen.getByLabelText('ZIP Code'), {
+      target: { value: '12207' },
+    });
+    fireEvent.change(screen.getByLabelText('Capacity'), {
+      target: { value: '8' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Home' }));
+    const createButtons = await screen.findAllByRole('button', { name: 'Create Home' });
+    fireEvent.click(createButtons[1]);
+
+    expect(await screen.findByText('Home already exists')).toBeInTheDocument();
+  });
+
+  it('navigates back when the back button is clicked', () => {
+    render(<AddHome />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(mockBack).toHaveBeenCalled();
   });
 });
