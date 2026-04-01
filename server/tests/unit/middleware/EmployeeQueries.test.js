@@ -33,6 +33,15 @@ describe('EmployeeQueries', () => {
       });
     });
 
+    it('returns whether an employee exists by id', async () => {
+      Employee.findOne.mockResolvedValue({ employeeID: 8 });
+
+      await expect(employeeQueries.employeeExistByID(8)).resolves.toBe(true);
+      expect(Employee.findOne).toHaveBeenCalledWith({
+        where: { employeeID: 8 },
+      });
+    });
+
     it('returns employee data by username as plain data', async () => {
       Employee.findOne.mockResolvedValue({
         get: jest.fn(() => ({
@@ -69,6 +78,13 @@ describe('EmployeeQueries', () => {
       );
     });
 
+    it('returns null when username and id lookups do not match an employee', async () => {
+      Employee.findOne.mockResolvedValue(null);
+
+      await expect(employeeQueries.employeeDataByUsername('missing')).resolves.toBeNull();
+      await expect(employeeQueries.employeeDataById(404)).resolves.toBeNull();
+    });
+
     it('returns password data by username as plain data', async () => {
       Employee.findOne.mockResolvedValue({
         get: jest.fn(() => ({ password: 'hashed-password' })),
@@ -97,6 +113,13 @@ describe('EmployeeQueries', () => {
       });
     });
 
+    it('returns null when password lookups do not match an employee', async () => {
+      Employee.findOne.mockResolvedValue(null);
+
+      await expect(employeeQueries.employeePasswordByUsername('missing')).resolves.toBeNull();
+      await expect(employeeQueries.employeePasswordById(404)).resolves.toBeNull();
+    });
+
     it('returns null when no employee matches a reset token', async () => {
       Employee.findOne.mockResolvedValue(null);
 
@@ -117,6 +140,12 @@ describe('EmployeeQueries', () => {
           email: 'jane@example.com',
         }),
       );
+    });
+
+    it('returns null when no employee matches the requested email', async () => {
+      Employee.findOne.mockResolvedValue(null);
+
+      await expect(employeeQueries.employeeDataByEmail('missing@example.com')).resolves.toBeNull();
     });
   });
 
@@ -307,6 +336,77 @@ describe('EmployeeQueries', () => {
         },
         { where: { employeeID: 6 } },
       );
+    });
+
+    it('returns false when a credentials update affects no rows', async () => {
+      Employee.update.mockResolvedValue([0]);
+
+      await expect(employeeQueries.employeeSetEmployeeCredentialsByUsername('new-hash', 'jdoe', 4)).resolves.toBe(false);
+    });
+
+    it('returns false when other employee updates affect no rows', async () => {
+      Employee.update
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0])
+        .mockResolvedValueOnce([0]);
+
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountByUsername(
+          'John',
+          'Doe',
+          'john@example.com',
+          '555-111-2222',
+          'hashed-password',
+          'missing',
+          4,
+        ),
+      ).resolves.toBe(false);
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountByID(
+          'John',
+          'Doe',
+          'john@example.com',
+          '555-111-2222',
+          'hashed-password',
+          404,
+          4,
+        ),
+      ).resolves.toBe(false);
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountWithoutPasswordByUsername(
+          'Jane',
+          'Smith',
+          'jane@example.com',
+          '555-333-4444',
+          'missing',
+          12,
+        ),
+      ).resolves.toBe(false);
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountWithoutPasswordByID(
+          'Jane',
+          'Smith',
+          'jane@example.com',
+          '555-333-4444',
+          404,
+          12,
+        ),
+      ).resolves.toBe(false);
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountStatusByUsername('Active', 'missing', 4),
+      ).resolves.toBe(false);
+      await expect(
+        employeeQueries.employeeUpdateEmployeeStatusAccountByID('Inactive', 404, 10),
+      ).resolves.toBe(false);
+      await expect(
+        employeeQueries.employeeSetPasswordResetToken(404, 'reset-token', new Date('2026-04-01T12:00:00.000Z')),
+      ).resolves.toBe(false);
+      await expect(employeeQueries.employeeResetPassword(404, 'new-hash')).resolves.toBe(false);
     });
   });
 

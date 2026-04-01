@@ -120,6 +120,14 @@ describe('ArchivedClients Page Integration', () => {
     expect(await screen.findByText(/no archived clients found/i)).toBeInTheDocument();
   });
 
+  it('shows an error when loading archived clients fails', async () => {
+    mockApi.mockRejectedValueOnce(new Error('load failed'));
+
+    render(<ArchivedClients />);
+
+    expect(await screen.findByText('load failed')).toBeInTheDocument();
+  });
+
   it('unarchives a client after confirmation', async () => {
     const user = userEvent.setup();
     let currentArchivedClients = [archivedClients[0]];
@@ -158,6 +166,57 @@ describe('ArchivedClients Page Integration', () => {
     expect(await screen.findByText(/has been restored to active status/i)).toBeInTheDocument();
   });
 
+  it('closes the dialog when cancel is pressed', async () => {
+    const user = userEvent.setup();
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        archivedClients: [archivedClients[0]],
+      } as any),
+    );
+
+    render(<ArchivedClients />);
+
+    expect(await screen.findByText('John Doe')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Unarchive button' }));
+    expect(await screen.findByText('Confirm Unarchive')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel button' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Confirm Unarchive')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows an error when unarchive fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/unarchiveClient') {
+        return Promise.resolve({
+          statusCode: 500,
+          serverMessage: 'Unable to restore client',
+        } as any);
+      }
+
+      return Promise.resolve({
+        statusCode: 200,
+        archivedClients: [archivedClients[0]],
+      } as any);
+    });
+
+    render(<ArchivedClients />);
+
+    expect(await screen.findByText('John Doe')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Unarchive button' }));
+    expect(await screen.findByText('Confirm Unarchive')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Unarchive button' })[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to restore client')).toBeInTheDocument();
+    });
+  });
+
   it('deletes a client after confirmation', async () => {
     const user = userEvent.setup();
     let currentArchivedClients = [archivedClients[0]];
@@ -194,5 +253,34 @@ describe('ArchivedClients Page Integration', () => {
     });
 
     expect(await screen.findByText(/data has been permanently deleted/i)).toBeInTheDocument();
+  });
+
+  it('shows an error when delete fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/deleteArchivedClient') {
+        return Promise.resolve({
+          statusCode: 500,
+          serverMessage: 'Unable to delete client',
+        } as any);
+      }
+
+      return Promise.resolve({
+        statusCode: 200,
+        archivedClients: [archivedClients[0]],
+      } as any);
+    });
+
+    render(<ArchivedClients />);
+
+    expect(await screen.findByText('John Doe')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete button' }));
+    expect(await screen.findByText('Confirm Deletion')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete Permanently button' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to delete client')).toBeInTheDocument();
+    });
   });
 });

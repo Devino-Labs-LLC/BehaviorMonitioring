@@ -211,4 +211,86 @@ describe('Behavior Detail Page Integration', () => {
     expect(headers).toContain('Duration:');
     expect(headers).not.toContain('Count:');
   });
+
+  it('shows both count and duration headers for rate measurements', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            ...mockBehaviorBaseData.behaviorSkillData[0],
+            measurement: 'Rate',
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            ...mockBehaviorData.behaviorSkillData[0],
+            duration: '00:05:30',
+          },
+        ],
+      } as any);
+
+    render(<BehaviorDetail />);
+
+    const table = await screen.findByRole('table');
+    const headers = within(table).getAllByRole('columnheader').map((header) => header.textContent);
+
+    expect(headers).toContain('Duration:');
+    expect(headers).toContain('Count:');
+  });
+
+  it('shows an error message when the behavior base lookup fails', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Base lookup failed',
+      } as any)
+      .mockResolvedValueOnce(mockBehaviorData as any);
+
+    render(<BehaviorDetail />);
+
+    expect(await screen.findByText('Error: Base lookup failed')).toBeInTheDocument();
+  });
+
+  it('shows an error when deleting a behavior entry fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce(mockBehaviorBaseData as any)
+      .mockResolvedValueOnce(mockBehaviorData as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+      } as any);
+
+    render(<BehaviorDetail />);
+
+    const deleteButton = await screen.findByRole('button', { name: 'Delete button' });
+    await user.click(deleteButton);
+    await user.click(screen.getByRole('button', { name: /confirm selection of 1/i }));
+
+    expect(await screen.findByText('Error: Failed to delete "1".')).toBeInTheDocument();
+  });
+
+  it('closes the delete confirmation when cancel is pressed', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce(mockBehaviorBaseData as any)
+      .mockResolvedValueOnce(mockBehaviorData as any);
+
+    render(<BehaviorDetail />);
+
+    const deleteButton = await screen.findByRole('button', { name: 'Delete button' });
+    await user.click(deleteButton);
+    expect(screen.getByRole('button', { name: 'Cancel selection' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel selection' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /confirm selection of 1/i })).not.toBeInTheDocument();
+    });
+  });
 });

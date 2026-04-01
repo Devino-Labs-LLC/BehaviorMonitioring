@@ -10,6 +10,8 @@ const {
   hasValidCompanyScope,
   verifyAuthorization,
   verifyBasicAuthentication,
+  verifyABAAuthorization,
+  verifyAdminAuthorization,
 } = require('../../../middleware/helpers/authorizationHelper');
 
 describe('authorizationHelper', () => {
@@ -24,6 +26,13 @@ describe('authorizationHelper', () => {
     await expect(getAuthenticatedUser('Admin.User')).resolves.toEqual({ username: 'admin.user' });
     expect(employeeQueries.employeeExistByUsername).toHaveBeenCalledWith('admin.user');
     expect(employeeQueries.employeeDataByUsername).toHaveBeenCalledWith('admin.user');
+  });
+
+  it('returns null when no username is provided or the user does not exist', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(false);
+
+    await expect(getAuthenticatedUser('')).resolves.toBeNull();
+    await expect(getAuthenticatedUser('missing.user')).resolves.toBeNull();
   });
 
   it('checks roles case-insensitively', () => {
@@ -107,5 +116,39 @@ describe('authorizationHelper', () => {
       role: 'employee',
       companyID: 9,
     });
+  });
+
+  it('rejects unauthenticated users during authorization and basic authentication', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(false);
+    const res = { json: jest.fn() };
+
+    await expect(
+      verifyAuthorization({ body: { employeeUsername: 'ghost.user' } }, res)
+    ).resolves.toBeNull();
+    await expect(
+      verifyBasicAuthentication({ body: { employeeUsername: 'ghost.user' } }, res)
+    ).resolves.toBeNull();
+
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 401,
+      serverMessage: 'Unauthorized user',
+    });
+  });
+
+  it('reuses the shared verifier for ABA and admin authorization', async () => {
+    employeeQueries.employeeExistByUsername.mockResolvedValue(true);
+    employeeQueries.employeeDataByUsername.mockResolvedValue({
+      username: 'root.user',
+      role: 'root',
+      companyID: 1,
+    });
+    const res = { json: jest.fn() };
+
+    await expect(
+      verifyABAAuthorization({ body: { employeeUsername: 'root.user' } }, res)
+    ).resolves.toEqual(expect.objectContaining({ username: 'root.user' }));
+    await expect(
+      verifyAdminAuthorization({ body: { employeeUsername: 'root.user' } }, res)
+    ).resolves.toEqual(expect.objectContaining({ username: 'root.user' }));
   });
 });

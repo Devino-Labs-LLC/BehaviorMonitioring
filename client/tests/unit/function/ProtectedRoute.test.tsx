@@ -1,31 +1,37 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import ProtectedRoute from '../../../src/function/ProtectedRoute';
-
-const mockIsAuthenticated = jest.fn();
+import { isAuthenticated } from '../../../src/function/VerificationCheck';
 
 jest.mock('../../../src/function/VerificationCheck', () => ({
-  isAuthenticated: () => mockIsAuthenticated(),
+  isAuthenticated: jest.fn(),
 }));
+
 jest.mock('react-router-dom', () => ({
-  Navigate: ({ to }: { to: string }) => <div data-testid="navigate">redirect:{to}</div>,
-  Outlet: () => <div data-testid="outlet">protected content</div>,
+  Navigate: ({ to }: { to: string }) => <div>navigate:{to}</div>,
+  Outlet: () => <div>protected-content</div>,
 }), { virtual: true });
 
+const mockIsAuthenticated = isAuthenticated as jest.MockedFunction<typeof isAuthenticated>;
+
 describe('ProtectedRoute', () => {
-  it('renders the protected outlet for authenticated users', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders the outlet for authenticated users', () => {
     mockIsAuthenticated.mockReturnValue(true);
 
     render(<ProtectedRoute />);
 
-    expect(screen.getByTestId('outlet')).toBeInTheDocument();
+    expect(screen.getByText('protected-content')).toBeInTheDocument();
   });
 
-  it('redirects unauthenticated users', () => {
+  it('navigates unauthenticated users to login', () => {
     mockIsAuthenticated.mockReturnValue(false);
 
     render(<ProtectedRoute />);
 
-    expect(screen.getByTestId('navigate')).toHaveTextContent('redirect:/login');
+    expect(screen.getByText('navigate:/login')).toBeInTheDocument();
   });
 });

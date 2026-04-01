@@ -4,6 +4,16 @@ import userEvent from '@testing-library/user-event';
 import ManageHomes from '../../../src/app/Admin/manageHomes/page';
 import { api } from '../../../src/lib/Api';
 
+const mockUseAuth = jest.fn();
+const mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockRouter = {
+  push: mockPush,
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+  back: mockBack,
+};
+
 jest.mock('../../../src/lib/Api', () => ({
   api: jest.fn(),
 }));
@@ -13,20 +23,10 @@ jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUser: () => 'testuser',
 }));
 jest.mock('../../../src/hooks/useAuth', () => ({
-  useAuth: () => ({
-    isReady: true,
-    isLoggedIn: true,
-    isAdmin: true,
-    username: 'testuser',
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    prefetch: jest.fn(),
-    back: jest.fn(),
-  }),
+  useRouter: () => mockRouter,
   usePathname: () => '/Admin/manageHomes',
   useSearchParams: () => ({
     get: jest.fn(),
@@ -72,7 +72,15 @@ describe('ManageHomes Page Integration', () => {
   ];
 
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
+    jest.useRealTimers();
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: 'testuser',
+    });
   });
 
   it('fetches and displays homes on mount', async () => {
@@ -176,14 +184,6 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('navigates to edit page when edit button clicked', async () => {
-    const mockPush = jest.fn();
-    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
-      push: mockPush,
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-    });
-
     mockApi.mockImplementation(() =>
       Promise.resolve({
         statusCode: 200,
@@ -204,14 +204,6 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('navigates to add home page when add button clicked', async () => {
-    const mockPush = jest.fn();
-    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
-      push: mockPush,
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-    });
-
     mockApi.mockImplementation(() =>
       Promise.resolve({
         statusCode: 200,
@@ -221,10 +213,8 @@ describe('ManageHomes Page Integration', () => {
 
     render(<ManageHomes />);
 
-    await waitFor(() => {
-      const addButton = screen.getByText('Add Home');
-      userEvent.click(addButton);
-    });
+    const addButton = await screen.findByRole('button', { name: 'Add Home button' });
+    await userEvent.click(addButton);
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/Admin/manageHomes/add');
@@ -244,54 +234,88 @@ describe('ManageHomes Page Integration', () => {
   });
 
   it('redirects to login when not authenticated', () => {
-    jest.resetModules();
-    jest.doMock('../../../src/hooks/useAuth', () => ({
-      useAuth: () => ({
-        isReady: true,
-        isLoggedIn: false,
-        isAdmin: true,
-        username: '',
-      }),
-    }));
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: false,
+      isAdmin: true,
+      username: '',
+    });
 
-    const mockPush = jest.fn();
-    jest.doMock('next/navigation', () => ({
-      useRouter: () => ({
-        push: mockPush,
-        replace: jest.fn(),
-        prefetch: jest.fn(),
-        back: jest.fn(),
-      }),
-      usePathname: () => '/Admin/manageHomes',
-      useSearchParams: () => ({
-        get: jest.fn(),
-      }),
-    }));
+    render(<ManageHomes />);
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
   });
 
   it('redirects to home when user is not admin', () => {
-    jest.resetModules();
-    jest.doMock('../../../src/hooks/useAuth', () => ({
-      useAuth: () => ({
-        isReady: true,
-        isLoggedIn: true,
-        isAdmin: false,
-        username: 'testuser',
-      }),
-    }));
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: false,
+      username: 'testuser',
+    });
 
-    const mockPush = jest.fn();
-    jest.doMock('next/navigation', () => ({
-      useRouter: () => ({
-        push: mockPush,
-        replace: jest.fn(),
-        prefetch: jest.fn(),
-        back: jest.fn(),
-      }),
-      usePathname: () => '/Admin/manageHomes',
-      useSearchParams: () => ({
-        get: jest.fn(),
-      }),
-    }));
+    render(<ManageHomes />);
+
+    expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('shows a message when username is unavailable during load', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: '',
+    });
+
+    render(<ManageHomes />);
+
+    expect(
+      await screen.findByText('Unable to identify the current user. Please log in again.'),
+    ).toBeInTheDocument();
+  });
+
+  it('supports the toolbar back action', async () => {
+    mockApi.mockImplementation(() =>
+      Promise.resolve({
+        statusCode: 200,
+        homes: mockHomes,
+      } as any),
+    );
+
+    render(<ManageHomes />);
+
+    await screen.findAllByRole('button', { name: 'Delete button' });
+    await userEvent.click(screen.getByText('Back'));
+
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('keeps the home visible when delete fails', async () => {
+    globalThis.confirm = jest.fn(() => true);
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/deleteHome') {
+        return Promise.reject(new Error('delete failed'));
+      }
+
+      return Promise.resolve({
+        statusCode: 200,
+        homes: mockHomes,
+      } as any);
+    });
+
+    render(<ManageHomes />);
+
+    const deleteButtons = await screen.findAllByRole('button', { name: 'Delete button' });
+    await userEvent.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/admin/deleteHome', {
+        homeID: 1,
+        employeeUsername: 'testuser',
+      });
+    });
+
+    expect(screen.getByText('Sunrise Home')).toBeInTheDocument();
   });
 });

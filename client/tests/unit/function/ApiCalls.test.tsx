@@ -1,3 +1,4 @@
+import axios from 'axios';
 import {
   debouncedGetClientActiveBehaviorBaseData,
   debouncedGetClientActiveBehaviorData,
@@ -10,126 +11,170 @@ import {
   getClientArchivedBehaviorBaseData,
   getClientNames,
 } from '../../../src/function/ApiCalls';
-import Axios from 'axios';
 
 jest.mock('axios');
 jest.mock('../../../src/function/debounce', () => ({
-  debounceAsync: (fn: (...args: any[]) => unknown) => (...args: any[]) => fn(...args),
+  debounceAsync: (fn: unknown) => fn,
 }));
 
-const mockPost = Axios.post as jest.MockedFunction<typeof Axios.post>;
+const mockAxios = axios as jest.Mocked<typeof axios>;
 
 describe('ApiCalls helpers', () => {
+  const backendUrl = 'http://backend.test';
+
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.NEXT_PUBLIC_BACKEND_URL = 'http://localhost:3001';
+    process.env.NEXT_PUBLIC_BACKEND_URL = backendUrl;
   });
 
-  it('maps client names from the API response', async () => {
-    mockPost.mockResolvedValue({
+  it('gets client names on success', async () => {
+    mockAxios.post.mockResolvedValueOnce({
       data: {
         statusCode: 200,
-        clientData: [{ clientID: 4, fName: 'Jane', lName: 'Doe' }],
+        clientData: [
+          { clientID: 1, fName: 'Jane', lName: 'Doe' },
+          { clientID: 2, fName: 'John', lName: 'Smith' },
+        ],
       },
-    } as any);
-
-    await expect(getClientNames('tester')).resolves.toEqual({
-      statusCodeRecieved: 200,
-      fetchedOptions: [{ value: 4, label: 'Jane Doe' }],
     });
 
-    await expect(debouncedGetClientNames('tester')).resolves.toEqual({
+    await expect(getClientNames('coach')).resolves.toEqual({
       statusCodeRecieved: 200,
-      fetchedOptions: [{ value: 4, label: 'Jane Doe' }],
+      fetchedOptions: [
+        { value: 1, label: 'Jane Doe' },
+        { value: 2, label: 'John Smith' },
+      ],
+    });
+
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      `${backendUrl}/aba/getAllClientInfo`,
+      { employeeUsername: 'coach' },
+    );
+  });
+
+  it('returns an error payload when getting client names fails', async () => {
+    mockAxios.post.mockResolvedValueOnce({
+      data: { statusCode: 403, serverMessage: 'Forbidden' },
+    });
+
+    await expect(getClientNames('coach')).resolves.toEqual(
+      expect.objectContaining({
+        statusCode: 403,
+        errorMessage: expect.stringContaining('Forbidden'),
+      }),
+    );
+  });
+
+  it('gets active behavior base data on success', async () => {
+    const behaviorSkillData = [{ behaviorID: 10 }];
+    mockAxios.post.mockResolvedValueOnce({
+      data: { statusCode: 200, behaviorSkillData },
+    });
+
+    await expect(getClientActiveBehaviorBaseData(1, 10, 'coach')).resolves.toEqual({
+      statusCodeRecieved: 200,
+      behaviorSkillData,
     });
   });
 
-  it('returns reversed active behavior data', async () => {
-    mockPost.mockResolvedValue({
-      data: {
-        statusCode: 200,
-        behaviorSkillData: [{ id: 1 }, { id: 2 }],
-      },
-    } as any);
+  it('gets active behavior detail data in reverse order', async () => {
+    const behaviorSkillData = [{ id: 1 }, { id: 2 }];
+    mockAxios.post.mockResolvedValueOnce({
+      data: { statusCode: 200, behaviorSkillData },
+    });
 
-    await expect(getClientActiveBehaviorData(1, 9, 'tester')).resolves.toEqual({
+    await expect(getClientActiveBehaviorData(1, 10, 'coach')).resolves.toEqual({
       statusCodeRecieved: 200,
       behaviorSkillData: [{ id: 2 }, { id: 1 }],
     });
-
-    await expect(debouncedGetClientActiveBehaviorData(1, 9, 'tester')).resolves.toEqual({
-      statusCodeRecieved: 200,
-      behaviorSkillData: [{ id: 1 }, { id: 2 }],
-    });
   });
 
-  it('returns active behavior base data', async () => {
-    mockPost.mockResolvedValue({
-      data: {
-        statusCode: 200,
-        behaviorSkillData: [{ id: 7, measurement: 'Frequency' }],
-      },
-    } as any);
-
-    await expect(getClientActiveBehaviorBaseData(1, 9, 'tester')).resolves.toEqual({
-      statusCodeRecieved: 200,
-      behaviorSkillData: [{ id: 7, measurement: 'Frequency' }],
+  it('gets archived behavior base data with measurement on success', async () => {
+    const behaviorSkillData = [{ measurement: 'Duration', id: 1 }];
+    mockAxios.post.mockResolvedValueOnce({
+      data: { statusCode: 200, behaviorSkillData },
     });
 
-    await expect(debouncedGetClientActiveBehaviorBaseData(1, 9, 'tester')).resolves.toEqual({
+    await expect(getClientArchivedBehaviorBaseData(1, 10, 'coach')).resolves.toEqual({
       statusCodeRecieved: 200,
-      behaviorSkillData: [{ id: 7, measurement: 'Frequency' }],
-    });
-  });
-
-  it('returns archived behavior base data with measurement', async () => {
-    mockPost.mockResolvedValue({
-      data: {
-        statusCode: 200,
-        behaviorSkillData: [{ id: 7, measurement: 'Duration' }],
-      },
-    } as any);
-
-    await expect(getClientArchivedBehaviorBaseData(1, 9, 'tester')).resolves.toEqual({
-      statusCodeRecieved: 200,
-      behaviorSkillData: [{ id: 7, measurement: 'Duration' }],
-      measurement: 'Duration',
-    });
-
-    await expect(debouncedGetClientArchivedBehaviorBaseData(1, 9, 'tester')).resolves.toEqual({
-      statusCodeRecieved: 200,
-      behaviorSkillData: [{ id: 7, measurement: 'Duration' }],
+      behaviorSkillData,
       measurement: 'Duration',
     });
   });
 
-  it('returns reversed archived behavior data', async () => {
-    mockPost.mockResolvedValue({
-      data: {
-        statusCode: 200,
-        behaviorSkillData: [{ id: 1 }, { id: 2 }],
-      },
-    } as any);
+  it('gets archived behavior detail data in reverse order', async () => {
+    const behaviorSkillData = [{ id: 1 }, { id: 2 }];
+    mockAxios.post.mockResolvedValueOnce({
+      data: { statusCode: 200, behaviorSkillData },
+    });
 
-    await expect(getClientArchiveBehaviorData(1, 9, 'tester')).resolves.toEqual({
+    await expect(getClientArchiveBehaviorData(1, 10, 'coach')).resolves.toEqual({
       statusCodeRecieved: 200,
       behaviorSkillData: [{ id: 2 }, { id: 1 }],
     });
-
-    await expect(debouncedGetClientArchiveBehaviorData(1, 9, 'tester')).resolves.toEqual({
-      statusCodeRecieved: 200,
-      behaviorSkillData: [{ id: 1 }, { id: 2 }],
-    });
   });
 
-  it('returns error payloads when the API rejects', async () => {
-    mockPost.mockRejectedValue(new Error('boom'));
+  it('returns error payloads for behavior helper failures', async () => {
+    mockAxios.post
+      .mockResolvedValueOnce({ data: { statusCode: 404, serverMessage: 'Missing active base' } })
+      .mockResolvedValueOnce({ data: { statusCode: 500, serverMessage: 'Missing active detail' } })
+      .mockResolvedValueOnce({ data: { statusCode: 401, serverMessage: 'Missing archived base' } })
+      .mockResolvedValueOnce({ data: { statusCode: 409, serverMessage: 'Missing archived detail' } });
 
-    await expect(getClientNames('tester')).resolves.toEqual(
-      expect.objectContaining({ errorMessage: expect.stringContaining('boom') }),
+    await expect(getClientActiveBehaviorBaseData(1, 2, 'coach')).resolves.toEqual(
+      expect.objectContaining({
+        statusCode: 404,
+        errorMessage: expect.stringContaining('Missing active base'),
+      }),
     );
-    await expect(getClientActiveBehaviorBaseData(1, 9, 'tester')).resolves.toEqual(
-      expect.objectContaining({ errorMessage: expect.stringContaining('boom') }),
+    await expect(getClientActiveBehaviorData(1, 2, 'coach')).resolves.toEqual(
+      expect.objectContaining({
+        statusCode: 500,
+        errorMessage: expect.stringContaining('Missing active detail'),
+      }),
     );
+    await expect(getClientArchivedBehaviorBaseData(1, 2, 'coach')).resolves.toEqual(
+      expect.objectContaining({
+        statusCode: 401,
+        errorMessage: expect.stringContaining('Missing archived base'),
+      }),
+    );
+    await expect(getClientArchiveBehaviorData(1, 2, 'coach')).resolves.toEqual(
+      expect.objectContaining({
+        statusCode: 409,
+        errorMessage: expect.stringContaining('Missing archived detail'),
+      }),
+    );
+  });
+
+  it('exports debounced wrappers that still call the original helpers', async () => {
+    mockAxios.post
+      .mockResolvedValueOnce({ data: { statusCode: 200, clientData: [] } })
+      .mockResolvedValueOnce({ data: { statusCode: 200, behaviorSkillData: [] } })
+      .mockResolvedValueOnce({ data: { statusCode: 200, behaviorSkillData: [] } })
+      .mockResolvedValueOnce({ data: { statusCode: 200, behaviorSkillData: [{ measurement: 'Rate' }] } })
+      .mockResolvedValueOnce({ data: { statusCode: 200, behaviorSkillData: [] } });
+
+    await expect(debouncedGetClientNames('coach')).resolves.toEqual({
+      statusCodeRecieved: 200,
+      fetchedOptions: [],
+    });
+    await expect(debouncedGetClientActiveBehaviorBaseData(1, 2, 'coach')).resolves.toEqual({
+      statusCodeRecieved: 200,
+      behaviorSkillData: [],
+    });
+    await expect(debouncedGetClientActiveBehaviorData(1, 2, 'coach')).resolves.toEqual({
+      statusCodeRecieved: 200,
+      behaviorSkillData: [],
+    });
+    await expect(debouncedGetClientArchivedBehaviorBaseData(1, 2, 'coach')).resolves.toEqual({
+      statusCodeRecieved: 200,
+      behaviorSkillData: [{ measurement: 'Rate' }],
+      measurement: 'Rate',
+    });
+    await expect(debouncedGetClientArchiveBehaviorData(1, 2, 'coach')).resolves.toEqual({
+      statusCodeRecieved: 200,
+      behaviorSkillData: [],
+    });
   });
 });

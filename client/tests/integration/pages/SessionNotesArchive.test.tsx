@@ -172,6 +172,112 @@ describe('SessionNotes Archive Page Integration', () => {
     });
   });
 
+  it('deletes an archived session note after confirmation', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClientData,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockArchivedSessionNotes,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Deleted',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: [],
+      } as any);
+
+    render(<SessionNotesArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete button' }));
+    await user.click(screen.getByRole('button', { name: /confirm selection/i }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/deleteSessionNote', {
+        clientID: 1,
+        sessionNoteId: '1',
+        employeeUsername: 'testuser',
+      });
+    });
+
+    expect(await screen.findByText(/has been deleted successfully/i)).toBeInTheDocument();
+  });
+
+  it('closes the confirmation dialog when cancel is pressed', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClientData,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockArchivedSessionNotes,
+      } as any);
+
+    render(<SessionNotesArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reactivate button' }));
+    expect(screen.getByText('Reactivate Session Note')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel selection' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Reactivate Session Note')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows an error when loading archived session notes fails', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClientData,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Unable to load archived notes',
+      } as any);
+
+    render(<SessionNotesArchive />);
+
+    expect(await screen.findByText('Error: Unable to load archived notes')).toBeInTheDocument();
+  });
+
+  it('refetches archived notes when a different client is selected', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClientData,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockArchivedSessionNotes,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: [],
+      } as any);
+
+    render(<SessionNotesArchive />);
+
+    await screen.findByRole('combobox', { name: /archived session notes for/i });
+    fireEvent.change(screen.getByRole('combobox', { name: /archived session notes for/i }), { target: { value: '2' } });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getArchivedSessionNotes', {
+        clientID: 2,
+        employeeUsername: 'testuser',
+      });
+    });
+  });
+
   it('navigates back when escape is pressed', async () => {
     mockApi
       .mockResolvedValueOnce({
@@ -185,7 +291,9 @@ describe('SessionNotes Archive Page Integration', () => {
 
     render(<SessionNotesArchive />);
 
-    await screen.findByText('2026-01-15');
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledTimes(2);
+    });
     fireEvent.keyDown(globalThis, { key: 'Escape' });
 
     expect(mockBack).toHaveBeenCalled();

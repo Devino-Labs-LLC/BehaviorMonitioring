@@ -129,6 +129,34 @@ describe('EditAdmin Page Integration', () => {
     expect(screen.getByDisplayValue('5551234567')).toBeInTheDocument();
   });
 
+  it('shows a not-found message when the selected admin is missing', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllAdmins') {
+        return Promise.resolve({
+          statusCode: 200,
+          admins: [],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditAdmin />);
+
+    expect(await screen.findByText('Admin not found')).toBeInTheDocument();
+  });
+
+  it('surfaces fetch failures while loading the admin details', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 500,
+      serverMessage: 'Failed to fetch admin data',
+    } as any);
+
+    render(<EditAdmin />);
+
+    expect(await screen.findByText('Error: Failed to fetch admin data')).toBeInTheDocument();
+  });
+
   it('redirects logged-out users to login', async () => {
     mockUseAuth.mockReturnValue({
       isReady: true,
@@ -268,6 +296,87 @@ describe('EditAdmin Page Integration', () => {
     });
 
     expect(mockPush).toHaveBeenCalledWith('/Admin/manageAdmins');
+  });
+
+  it('shows a status-update failure after the admin update succeeds', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllAdmins') {
+        return Promise.resolve({
+          statusCode: 200,
+          admins: [
+            {
+              adminID: 7,
+              firstName: 'Jane',
+              lastName: 'Doe',
+              email: 'jane@example.com',
+              phone: '5551234567',
+              role: 'manager',
+              isActive: true,
+            },
+          ],
+        } as any);
+      }
+
+      if (path === '/admin/updateAnEmployeeDetail') {
+        return Promise.resolve({
+          statusCode: 201,
+          serverMessage: 'Admin updated',
+        } as any);
+      }
+
+      if (path === '/admin/updateAnEmployeeAccountStatus') {
+        return Promise.resolve({
+          statusCode: 500,
+          serverMessage: 'Status update failed',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditAdmin />);
+
+    await screen.findByDisplayValue('Jane');
+    fireEvent.click(screen.getByRole('button', { name: 'Update Admin' }));
+
+    expect(await screen.findByText('Error: Failed to update account status')).toBeInTheDocument();
+  });
+
+  it('surfaces update-detail failures from the API', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllAdmins') {
+        return Promise.resolve({
+          statusCode: 200,
+          admins: [
+            {
+              adminID: 7,
+              firstName: 'Jane',
+              lastName: 'Doe',
+              email: 'jane@example.com',
+              phone: '5551234567',
+              role: 'manager',
+              isActive: true,
+            },
+          ],
+        } as any);
+      }
+
+      if (path === '/admin/updateAnEmployeeDetail') {
+        return Promise.resolve({
+          statusCode: 500,
+          serverMessage: 'Update admin failed',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<EditAdmin />);
+
+    await screen.findByDisplayValue('Jane');
+    fireEvent.click(screen.getByRole('button', { name: 'Update Admin' }));
+
+    expect(await screen.findByText('Error: Update admin failed')).toBeInTheDocument();
   });
 
   it('supports the back action from the toolbar', async () => {

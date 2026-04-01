@@ -33,6 +33,15 @@ describe('jsonHandler', () => {
     expect(console.error).toHaveBeenCalledWith('Json file is readable');
   });
 
+  it('logs read errors when the backup info file is not readable', () => {
+    const error = new Error('missing file');
+    fs.readFile.mockImplementation((path, encoding, callback) => callback(error));
+
+    testJson();
+
+    expect(console.error).toHaveBeenCalledWith('Error reading json file:', error);
+  });
+
   it('returns parsed backup import info', async () => {
     fs.readFile.mockImplementation((path, encoding, callback) =>
       callback(null, JSON.stringify({ backupDetail: { ok: true }, importDetail: { ok: false } }))
@@ -60,6 +69,27 @@ describe('jsonHandler', () => {
     await expect(getImportInfo()).resolves.toEqual({ successfulCompletion: false });
   });
 
+  it('rejects when reading backup import info fails', async () => {
+    const error = new Error('read failed');
+    fs.readFile.mockImplementation((path, encoding, callback) => callback(error));
+
+    await expect(getBackupImportInfo()).rejects.toThrow('read failed');
+  });
+
+  it('rejects when reading backup details fails', async () => {
+    const error = new Error('backup failed');
+    fs.readFile.mockImplementation((path, encoding, callback) => callback(error));
+
+    await expect(getBackupInfo()).rejects.toThrow('backup failed');
+  });
+
+  it('rejects when reading import details fails', async () => {
+    const error = new Error('import failed');
+    fs.readFile.mockImplementation((path, encoding, callback) => callback(error));
+
+    await expect(getImportInfo()).rejects.toThrow('import failed');
+  });
+
   it('updates backup details and writes the file', () => {
     fs.readFile.mockImplementation((path, encoding, callback) =>
       callback(null, JSON.stringify({ backupDetail: {}, importDetail: {} }))
@@ -71,6 +101,27 @@ describe('jsonHandler', () => {
     expect(fs.writeFile).toHaveBeenCalled();
   });
 
+  it('logs write failures when updating backup details', () => {
+    const error = new Error('write failed');
+    fs.readFile.mockImplementation((path, encoding, callback) =>
+      callback(null, JSON.stringify({ backupDetail: {}, importDetail: {} }))
+    );
+    fs.writeFile.mockImplementation((path, data, callback) => callback(error));
+
+    updateBackupDetails(true);
+
+    expect(console.error).toHaveBeenCalledWith('Error writing file:', error);
+  });
+
+  it('logs read failures when updating backup details', () => {
+    const error = new Error('read failed');
+    fs.readFile.mockImplementation((path, encoding, callback) => callback(error));
+
+    updateBackupDetails(true);
+
+    expect(console.error).toHaveBeenCalledWith('Error reading file:', error);
+  });
+
   it('updates import details and writes the file', () => {
     fs.readFile.mockImplementation((path, encoding, callback) =>
       callback(null, JSON.stringify({ backupDetail: {}, importDetail: {} }))
@@ -80,5 +131,26 @@ describe('jsonHandler', () => {
     updateImportDetails(false);
 
     expect(fs.writeFile).toHaveBeenCalled();
+  });
+
+  it('logs write failures when updating import details', () => {
+    const error = new Error('write failed');
+    fs.readFile.mockImplementation((path, encoding, callback) =>
+      callback(null, JSON.stringify({ backupDetail: {}, importDetail: {} }))
+    );
+    fs.writeFile.mockImplementation((path, data, callback) => callback(error));
+
+    updateImportDetails(false);
+
+    expect(console.error).toHaveBeenCalledWith('Error writing file:', error);
+  });
+
+  it('logs read failures when updating import details', () => {
+    const error = new Error('read failed');
+    fs.readFile.mockImplementation((path, encoding, callback) => callback(error));
+
+    updateImportDetails(false);
+
+    expect(console.error).toHaveBeenCalledWith('Error reading file:', error);
   });
 });

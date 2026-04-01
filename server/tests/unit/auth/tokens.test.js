@@ -2,11 +2,25 @@ const jwt = require('jsonwebtoken');
 const { createAccessToken, createRefreshToken, verifyAccessToken, verifyRefreshToken } = require('../../../auth/tokens');
 
 describe('JWT Token Functions', () => {
+  const originalEnv = process.env;
   const mockUser = {
     employeeID: 1,
     username: 'testuser',
     isAdmin: false,
   };
+
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      JWT_SECRET: 'test-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
+      ClientHost: 'http://localhost:3000',
+    };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
 
   describe('createAccessToken', () => {
     it('creates a valid access token', () => {
@@ -31,6 +45,14 @@ describe('JWT Token Functions', () => {
       const expirationTime = decoded.exp - decoded.iat;
       expect(expirationTime).toBe(900); // 15 minutes = 900 seconds
     });
+
+    it('throws when JWT_SECRET is missing', () => {
+      delete process.env.JWT_SECRET;
+
+      expect(() => createAccessToken(mockUser)).toThrow(
+        'JWT_SECRET environment variable is not set. Cannot create access token.',
+      );
+    });
   });
 
   describe('createRefreshToken', () => {
@@ -46,6 +68,14 @@ describe('JWT Token Functions', () => {
       
       const expirationTime = decoded.exp - decoded.iat;
       expect(expirationTime).toBe(604800); // 7 days = 604800 seconds
+    });
+
+    it('throws when JWT_REFRESH_SECRET is missing', () => {
+      delete process.env.JWT_REFRESH_SECRET;
+
+      expect(() => createRefreshToken(mockUser)).toThrow(
+        'JWT_REFRESH_SECRET environment variable is not set. Cannot create refresh token.',
+      );
     });
   });
 

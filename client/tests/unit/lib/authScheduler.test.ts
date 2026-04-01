@@ -1,74 +1,125 @@
-import axios from 'axios';
-import { getCsrfToken } from '../../../src/lib/csrf';
-import { clearAccessToken, setAccessToken } from '../../../src/lib/tokenStore';
-
 jest.mock('axios');
-jest.mock('../../../src/lib/csrf', () => ({
-  getCsrfToken: jest.fn(),
-}));
 jest.mock('../../../src/lib/tokenStore', () => ({
   setAccessToken: jest.fn(),
   clearAccessToken: jest.fn(),
 }));
+jest.mock('../../../src/lib/csrf', () => ({
+  getCsrfToken: jest.fn(),
+}));
 
-const mockAxiosPost = axios.post as jest.MockedFunction<typeof axios.post>;
-const mockGetCsrfToken = getCsrfToken as jest.MockedFunction<typeof getCsrfToken>;
-const mockSetAccessToken = setAccessToken as jest.MockedFunction<typeof setAccessToken>;
-const mockClearAccessToken = clearAccessToken as jest.MockedFunction<typeof clearAccessToken>;
+function buildToken({ iat, exp }: { iat: number; exp: number }) {
+  const payload = Buffer.from(JSON.stringify({ iat, exp })).toString('base64');
+  return `header.${payload}.signature`;
+}
 
 describe('authScheduler', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     jest.useFakeTimers();
-    process.env.NEXT_PUBLIC_BACKEND_URL = 'http://localhost:3001';
+    jest.clearAllMocks();
+    process.env.NEXT_PUBLIC_BACKEND_URL = 'http://backend.test';
+    jest.resetModules();
   });
 
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  it('refreshes the token and reschedules itself', async () => {
-    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(0);
-    const { scheduleSilentRefresh, clearScheduledRefresh } = await import(
-      '../../../src/lib/authScheduler'
-    );
-    const tokenPayload = btoa(JSON.stringify({ iat: 0, exp: 120 }));
+  async function loadModule() {
+    const axiosModule = await import('axios');
+    const tokenStore = await import('../../../src/lib/tokenStore');
+    const csrf = await import('../../../src/lib/csrf');
+    const scheduler = await import('../../../src/lib/authScheduler');
+
+    scheduler.clearScheduledRefresh();
+
+    return {
+      mockAxios: axiosModule.default as jest.Mocked<typeof axiosModule.default>,
+      clearScheduledRefresh: scheduler.clearScheduledRefresh,
+      scheduleSilentRefresh: scheduler.scheduleSilentRefresh,
+      mockSetAccessToken: tokenStore.setAccessToken as jest.MockedFunction<
+        typeof tokenStore.setAccessToken
+      >,
+      mockClearAccessToken: tokenStore.clearAccessToken as jest.MockedFunction<
+        typeof tokenStore.clearAccessToken
+      >,
+      mockGetCsrfToken: csrf.getCsrfToken as jest.MockedFunction<typeof csrf.getCsrfToken>,
+    };
+  }
+
+  it('schedules a refresh, stores the new token, and reschedules on success', async () => {
+    const { scheduleSilentRefresh, mockAxios, mockGetCsrfToken, mockSetAccessToken } =
+      await loadModule();
+    jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    mockAxios.get.mockResolvedValueOnce({ data: { csrfToken: 'csrf-token' } });
     mockGetCsrfToken.mockResolvedValue('csrf-token');
-    mockAxiosPost.mockResolvedValue({
-      data: { accessToken: `header.${tokenPayload}.sig` },
-    } as any);
+    mockAxios.post.mockResolvedValue({
+      data: {
+        accessToken: buildToken({ iat: 1000, exp: 1060 }),
+      },
+    });
 
-    scheduleSilentRefresh(`header.${tokenPayload}.sig`);
-    await jest.advanceTimersByTimeAsync(90000);
+    scheduleSilentRefresh(buildToken({ iat: 1000, exp: 1040 }));
 
-    expect(mockAxiosPost).toHaveBeenCalledWith(
-      'http://localhost:3001/auth/refresh',
+    await jest.advanceTimersByTimeAsync(31_000);
+
+    expect(mockGetCsrfToken).toHaveBeenCalled();
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'http://backend.test/auth/refresh',
       null,
-      expect.objectContaining({
+      {
         withCredentials: true,
         headers: { 'x-csrf-token': 'csrf-token' },
-      }),
+      },
     );
-    expect(mockSetAccessToken).toHaveBeenCalled();
-
-    clearScheduledRefresh();
-    nowSpy.mockRestore();
+    expect(mockSetAccessToken).toHaveBeenCalledWith(buildToken({ iat: 1000, exp: 1060 }));
   });
 
-  it('clears the token when refresh fails', async () => {
-    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(0);
-    const { scheduleSilentRefresh, clearScheduledRefresh } = await import(
-      '../../../src/lib/authScheduler'
-    );
-    const tokenPayload = btoa(JSON.stringify({ iat: 0, exp: 120 }));
+  it('omits csrf headers when no token is available', async () => {
+    const { scheduleSilentRefresh, mockAxios, mockGetCsrfToken } = await loadModule();
+    jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    mockAxios.get.mockResolvedValueOnce({ data: { csrfToken: null } });
     mockGetCsrfToken.mockResolvedValue(null);
-    mockAxiosPost.mockRejectedValue(new Error('refresh failed'));
+    mockAxios.post.mockResolvedValue({
+      data: {
+        accessToken: buildToken({ iat: 1000, exp: 1060 }),
+      },
+    });
 
-    scheduleSilentRefresh(`header.${tokenPayload}.sig`);
-    await jest.advanceTimersByTimeAsync(90000);
+    scheduleSilentRefresh(buildToken({ iat: 1000, exp: 1040 }));
+    await jest.advanceTimersByTimeAsync(31_000);
+
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'http://backend.test/auth/refresh',
+      null,
+      {
+        withCredentials: true,
+        headers: undefined,
+      },
+    );
+  });
+
+  it('clears tokens when silent refresh fails', async () => {
+    const { scheduleSilentRefresh, mockAxios, mockClearAccessToken, mockGetCsrfToken } =
+      await loadModule();
+    jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    mockAxios.get.mockResolvedValueOnce({ data: { csrfToken: 'csrf-token' } });
+    mockGetCsrfToken.mockResolvedValue('csrf-token');
+    mockAxios.post.mockRejectedValueOnce(new Error('refresh failed'));
+
+    scheduleSilentRefresh(buildToken({ iat: 1000, exp: 1040 }));
+    await jest.advanceTimersByTimeAsync(31_000);
 
     expect(mockClearAccessToken).toHaveBeenCalled();
-    clearScheduledRefresh();
-    nowSpy.mockRestore();
+  });
+
+  it('cancels a previously scheduled refresh', () => {
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    return loadModule().then(({ clearScheduledRefresh, scheduleSilentRefresh }) => {
+      scheduleSilentRefresh(buildToken({ iat: 1000, exp: 1040 }));
+      clearScheduledRefresh();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    });
   });
 });

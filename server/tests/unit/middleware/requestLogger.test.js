@@ -67,4 +67,20 @@ describe('requestLogger middleware', () => {
       expect.any(Error),
     );
   });
+
+  it('creates the logs directory and file when they are missing on import', () => {
+    fs.existsSync
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(false);
+
+    jest.resetModules();
+    const freshFs = require('node:fs');
+    freshFs.existsSync
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(false);
+    require('../../../middleware/requestLogger');
+
+    expect(freshFs.mkdirSync).toHaveBeenCalledWith(expect.any(String), { recursive: true });
+    expect(freshFs.writeFileSync).toHaveBeenCalledWith(expect.any(String), '', 'utf8');
+  });
 });

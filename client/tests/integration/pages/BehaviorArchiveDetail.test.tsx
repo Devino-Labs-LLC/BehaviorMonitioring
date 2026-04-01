@@ -194,4 +194,127 @@ describe('Behavior Archive Detail Page Integration', () => {
 
     expect(screen.getByText('Behavior "b-1" has been deleted successfully.')).toBeInTheDocument();
   });
+
+  it('closes the popout when cancel is pressed', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: {
+          bsID: 7,
+          clientID: 10,
+          clientName: 'John Doe',
+          name: 'Aggression',
+          measurement: 'Frequency',
+          definition: 'Aggressive behavior',
+        },
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            behaviorDataID: 'b-1',
+            sessionDate: '2026-03-30',
+            sessionTime: '09:00',
+            entered_by: 'testuser',
+            count: 2,
+          },
+        ],
+      } as any);
+
+    render(<BehaviorArchiveDetail />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(screen.getByText('Delete Behavior Data')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Delete Behavior Data')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows an error when deleting archived behavior data fails', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: {
+          bsID: 7,
+          clientID: 10,
+          clientName: 'John Doe',
+          name: 'Aggression',
+          measurement: 'Frequency',
+          definition: 'Aggressive behavior',
+        },
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            behaviorDataID: 'b-1',
+            sessionDate: '2026-03-30',
+            sessionTime: '09:00',
+            entered_by: 'testuser',
+            count: 2,
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+      } as any);
+
+    render(<BehaviorArchiveDetail />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByText('Error: Failed to delete "b-1".')).toBeInTheDocument();
+  });
+
+  it('shows duration and count headers for rate measurements and paginates long lists', async () => {
+    const manyEntries = Array.from({ length: 27 }, (_, index) => ({
+      behaviorDataID: `b-${index + 1}`,
+      sessionDate: `2026-03-${String((index % 28) + 1).padStart(2, '0')}`,
+      sessionTime: '09:00',
+      entered_by: 'testuser',
+      count: index + 1,
+      duration: `00:0${index % 6}:00`,
+    }));
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: {
+          bsID: 7,
+          clientID: 10,
+          clientName: 'John Doe',
+          name: 'Aggression',
+          measurement: 'Rate',
+          definition: 'Aggressive behavior',
+        },
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: manyEntries,
+      } as any);
+
+    render(<BehaviorArchiveDetail />);
+
+    expect(await screen.findByText('Archived Behavior Details')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Count:' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Duration:' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('2026-03-02')).toBeInTheDocument();
+    });
+  });
 });

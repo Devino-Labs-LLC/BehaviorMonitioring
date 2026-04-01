@@ -5,6 +5,7 @@ import { api } from '../../../src/lib/Api';
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
+const mockUseAuth = jest.fn();
 const mockRouter = {
   push: mockPush,
   replace: jest.fn(),
@@ -16,12 +17,7 @@ jest.mock('../../../src/lib/Api', () => ({
   api: jest.fn(),
 }));
 jest.mock('../../../src/hooks/useAuth', () => ({
-  useAuth: () => ({
-    isReady: true,
-    isLoggedIn: true,
-    isAdmin: true,
-    username: 'testadmin',
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 jest.mock('../../../src/function/debounce', () => ({
   debounceAsync: (fn: (...args: any[]) => unknown) => (...args: any[]) => fn(...args),
@@ -100,6 +96,13 @@ const mockApi = api as jest.MockedFunction<typeof api>;
 describe('AddClient Page Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: 'testadmin',
+    });
   });
 
   it('loads homes for the current admin', async () => {
@@ -147,6 +150,8 @@ describe('AddClient Page Integration', () => {
   });
 
   it('creates a client after confirmation', async () => {
+    jest.useFakeTimers();
+
     mockApi.mockImplementation((method, path) => {
       if (path === '/admin/getAllHomes') {
         return Promise.resolve({
@@ -201,5 +206,92 @@ describe('AddClient Page Integration', () => {
         employeeUsername: 'testadmin',
       });
     });
+
+    expect(await screen.findByText('Client created successfully!')).toBeInTheDocument();
+
+    jest.advanceTimersByTime(2000);
+    expect(mockPush).toHaveBeenCalledWith('/Admin/manageClients');
+  });
+
+  it('shows an API error when home loading fails', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    mockApi.mockRejectedValue(new Error('home lookup failed'));
+
+    render(<AddClient />);
+
+    expect(await screen.findByText('home lookup failed')).toBeInTheDocument();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('renders the form without loading homes when the username is missing', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: '',
+    });
+
+    render(<AddClient />);
+
+    expect(await screen.findByRole('button', { name: 'Create Client' })).toBeInTheDocument();
+    expect(mockApi).not.toHaveBeenCalled();
+  });
+
+  it('returns to the previous page when Back is clicked', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [{ homeID: 4, homeName: 'Sunrise Home' }],
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<AddClient />);
+
+    await screen.findByRole('option', { name: 'Sunrise Home' });
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('surfaces create-client API failures after confirmation', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/getAllHomes') {
+        return Promise.resolve({
+          statusCode: 200,
+          homes: [{ homeID: 4, homeName: 'Sunrise Home' }],
+        } as any);
+      }
+
+      if (path === '/admin/createClient') {
+        return Promise.reject(new Error('create failed'));
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<AddClient />);
+
+    await screen.findByRole('option', { name: 'Sunrise Home' });
+
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Doe' } });
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '2005-01-01' } });
+    fireEvent.change(screen.getByLabelText('Home'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Intake Date'), { target: { value: '2026-03-31' } });
+    fireEvent.change(screen.getByLabelText('Medicaid ID Number'), { target: { value: 'MED-123' } });
+    fireEvent.change(screen.getByLabelText('Behavior Plan Due Date'), {
+      target: { value: '2026-04-30' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Client' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create Client' })[1]);
+
+    expect(await screen.findByText('create failed')).toBeInTheDocument();
   });
 });

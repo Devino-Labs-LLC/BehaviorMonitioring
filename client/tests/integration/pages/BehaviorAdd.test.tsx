@@ -183,4 +183,165 @@ describe('Behavior Add Page Integration', () => {
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
     });
   });
+
+  it('redirects when the client lookup returns an unauthorized response', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 401,
+      serverMessage: 'Unauthorized user',
+    } as any);
+
+    render(<BehaviorAddPage />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('shows a status message when the client lookup fails', async () => {
+    mockApi.mockRejectedValueOnce(new Error('load clients failed'));
+
+    render(<BehaviorAddPage />);
+
+    expect(await screen.findByText('Error: load clients failed')).toBeInTheDocument();
+  });
+
+  it('requires all behavior fields before adding an item', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+    } as any);
+
+    render(<BehaviorAddPage />);
+
+    await screen.findByRole('option', { name: 'John Doe' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(await screen.findByText('Please fill out all fields')).toBeInTheDocument();
+  });
+
+  it('removes a queued behavior before submit', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+    } as any);
+
+    render(<BehaviorAddPage />);
+
+    await screen.findByRole('option', { name: 'John Doe' });
+
+    fireEvent.change(screen.getByLabelText('behaviorNameField'), {
+      target: { value: 'Aggression' },
+    });
+    fireEvent.change(screen.getByLabelText('behaviorCategoryDropdown'), {
+      target: { value: 'Aggression' },
+    });
+    fireEvent.change(screen.getByLabelText('definitionTextField'), {
+      target: { value: 'Aggressive behavior toward peers.' },
+    });
+    fireEvent.change(screen.getByLabelText('behaviorMeasurementDropdown'), {
+      target: { value: 'Frequency' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(await screen.findByRole('heading', { name: 'Aggression' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'X' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Aggression' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps failed behaviors queued when the submit API returns partial failure data', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Some behaviors failed',
+        failedBehaviors: [
+          {
+            clientName: 'John Doe',
+            clientID: 1,
+            behaviorName: 'Aggression',
+            behaviorCategory: 'Aggression',
+            behaviorDefinition: 'Aggressive behavior toward peers.',
+            behaviorMeasurement: 'Frequency',
+            type: 'Behavior',
+          },
+        ],
+      } as any);
+
+    render(<BehaviorAddPage />);
+
+    await screen.findByRole('option', { name: 'John Doe' });
+
+    fireEvent.change(screen.getByLabelText('behaviorNameField'), {
+      target: { value: 'Aggression' },
+    });
+    fireEvent.change(screen.getByLabelText('behaviorCategoryDropdown'), {
+      target: { value: 'Aggression' },
+    });
+    fireEvent.change(screen.getByLabelText('definitionTextField'), {
+      target: { value: 'Aggressive behavior toward peers.' },
+    });
+    fireEvent.change(screen.getByLabelText('behaviorMeasurementDropdown'), {
+      target: { value: 'Frequency' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(await screen.findByRole('heading', { name: 'Aggression' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+    expect(await screen.findByText('Some behaviors failed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Aggression' })).toBeInTheDocument();
+  });
+
+  it('shows caught submit errors when the API rejects', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockRejectedValueOnce(new Error('submit failed'));
+
+    render(<BehaviorAddPage />);
+
+    await screen.findByRole('option', { name: 'John Doe' });
+
+    fireEvent.change(screen.getByLabelText('behaviorNameField'), {
+      target: { value: 'Aggression' },
+    });
+    fireEvent.change(screen.getByLabelText('behaviorCategoryDropdown'), {
+      target: { value: 'Aggression' },
+    });
+    fireEvent.change(screen.getByLabelText('definitionTextField'), {
+      target: { value: 'Aggressive behavior toward peers.' },
+    });
+    fireEvent.change(screen.getByLabelText('behaviorMeasurementDropdown'), {
+      target: { value: 'Frequency' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+    expect(await screen.findByText('Error: submit failed')).toBeInTheDocument();
+  });
+
+  it('supports the toolbar back button', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+    } as any);
+
+    render(<BehaviorAddPage />);
+
+    await screen.findByRole('option', { name: 'John Doe' });
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(mockBack).toHaveBeenCalled();
+  });
 });
