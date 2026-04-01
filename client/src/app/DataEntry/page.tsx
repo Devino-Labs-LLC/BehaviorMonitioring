@@ -642,7 +642,9 @@ const DataEntry: React.FC = () => {
                                 {activeTab === 'Skill' && (
                                     <table className={componentStyles.dataEntryTable}>
                                         <thead>
-                                            {headers}
+                                            <tr>
+                                                {headers}
+                                            </tr>
                                         </thead>
                                         <tbody>
                                             {skillAmt > 0 && dates.map((date, index) =>

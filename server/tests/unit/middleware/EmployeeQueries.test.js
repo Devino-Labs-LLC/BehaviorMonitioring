@@ -51,6 +51,38 @@ describe('EmployeeQueries', () => {
       );
     });
 
+    it('returns employee data by id as plain data', async () => {
+      Employee.findOne.mockResolvedValue({
+        get: jest.fn(() => ({
+          employeeID: 8,
+          fName: 'Jane',
+          lName: 'Smith',
+          username: 'jsmith',
+        })),
+      });
+
+      await expect(employeeQueries.employeeDataById(8)).resolves.toEqual(
+        expect.objectContaining({
+          employeeID: 8,
+          username: 'jsmith',
+        }),
+      );
+    });
+
+    it('returns password data by username as plain data', async () => {
+      Employee.findOne.mockResolvedValue({
+        get: jest.fn(() => ({ password: 'hashed-password' })),
+      });
+
+      await expect(employeeQueries.employeePasswordByUsername('jdoe')).resolves.toEqual({
+        password: 'hashed-password',
+      });
+      expect(Employee.findOne).toHaveBeenCalledWith({
+        where: { username: 'jdoe' },
+        attributes: ['password'],
+      });
+    });
+
     it('returns password data by id as plain data', async () => {
       Employee.findOne.mockResolvedValue({
         get: jest.fn(() => ({ password: 'hashed-password' })),
@@ -69,6 +101,22 @@ describe('EmployeeQueries', () => {
       Employee.findOne.mockResolvedValue(null);
 
       await expect(employeeQueries.employeeDataByResetToken('missing-token')).resolves.toBeNull();
+    });
+
+    it('returns employee data by email as plain data', async () => {
+      Employee.findOne.mockResolvedValue({
+        get: jest.fn(() => ({
+          employeeID: 4,
+          email: 'jane@example.com',
+        })),
+      });
+
+      await expect(employeeQueries.employeeDataByEmail('jane@example.com')).resolves.toEqual(
+        expect.objectContaining({
+          employeeID: 4,
+          email: 'jane@example.com',
+        }),
+      );
     });
   });
 
@@ -97,6 +145,58 @@ describe('EmployeeQueries', () => {
           password: 'hashed-password',
         },
         { where: { username: 'jdoe', companyID: 4 } },
+      );
+    });
+
+    it('updates an employee account by id with a password', async () => {
+      Employee.update.mockResolvedValue([1]);
+
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountByID(
+          'John',
+          'Doe',
+          'john@example.com',
+          '555-111-2222',
+          'hashed-password',
+          8,
+          4,
+        ),
+      ).resolves.toBe(true);
+
+      expect(Employee.update).toHaveBeenCalledWith(
+        {
+          fName: 'John',
+          lName: 'Doe',
+          email: 'john@example.com',
+          phone_number: '555-111-2222',
+          password: 'hashed-password',
+        },
+        { where: { employeeID: 8, companyID: 4 } },
+      );
+    });
+
+    it('updates an employee account by username without a password', async () => {
+      Employee.update.mockResolvedValue([1]);
+
+      await expect(
+        employeeQueries.employeeUpdateEmployeeAccountWithoutPasswordByUsername(
+          'Jane',
+          'Smith',
+          'jane@example.com',
+          '555-333-4444',
+          'jsmith',
+          12,
+        ),
+      ).resolves.toBe(true);
+
+      expect(Employee.update).toHaveBeenCalledWith(
+        {
+          fName: 'Jane',
+          lName: 'Smith',
+          email: 'jane@example.com',
+          phone_number: '555-333-4444',
+        },
+        { where: { username: 'jsmith', companyID: 12 } },
       );
     });
 
@@ -152,6 +252,45 @@ describe('EmployeeQueries', () => {
           password_reset_expires: expiryDate,
         },
         { where: { employeeID: 6 } },
+      );
+    });
+
+    it('updates employee account status by id', async () => {
+      Employee.update.mockResolvedValue([1]);
+
+      await expect(
+        employeeQueries.employeeUpdateEmployeeStatusAccountByID('Inactive', 6, 10),
+      ).resolves.toBe(true);
+
+      expect(Employee.update).toHaveBeenCalledWith(
+        { account_status: 'Inactive' },
+        { where: { employeeID: 6, companyID: 10 } },
+      );
+    });
+
+    it('sets employee credentials by username', async () => {
+      Employee.update.mockResolvedValue([1]);
+
+      await expect(
+        employeeQueries.employeeSetEmployeeCredentialsByUsername('new-hash', 'jdoe', 4),
+      ).resolves.toBe(true);
+
+      expect(Employee.update).toHaveBeenCalledWith(
+        { password: 'new-hash' },
+        { where: { username: 'jdoe', companyID: 4 } },
+      );
+    });
+
+    it('sets employee credentials by id', async () => {
+      Employee.update.mockResolvedValue([1]);
+
+      await expect(employeeQueries.employeeSetEmployeeCredentialsByID('new-hash', 6, 4)).resolves.toBe(
+        true,
+      );
+
+      expect(Employee.update).toHaveBeenCalledWith(
+        { password: 'new-hash' },
+        { where: { employeeID: 6, companyID: 4 } },
       );
     });
 

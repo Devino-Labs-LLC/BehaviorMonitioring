@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DataEntry from '../../../src/app/DataEntry/page';
 import { api } from '../../../src/lib/Api';
@@ -93,6 +93,7 @@ const mockApi = api as jest.MockedFunction<typeof api>;
 describe('Data Entry Page Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     mockGetLoggedInUserStatus.mockReturnValue(true);
     mockGetLoggedInUser.mockReturnValue('testuser');
     jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
@@ -104,6 +105,7 @@ describe('Data Entry Page Integration', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -218,7 +220,7 @@ describe('Data Entry Page Integration', () => {
 
     const targetSelect = await screen.findByLabelText('Target-0');
     await waitFor(() => {
-      expect(within(targetSelect).getByRole('option', { name: 'Aggression' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Aggression' })).toBeInTheDocument();
     });
     await user.selectOptions(targetSelect, '11');
 
@@ -273,6 +275,29 @@ describe('Data Entry Page Integration', () => {
     });
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('redirects when the client lookup rejects with an unauthorized API error', async () => {
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.reject({
+          response: {
+            status: 401,
+            data: {
+              serverMessage: 'Unauthorized user',
+            },
+          },
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<DataEntry />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
   });
 
   it('redirects unauthenticated users to login', async () => {
@@ -363,6 +388,164 @@ describe('Data Entry Page Integration', () => {
     expect(screen.getByDisplayValue('08:15')).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByDisplayValue('4')).toBeInTheDocument();
+    });
+  });
+
+  it('hydrates and submits a skill acquisition entry', async () => {
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'dataEntryState') {
+        return JSON.stringify({
+          activeTab: 'Skill',
+          skillAmt: 1,
+          selectedClient: 'John Doe',
+          selectedClientID: 1,
+          selectedSkills: ['21'],
+          dates: ['2026-03-31'],
+          times: ['08:30'],
+        });
+      }
+
+      return null;
+    });
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+        } as any);
+      }
+
+      if (path === '/aba/getClientSkillAquisition') {
+        return Promise.resolve({
+          statusCode: 200,
+          behaviorSkillData: [{ bsID: 21, name: 'Greeting', measurement: 'Duration' }],
+        } as any);
+      }
+
+      if (path === '/aba/submitSkillAquisition') {
+        return Promise.resolve({
+          statusCode: 201,
+          serverMessage: 'Skill acquisition saved',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<DataEntry />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Number of skill:')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/submitSkillAquisition', {
+        clientID: 1,
+        skillAmt: 1,
+        selectedSkills: ['21'],
+        dates: ['2026-03-31'],
+        times: ['08:30'],
+        employeeUsername: 'testuser',
+      });
+    });
+
+    expect(screen.getByText('Skill acquisition saved')).toBeInTheDocument();
+  });
+
+  it('clears persisted state after the success timer expires', async () => {
+    jest.useFakeTimers();
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+        } as any);
+      }
+
+      if (path === '/aba/getClientTargetBehavior') {
+        return Promise.resolve({
+          statusCode: 200,
+          behaviorSkillData: [],
+        } as any);
+      }
+
+      if (path === '/aba/submitSessionNotes') {
+        return Promise.resolve({
+          statusCode: 201,
+          serverMessage: 'Session notes saved',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<DataEntry />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Session Notes' }));
+    fireEvent.change(screen.getByLabelText('sessionNotesTextField'), {
+      target: { value: 'Timer reset note' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Session notes saved')).toBeInTheDocument();
+    });
+
+    for (let second = 0; second < 4; second += 1) {
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+    }
+
+    await waitFor(() => {
+      expect(Storage.prototype.removeItem).toHaveBeenCalledWith('dataEntryState');
+    });
+  });
+
+  it('shows API failure messages for behavior and skill target loading', async () => {
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'dataEntryState') {
+        return JSON.stringify({
+          activeTab: 'Skill',
+          skillAmt: 1,
+          selectedClient: 'John Doe',
+          selectedClientID: 1,
+        });
+      }
+
+      return null;
+    });
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+        } as any);
+      }
+
+      if (path === '/aba/getClientSkillAquisition') {
+        return Promise.resolve({
+          statusCode: 500,
+          serverMessage: 'Failed to load skills',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<DataEntry />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Error: Failed to load skills')).toBeInTheDocument();
     });
   });
 });

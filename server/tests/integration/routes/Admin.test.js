@@ -15,6 +15,8 @@ jest.mock('../../../middleware/helpers/AdminQueries', () => ({
   adminDeleteAHomeByID: jest.fn(),
   adminUpdateHomeByID: jest.fn(),
   homeExistByName: jest.fn(),
+  adminGetAllEmployees: jest.fn(),
+  adminGetAllHomes: jest.fn(),
 }));
 
 jest.mock('../../../middleware/helpers/EmployeeQueries', () => ({
@@ -360,6 +362,122 @@ describe('Admin API Integration Tests', () => {
         capacity: 6,
         hID: 1,
         compID: 1,
+      });
+    });
+  });
+
+  describe('POST /admin/getAllAdmins', () => {
+    it('returns only admin-level employees mapped to frontend admin fields', async () => {
+      adminQueries.adminGetAllEmployees.mockResolvedValue([
+        {
+          employeeID: 1,
+          fName: 'Root',
+          lName: 'User',
+          username: 'root.user',
+          email: 'root@example.com',
+          phone_number: '555-1111',
+          role: 'root',
+          account_status: 'Active',
+          companyID: 1,
+          companyName: 'Acme Corporation',
+          date_entered: '2026-03-31',
+        },
+        {
+          employeeID: 2,
+          fName: 'Tech',
+          lName: 'User',
+          username: 'tech.user',
+          email: 'tech@example.com',
+          phone_number: '555-2222',
+          role: 'technician',
+          account_status: 'Active',
+          companyID: 1,
+          companyName: 'Acme Corporation',
+          date_entered: '2026-03-30',
+        },
+      ]);
+
+      const response = await request(app)
+        .post('/admin/getAllAdmins')
+        .send({
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 200,
+        admins: [
+          {
+            adminID: 1,
+            firstName: 'Root',
+            lastName: 'User',
+            username: 'root.user',
+            email: 'root@example.com',
+            phone: '555-1111',
+            role: 'root',
+            isActive: true,
+            companyID: 1,
+            companyName: 'Acme Corporation',
+            dateCreated: '2026-03-31',
+          },
+        ],
+        totalCount: 1,
+        serverMessage: 'Admins retrieved successfully',
+      });
+    });
+  });
+
+  describe('POST /admin/getAllHomes', () => {
+    it('maps homes into the frontend response shape', async () => {
+      adminQueries.adminGetAllHomes.mockResolvedValue([
+        {
+          homeID: 5,
+          name: 'Sunrise Home',
+          street_address: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zip_code: '33601',
+          capacity: 4,
+          current_occupancy: 2,
+          companyID: 1,
+          companyName: 'Acme Corporation',
+          date_entered: '2026-03-31',
+          time_entered: '09:00',
+          entered_by: 'Test Admin',
+        },
+      ]);
+
+      const response = await request(app)
+        .post('/admin/getAllHomes')
+        .send({
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 200,
+        homes: [
+          {
+            homeID: 5,
+            homeName: 'Sunrise Home',
+            name: 'Sunrise Home',
+            address: '123 Main St',
+            street_address: '123 Main St',
+            city: 'Tampa',
+            state: 'FL',
+            zip: '33601',
+            zip_code: '33601',
+            capacity: 4,
+            currentOccupancy: 2,
+            companyID: 1,
+            companyName: 'Acme Corporation',
+            dateCreated: '2026-03-31',
+            date_entered: '2026-03-31',
+            time_entered: '09:00',
+            entered_by: 'Test Admin',
+            isActive: true,
+          },
+        ],
+        totalCount: 1,
+        serverMessage: 'Homes retrieved successfully',
       });
     });
   });

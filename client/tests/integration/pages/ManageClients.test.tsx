@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import ManageClients from '../../../src/app/Admin/manageClients/page';
 import { api } from '../../../src/lib/Api';
 
+const mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockUseAuth = jest.fn();
+
 jest.mock('../../../src/lib/Api', () => ({
   api: jest.fn(),
 }));
@@ -13,19 +17,14 @@ jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUser: () => 'testuser',
 }));
 jest.mock('../../../src/hooks/useAuth', () => ({
-  useAuth: () => ({
-    isReady: true,
-    isLoggedIn: true,
-    isAdmin: true,
-    username: 'testuser',
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: jest.fn(),
     prefetch: jest.fn(),
-    back: jest.fn(),
+    back: mockBack,
   }),
   usePathname: () => '/Admin/manageClients',
   useSearchParams: () => ({
@@ -69,6 +68,12 @@ describe('ManageClients Page Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: true,
+      username: 'testuser',
+    });
   });
 
   it('fetches and displays clients on mount', async () => {
@@ -174,14 +179,6 @@ describe('ManageClients Page Integration', () => {
   });
 
   it('navigates to edit page when edit button clicked', async () => {
-    const mockPush = jest.fn();
-    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
-      push: mockPush,
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-    });
-
     mockApi.mockResolvedValueOnce({
       statusCode: 200,
       clientData: mockClients,
@@ -242,6 +239,91 @@ describe('ManageClients Page Integration', () => {
       // The component should handle errors gracefully
       expect(mockApi).toHaveBeenCalled();
     });
+  });
+
+  it('redirects logged-out users to login', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: false,
+      isAdmin: false,
+      username: '',
+    });
+
+    render(<ManageClients />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login?previousUrl='));
+    });
+  });
+
+  it('redirects non-admin users to the home page', async () => {
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      isAdmin: false,
+      username: 'testuser',
+    });
+
+    render(<ManageClients />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('archives a client after confirmation and shows the deletion date', async () => {
+    globalThis.confirm = jest.fn(() => true);
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/admin/archiveClient') {
+        return Promise.resolve({
+          statusCode: 200,
+          deletionDate: '2033-03-31',
+        } as any);
+      }
+
+      return Promise.resolve({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any);
+    });
+
+    render(<ManageClients />);
+
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByLabelText('Archive client John Doe'));
+
+    expect(globalThis.confirm).toHaveBeenCalledWith(expect.stringContaining('John Doe'));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/admin/archiveClient', {
+        clientID: 1,
+        employeeUsername: 'testuser',
+      });
+    });
+
+    expect(screen.getByText(/Deletion scheduled for:/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('2033-03-31'))).toBeInTheDocument();
+  });
+
+  it('supports the back action from the toolbar', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 200,
+      clientData: mockClients,
+    } as any);
+
+    render(<ManageClients />);
+
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back button' }));
+
+    expect(mockBack).toHaveBeenCalled();
   });
 
 });
