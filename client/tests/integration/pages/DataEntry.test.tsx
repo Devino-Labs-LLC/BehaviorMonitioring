@@ -548,4 +548,91 @@ describe('Data Entry Page Integration', () => {
       expect(screen.getByText('Error: Failed to load skills')).toBeInTheDocument();
     });
   });
+
+  it('shows an error when behavior submission fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi.mockImplementation((method, path) => {
+      if (path === '/aba/getAllClientInfo') {
+        return Promise.resolve({
+          statusCode: 200,
+          clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+        } as any);
+      }
+
+      if (path === '/aba/getClientTargetBehavior') {
+        return Promise.resolve({
+          statusCode: 200,
+          behaviorSkillData: [{ bsID: 11, name: 'Aggression', measurement: 'Frequency' }],
+        } as any);
+      }
+
+      if (path === '/aba/submitTargetBehavior') {
+        return Promise.resolve({
+          statusCode: 500,
+          serverMessage: 'Behavior entry failed',
+        } as any);
+      }
+
+      return Promise.reject(new Error(`Unexpected API path: ${path}`));
+    });
+
+    render(<DataEntry />);
+
+    const targetSelect = await screen.findByLabelText('Target-0');
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Aggression' })).toBeInTheDocument();
+    });
+    await user.selectOptions(targetSelect, '11');
+
+    const countInput = document.querySelector('input[name="count-0"]') as HTMLInputElement;
+    fireEvent.change(countInput, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+    expect(await screen.findByText('Error: Behavior entry failed')).toBeInTheDocument();
+  });
+
+  it('reloads targets when the selected client changes and normalizes negative counts', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [
+          { clientID: 1, fName: 'John', lName: 'Doe' },
+          { clientID: 2, fName: 'Jane', lName: 'Smith' },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 11, name: 'Aggression', measurement: 'Frequency' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [{ bsID: 12, name: 'Elopement', measurement: 'Frequency' }],
+      } as any);
+
+    render(<DataEntry />);
+
+    const clientSelect = await screen.findByLabelText('ClientName');
+    fireEvent.change(clientSelect, { target: { value: '2' } });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('post', '/aba/getClientTargetBehavior', {
+        clientID: 2,
+        employeeUsername: 'testuser',
+      });
+    });
+
+    const targetSelect = await screen.findByLabelText('Target-0');
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Elopement' })).toBeInTheDocument();
+    });
+    await user.selectOptions(targetSelect, '12');
+
+    const countInput = document.querySelector('input[name="count-0"]') as HTMLInputElement;
+    fireEvent.change(countInput, { target: { value: '-5' } });
+
+    expect(countInput.value).toBe('0');
+  });
 });

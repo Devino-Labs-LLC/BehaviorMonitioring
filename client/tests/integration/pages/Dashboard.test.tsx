@@ -202,4 +202,5 @@ describe('Dashboard Page Integration', () => {
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
+
 });

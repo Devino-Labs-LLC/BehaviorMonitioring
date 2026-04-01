@@ -3,6 +3,9 @@ const express = require('express');
 const adminRoutes = require('../../../routes/Admin');
 
 jest.mock('../../../middleware/authMiddleware', () => (req, res, next) => next());
+jest.mock('../../../middleware/rateLimiter', () => ({
+  apiLimiter: (req, res, next) => next(),
+}));
 
 jest.mock('../../../middleware/helpers/AdminQueries', () => ({
   adminExistByUsername: jest.fn(),
@@ -35,6 +38,7 @@ jest.mock('../../../middleware/email/emailTemplate', () => ({
 const adminQueries = require('../../../middleware/helpers/AdminQueries');
 const employeeQueries = require('../../../middleware/helpers/EmployeeQueries');
 const emailTemplate = require('../../../middleware/email/emailTemplate');
+const generateUsername = require('../../../functions/users/generateUsername');
 
 const app = express();
 app.use(express.json());
@@ -111,6 +115,67 @@ describe('Admin API Integration Tests', () => {
         'ada.lovelace'
       );
     });
+
+    it('uses a generated username when the default one already exists', async () => {
+      adminQueries.adminExistByUsername.mockResolvedValue(true);
+      adminQueries.adminAddNewEmployee.mockResolvedValue(true);
+
+      const response = await request(app)
+        .post('/admin/addNewEmployee')
+        .send({
+          fName: 'John',
+          lName: 'Doe',
+          email: 'john@example.com',
+          pNumber: '1234567890',
+          role: 'Technician',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(201);
+      expect(generateUsername).toHaveBeenCalledWith('John', 'Doe', 'Technician');
+      expect(adminQueries.adminAddNewEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ username: 'test.user' })
+      );
+    });
+
+    it('returns a server error when employee creation fails', async () => {
+      adminQueries.adminExistByUsername.mockResolvedValue(false);
+      adminQueries.adminAddNewEmployee.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/addNewEmployee')
+        .send({
+          fName: 'John',
+          lName: 'Doe',
+          email: 'john@example.com',
+          pNumber: '1234567890',
+          role: 'Technician',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when employee creation throws', async () => {
+      adminQueries.adminExistByUsername.mockRejectedValue(new Error('username lookup failed'));
+
+      const response = await request(app)
+        .post('/admin/addNewEmployee')
+        .send({
+          fName: 'John',
+          lName: 'Doe',
+          email: 'john@example.com',
+          pNumber: '1234567890',
+          role: 'Technician',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('username lookup failed');
+    });
   });
 
   describe('POST /admin/deleteAnEmployee', () => {
@@ -126,6 +191,36 @@ describe('Admin API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.statusCode).toBe(201);
+    });
+
+    it('returns a server error when deletion fails', async () => {
+      adminQueries.adminDeleteAnEmployeeByID.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/deleteAnEmployee')
+        .send({
+          employeeID: 1,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when deletion throws', async () => {
+      adminQueries.adminDeleteAnEmployeeByID.mockRejectedValue(new Error('delete failed'));
+
+      const response = await request(app)
+        .post('/admin/deleteAnEmployee')
+        .send({
+          employeeID: 1,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('delete failed');
     });
   });
 
@@ -147,6 +242,46 @@ describe('Admin API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.statusCode).toBe(201);
+    });
+
+    it('returns a server error when employee update fails', async () => {
+      adminQueries.adminUpdateEmployeeAccountByID.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/updateAnEmployeeDetail')
+        .send({
+          employeeID: 1,
+          fName: 'John',
+          lName: 'Doe',
+          email: 'john@example.com',
+          pNumber: '1234567890',
+          role: 'Technician',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when employee update throws', async () => {
+      adminQueries.adminUpdateEmployeeAccountByID.mockRejectedValue(new Error('update failed'));
+
+      const response = await request(app)
+        .post('/admin/updateAnEmployeeDetail')
+        .send({
+          employeeID: 1,
+          fName: 'John',
+          lName: 'Doe',
+          email: 'john@example.com',
+          pNumber: '1234567890',
+          role: 'Technician',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('update failed');
     });
   });
 
@@ -176,6 +311,38 @@ describe('Admin API Integration Tests', () => {
         'Doe',
         'john.doe'
       );
+    });
+
+    it('returns a server error when account status update fails', async () => {
+      adminQueries.adminUpdateEmployeeAccountStatusByID.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/updateAnEmployeeAccountStatus')
+        .send({
+          employeeID: 1,
+          accountStatus: 'Inactive',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when account status update throws', async () => {
+      adminQueries.adminUpdateEmployeeAccountStatusByID.mockRejectedValue(new Error('status failed'));
+
+      const response = await request(app)
+        .post('/admin/updateAnEmployeeAccountStatus')
+        .send({
+          employeeID: 1,
+          accountStatus: 'Active',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('status failed');
     });
   });
 
@@ -297,6 +464,47 @@ describe('Admin API Integration Tests', () => {
         })
       );
     });
+
+    it('returns a server error when home creation fails', async () => {
+      adminQueries.homeExistByName.mockResolvedValue(false);
+      adminQueries.adminAddNewHome.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/addNewHome')
+        .send({
+          name: 'Home One',
+          streetAddress: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zipCode: '33601',
+          capacity: 4,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when home creation throws', async () => {
+      adminQueries.homeExistByName.mockRejectedValue(new Error('home lookup failed'));
+
+      const response = await request(app)
+        .post('/admin/addNewHome')
+        .send({
+          name: 'Home One',
+          streetAddress: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zipCode: '33601',
+          capacity: 4,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('home lookup failed');
+    });
   });
 
   describe('POST /admin/deleteAHome', () => {
@@ -313,9 +521,86 @@ describe('Admin API Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.statusCode).toBe(201);
     });
+
+    it('returns a server error when home deletion fails', async () => {
+      adminQueries.adminDeleteAHomeByID.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/deleteAHome')
+        .send({
+          homeID: 1,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when home deletion throws', async () => {
+      adminQueries.adminDeleteAHomeByID.mockRejectedValue(new Error('delete home failed'));
+
+      const response = await request(app)
+        .post('/admin/deleteAHome')
+        .send({
+          homeID: 1,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('delete home failed');
+    });
   });
 
   describe('POST /admin/updateAHome', () => {
+    it('rejects missing required fields', async () => {
+      const response = await request(app)
+        .post('/admin/updateAHome')
+        .send({
+          homeID: 1,
+          name: '',
+          city: 'Tampa',
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.serverMessage).toBe('All required home fields must be provided');
+    });
+
+    it('rejects updates with invalid state', async () => {
+      const response = await request(app)
+        .post('/admin/updateAHome')
+        .send({
+          homeID: 1,
+          name: 'Home One',
+          streetAddress: '123 Main St',
+          city: 'Tampa',
+          state: 'Florida',
+          zipCode: '33601',
+          capacity: 2,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.serverMessage).toBe('State must be a 2-letter code');
+    });
+
+    it('rejects updates with invalid zip code', async () => {
+      const response = await request(app)
+        .post('/admin/updateAHome')
+        .send({
+          homeID: 1,
+          name: 'Home One',
+          streetAddress: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zipCode: '33',
+          capacity: 2,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.serverMessage).toBe('ZIP code must be 5 digits or ZIP+4 format');
+    });
+
     it('rejects updates with invalid capacity', async () => {
       const response = await request(app)
         .post('/admin/updateAHome')
@@ -363,6 +648,48 @@ describe('Admin API Integration Tests', () => {
         hID: 1,
         compID: 1,
       });
+    });
+
+    it('returns a server error when home update fails', async () => {
+      adminQueries.adminUpdateHomeByID.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/updateAHome')
+        .send({
+          homeID: 1,
+          name: 'Home One',
+          streetAddress: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zipCode: '33601',
+          capacity: 4,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('returns the error message when home update throws', async () => {
+      adminQueries.adminUpdateHomeByID.mockRejectedValue(new Error('update home failed'));
+
+      const response = await request(app)
+        .post('/admin/updateAHome')
+        .send({
+          homeID: 1,
+          name: 'Home One',
+          streetAddress: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zipCode: '33601',
+          capacity: 4,
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('update home failed');
     });
   });
 
@@ -424,6 +751,19 @@ describe('Admin API Integration Tests', () => {
         serverMessage: 'Admins retrieved successfully',
       });
     });
+
+    it('returns the error message when getAllAdmins throws', async () => {
+      adminQueries.adminGetAllEmployees.mockRejectedValue(new Error('admin list failed'));
+
+      const response = await request(app)
+        .post('/admin/getAllAdmins')
+        .send({
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('admin list failed');
+    });
   });
 
   describe('POST /admin/getAllHomes', () => {
@@ -479,6 +819,48 @@ describe('Admin API Integration Tests', () => {
         totalCount: 1,
         serverMessage: 'Homes retrieved successfully',
       });
+    });
+
+    it('returns default values when optional home fields are missing', async () => {
+      adminQueries.adminGetAllHomes.mockResolvedValue([
+        {
+          homeID: 5,
+          name: 'Sunrise Home',
+          street_address: '123 Main St',
+          city: 'Tampa',
+          state: 'FL',
+          zip_code: '33601',
+          capacity: null,
+          current_occupancy: null,
+          companyID: 1,
+          companyName: 'Acme Corporation',
+          date_entered: '2026-03-31',
+          time_entered: '09:00',
+          entered_by: 'Test Admin',
+        },
+      ]);
+
+      const response = await request(app)
+        .post('/admin/getAllHomes')
+        .send({
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.homes[0].capacity).toBe(0);
+      expect(response.body.homes[0].currentOccupancy).toBe(0);
+    });
+
+    it('returns the error message when getAllHomes throws', async () => {
+      adminQueries.adminGetAllHomes.mockRejectedValue(new Error('home list failed'));
+
+      const response = await request(app)
+        .post('/admin/getAllHomes')
+        .send({
+          employeeUsername: 'testadmin',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('home list failed');
     });
   });
 });

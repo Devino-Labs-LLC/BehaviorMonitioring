@@ -6,6 +6,9 @@ const emailTemplate = require('../../../middleware/email/emailTemplate');
 
 // Mock dependencies
 jest.mock('../../../middleware/helpers/AdminQueries');
+jest.mock('../../../middleware/rateLimiter', () => ({
+  apiLimiter: (req, res, next) => next(),
+}));
 jest.mock('../../../middleware/email/emailTemplate', () => ({
   sendEmployeeVerification: jest.fn().mockResolvedValue(true),
   sendAdminVerification: jest.fn().mockResolvedValue(true),
@@ -84,6 +87,22 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
         })
       );
     });
+
+    it('should return 500 when client creation throws', async () => {
+      adminQueries.adminAddNewClient = jest.fn().mockRejectedValue(new Error('create failed'));
+
+      const response = await request(app)
+        .post('/admin/createClient')
+        .send({
+          fName: 'John',
+          lName: 'Doe',
+          DOB: '2000-01-01',
+          intakeDate: '2026-01-29',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('create failed');
+    });
   });
 
   describe('POST /admin/updateClient', () => {
@@ -139,6 +158,40 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
         compID: 1,
       });
     });
+
+    it('should return 500 when updating a client fails', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(true);
+      adminQueries.adminUpdateClient = jest.fn().mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/updateClient')
+        .send({
+          clientID: 5,
+          fName: 'Jane',
+          lName: 'Smith',
+        });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('should return 500 when updating a client throws', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(true);
+      adminQueries.adminUpdateClient = jest.fn().mockRejectedValue(new Error('update client failed'));
+
+      const response = await request(app)
+        .post('/admin/updateClient')
+        .send({
+          clientID: 5,
+          fName: 'Jane',
+          lName: 'Smith',
+        });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('update client failed');
+    });
   });
 
   describe('POST /admin/deleteClient', () => {
@@ -170,6 +223,32 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
         serverMessage: 'Client deleted successfully',
       });
       expect(adminQueries.adminDeleteClient).toHaveBeenCalledWith(5, 1);
+    });
+
+    it('should return 500 when deleting a client fails', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(true);
+      adminQueries.adminDeleteClient = jest.fn().mockResolvedValue(false);
+
+      const response = await request(app)
+        .post('/admin/deleteClient')
+        .send({ clientID: 5 });
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        serverMessage: 'A server error occurred',
+      });
+    });
+
+    it('should return 500 when deleting a client throws', async () => {
+      adminQueries.clientExistByID = jest.fn().mockResolvedValue(true);
+      adminQueries.adminDeleteClient = jest.fn().mockRejectedValue(new Error('delete client failed'));
+
+      const response = await request(app)
+        .post('/admin/deleteClient')
+        .send({ clientID: 5 });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('delete client failed');
     });
   });
 
@@ -241,6 +320,22 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.statusCode).toBe(500);
+    });
+
+    it('should return 500 when archiving throws', async () => {
+      adminQueries.clientDataById = jest.fn().mockResolvedValue({
+        clientID: 1,
+        status: 'Active'
+      });
+      adminQueries.adminArchiveClient = jest.fn().mockRejectedValue(new Error('archive failed'));
+
+      const response = await request(app)
+        .post('/admin/archiveClient')
+        .send({ clientID: 1 });
+
+      expect(response.status).toBe(200);
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('archive failed');
     });
   });
 
@@ -330,6 +425,17 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
       expect(response.body.statusCode).toBe(404);
       expect(response.body.serverMessage).toBe('Archived client not found');
     });
+
+    it('should return 500 when archived client lookup throws', async () => {
+      adminQueries.adminGetArchivedClientById = jest.fn().mockRejectedValue(new Error('lookup failed'));
+
+      const response = await request(app)
+        .post('/admin/getArchivedClient')
+        .send({ clientID: 999 });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('lookup failed');
+    });
   });
 
   describe('POST /admin/unarchiveClient', () => {
@@ -355,6 +461,17 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.statusCode).toBe(404);
       expect(response.body.serverMessage).toBe('Archived client not found or already active');
+    });
+
+    it('should return 500 when unarchive throws', async () => {
+      adminQueries.adminUnarchiveClient = jest.fn().mockRejectedValue(new Error('unarchive failed'));
+
+      const response = await request(app)
+        .post('/admin/unarchiveClient')
+        .send({ clientID: 1 });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('unarchive failed');
     });
   });
 
@@ -413,6 +530,24 @@ describe('Admin Routes - Client Archive Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.statusCode).toBe(500);
+    });
+
+    it('should return 500 when deleting an archived client throws', async () => {
+      adminQueries.adminGetArchivedClientById = jest.fn().mockResolvedValue({
+        clientID: 1,
+        fName: 'John',
+        lName: 'Doe',
+        archived_date: '2026-01-29',
+        archived_deletion_date: '2033-01-29'
+      });
+      adminQueries.adminDeleteArchivedClient = jest.fn().mockRejectedValue(new Error('delete archived failed'));
+
+      const response = await request(app)
+        .post('/admin/deleteArchivedClient')
+        .send({ clientID: 1 });
+
+      expect(response.body.statusCode).toBe(500);
+      expect(response.body.errorMessage).toBe('delete archived failed');
     });
   });
 });

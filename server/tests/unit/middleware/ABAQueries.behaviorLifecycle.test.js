@@ -98,6 +98,75 @@ describe('ABAQueries behavior lifecycle', () => {
         }),
       ).resolves.toBe(true);
     });
+
+    it('handles missing client records and company-scopeless listing', async () => {
+      Client.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      Client.findAll.mockResolvedValue([
+        { get: jest.fn(() => ({ clientID: 11, companyID: null })) },
+      ]);
+      Client.update.mockResolvedValue([0]);
+
+      await expect(abaQueries.abaClientExistByID(404, 9)).resolves.toBe(false);
+      await expect(abaQueries.abaGetClientDataByID(404, 9)).resolves.toBeNull();
+      await expect(abaQueries.abaGetAllClientData()).resolves.toEqual([
+        expect.objectContaining({ clientID: 11, companyID: null }),
+      ]);
+      expect(Client.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { companyID: null } }),
+      );
+      await expect(
+        abaQueries.abaUpdateClientData({
+          fName: 'Jane',
+          lName: 'Doe',
+          DOB: '2000-01-01',
+          intakeDate: '2026-01-01',
+          groupHomeName: 'Home B',
+          medicadeNum: '321',
+          behaviorPlanDueDate: '2027-01-01',
+          cID: 404,
+        }),
+      ).resolves.toBe(false);
+    });
+
+    it('wraps client helper failures consistently', async () => {
+      Client.findOne.mockRejectedValueOnce(new Error('client lookup failed'));
+      Client.create.mockRejectedValueOnce('client create failed');
+      Client.findAll.mockRejectedValueOnce(new Error('client list failed'));
+      Client.update.mockRejectedValueOnce(new Error('client update failed'));
+
+      await expect(abaQueries.abaClientExistByID(1, 9)).rejects.toThrow('client lookup failed');
+      await expect(
+        abaQueries.abaAddClientData({
+          fName: 'Jane',
+          lName: 'Smith',
+          DOB: '2000-01-01',
+          intakeDate: '2026-01-01',
+          groupHomeName: 'Home A',
+          medicadeNum: '123',
+          behaviorPlanDueDate: '2026-04-01',
+          enteredBy: 'Staff Member',
+          compID: 5,
+          compName: 'Test Co',
+          dateEntered: '2026-04-01',
+          timeEntered: '10:00',
+        }),
+      ).rejects.toThrow('client create failed');
+      await expect(abaQueries.abaGetAllClientData(5)).rejects.toThrow('client list failed');
+      await expect(
+        abaQueries.abaUpdateClientData({
+          fName: 'Jane',
+          lName: 'Doe',
+          DOB: '2000-01-01',
+          intakeDate: '2026-01-01',
+          groupHomeName: 'Home B',
+          medicadeNum: '321',
+          behaviorPlanDueDate: '2027-01-01',
+          cID: 1,
+        }),
+      ).rejects.toThrow('client update failed');
+    });
   });
 
   describe('active behavior helpers', () => {
@@ -227,6 +296,101 @@ describe('ABAQueries behavior lifecycle', () => {
       ).resolves.toBe(true);
       await expect(abaQueries.abaDeleteBehaviorOrSkillByID(2, 77, 4)).resolves.toBe(true);
     });
+
+    it('returns false when behavior lifecycle operations affect no rows', async () => {
+      BehaviorAndSkill.findOne.mockResolvedValue(null);
+      BehaviorData.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+      BehaviorAndSkill.update.mockResolvedValue([0]);
+      BehaviorData.update.mockResolvedValue([0]);
+      BehaviorData.destroy
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+      BehaviorAndSkill.destroy.mockResolvedValue(0);
+
+      await expect(abaQueries.behaviorSkillExistByID(404, 4)).resolves.toBe(false);
+      await expect(
+        abaQueries.abaUpdateBehaviorOrSkill({
+          name: 'Aggression',
+          def: 'Hits others',
+          meas: 'Frequency',
+          cat: 'Aggression',
+          type: 'Behavior',
+          cID: 2,
+          cName: 'Client Name',
+          bsID: 404,
+          compID: 4,
+        }),
+      ).resolves.toBe(false);
+      await expect(abaQueries.abaFoundBehaviorDataById(2, 404, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaGetBehaviorDataByBehaviorId(2, 404, 5, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaMergeBehaviorDataById(2, 99, 404, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaDeleteBehaviorDataByID(2, 404, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaDeleteBehaviorDataByBehaviorID(2, 404, 5, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaArchiveBehaviorDataByID('Archived', 2, 404, 4)).resolves.toBe(false);
+      await expect(
+        abaQueries.abaArchiveBehaviorOrSkillByID(2, 404, '2026-04-01', '2033-04-01', 4),
+      ).resolves.toBe(false);
+      await expect(abaQueries.abaDeleteBehaviorOrSkillByID(2, 404, 4)).resolves.toBe(false);
+    });
+
+    it('wraps active behavior helper failures consistently', async () => {
+      BehaviorAndSkill.findAll.mockRejectedValueOnce(new Error('behavior list failed'));
+      BehaviorAndSkill.create.mockRejectedValueOnce(new Error('behavior create failed'));
+      BehaviorAndSkill.update.mockRejectedValueOnce(new Error('behavior update failed'));
+      BehaviorData.create.mockRejectedValueOnce(new Error('behavior data create failed'));
+      BehaviorData.findAll.mockRejectedValueOnce(new Error('behavior data fetch failed'));
+      BehaviorData.count.mockRejectedValueOnce(new Error('behavior data count failed'));
+
+      await expect(abaQueries.abaGetBehaviorOrSkill(2, 'Behavior', 4)).rejects.toThrow('behavior list failed');
+      await expect(
+        abaQueries.abaAddBehaviorOrSkill({
+          name: 'Aggression',
+          def: 'Hits others',
+          meas: 'Frequency',
+          cat: 'Aggression',
+          type: 'Behavior',
+          cID: 2,
+          cName: 'Client Name',
+          enteredBy: 'Staff Member',
+          compID: 4,
+          compName: 'Test Co',
+          dateEntered: '2026-04-01',
+          timeEntered: '09:00',
+        }),
+      ).rejects.toThrow('behavior create failed');
+      await expect(
+        abaQueries.abaUpdateBehaviorOrSkill({
+          name: 'Aggression',
+          def: 'Hits others',
+          meas: 'Frequency',
+          cat: 'Aggression',
+          type: 'Behavior',
+          cID: 2,
+          cName: 'Client Name',
+          bsID: 77,
+          compID: 4,
+        }),
+      ).rejects.toThrow('behavior update failed');
+      await expect(
+        abaQueries.abaAddFrequencyBehaviorData({
+          bsID: 77,
+          cID: 2,
+          cName: 'Client',
+          sDate: '2026-04-01',
+          sTime: '09:00',
+          count: 3,
+          enteredBy: 'Staff Member',
+          compID: 4,
+          compName: 'Test Co',
+          dateEntered: '2026-04-01',
+          timeEntered: '09:00',
+        }),
+      ).rejects.toThrow('behavior data create failed');
+      await expect(abaQueries.abaGetBehaviorDataById(2, 77, 4)).rejects.toThrow('behavior data fetch failed');
+      await expect(abaQueries.abaFoundBehaviorDataById(2, 77, 4)).rejects.toThrow('behavior data count failed');
+    });
   });
 
   describe('archived behavior helpers', () => {
@@ -272,6 +436,44 @@ describe('ABAQueries behavior lifecycle', () => {
       await expect(abaQueries.abaDeleteArchivedBehaviorDataByID(2, 44, 4)).resolves.toBe(true);
       await expect(abaQueries.abaDeleteArchivedBehaviorDataByBehaviorID(2, 44, 12, 4)).resolves.toBe(true);
       await expect(abaQueries.abaDeleteArchivedBehaviorOrSkillByID(2, 44, 4)).resolves.toBe(true);
+    });
+
+    it('returns false when archived behavior operations affect no rows', async () => {
+      BehaviorAndSkill.findOne.mockResolvedValue(null);
+      BehaviorAndSkill.findAll.mockResolvedValue([]);
+      BehaviorData.findAll.mockResolvedValue([]);
+      BehaviorData.count.mockResolvedValue(0);
+      BehaviorData.update.mockResolvedValue([0]);
+      BehaviorAndSkill.update.mockResolvedValue([0]);
+      BehaviorData.destroy
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+      BehaviorAndSkill.destroy.mockResolvedValue(0);
+
+      await expect(abaQueries.archiveBehaviorSkillExistByID(404, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaGetArchivedBehaviorDataById(2, 404, 4)).resolves.toEqual([]);
+      await expect(abaQueries.abaGetArchivedBehaviorOrSkill(2, 'Behavior', 4)).resolves.toEqual([]);
+      await expect(abaQueries.abaGetAArchivedBehaviorOrSkill(2, 404, 'Behavior', 4)).resolves.toEqual([]);
+      await expect(abaQueries.abaGetArchivedBehaviorDataByBehaviorId(2, 404, 12, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaReactivateBehaviorDataByID('Active', 2, 404, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaReactivateBehaviorOrSkillByID(2, 404, null, null, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaDeleteArchivedBehaviorDataByID(2, 404, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaDeleteArchivedBehaviorDataByBehaviorID(2, 404, 12, 4)).resolves.toBe(false);
+      await expect(abaQueries.abaDeleteArchivedBehaviorOrSkillByID(2, 404, 4)).resolves.toBe(false);
+    });
+
+    it('wraps archived behavior helper failures consistently', async () => {
+      BehaviorAndSkill.findOne.mockRejectedValueOnce(new Error('archived behavior lookup failed'));
+      BehaviorData.findAll.mockRejectedValueOnce(new Error('archived behavior data fetch failed'));
+      BehaviorAndSkill.findAll.mockRejectedValueOnce(new Error('archived behavior list failed'));
+      BehaviorData.count.mockRejectedValueOnce(new Error('archived behavior count failed'));
+      BehaviorData.update.mockRejectedValueOnce(new Error('archived behavior update failed'));
+
+      await expect(abaQueries.archiveBehaviorSkillExistByID(44, 4)).rejects.toThrow('archived behavior lookup failed');
+      await expect(abaQueries.abaGetArchivedBehaviorDataById(2, 44, 4)).rejects.toThrow('archived behavior data fetch failed');
+      await expect(abaQueries.abaGetArchivedBehaviorOrSkill(2, 'Behavior', 4)).rejects.toThrow('archived behavior list failed');
+      await expect(abaQueries.abaGetArchivedBehaviorDataByBehaviorId(2, 44, 12, 4)).rejects.toThrow('archived behavior count failed');
+      await expect(abaQueries.abaReactivateBehaviorDataByID('Active', 2, 44, 4)).rejects.toThrow('archived behavior update failed');
     });
   });
 

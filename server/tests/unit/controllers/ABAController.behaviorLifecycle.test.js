@@ -140,6 +140,42 @@ describe('ABAController behavior lifecycle', () => {
     });
   });
 
+  it('returns partial-failure details when some target behaviors fail to add', async () => {
+    req.body.behaviors = [
+      {
+        behaviorName: 'Aggression',
+        behaviorDefinition: 'Hits',
+        behaviorMeasurement: 'Frequency',
+        behaviorCategory: 'Aggression',
+        type: 'Behavior',
+        clientID: 2,
+        clientName: 'John Doe',
+      },
+    ];
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.abaGetClientDataByID.mockResolvedValue({ fName: 'John', lName: 'Doe' });
+    abaQueries.abaAddBehaviorOrSkill.mockResolvedValue(false);
+
+    await controller.addNewTargetBehavior(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      behaviorsAdded: false,
+      serverMessage: 'Some behaviors failed to add',
+      failedBehaviors: [
+        {
+          name: 'Aggression',
+          def: 'Hits',
+          meas: 'Frequency',
+          cat: 'Aggression',
+          type: 'Behavior',
+          cID: 2,
+          clientName: 'John Doe',
+        },
+      ],
+    });
+  });
+
   it('adds a new client and lists all clients', async () => {
     req.body = {
       clientFName: 'Jane',
@@ -161,6 +197,54 @@ describe('ABAController behavior lifecycle', () => {
     expect(res.json).toHaveBeenCalledWith({
       statusCode: 200,
       clientData: [{ clientID: 1 }],
+    });
+  });
+
+  it('returns failure responses for client add/update/list error branches', async () => {
+    req.body = {
+      clientFName: 'Jane',
+      clientLName: 'Doe',
+      dateOfBirth: '2000-01-01',
+      intakeDate: '2026-04-01',
+      ghName: 'Home A',
+      medicadeNum: '1234',
+      behaviorProvided: true,
+    };
+    abaQueries.abaAddClientData.mockResolvedValue(false);
+
+    await controller.addNewClient(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      clientAdded: false,
+      serverMessage: 'Unable add a client',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaUpdateClientData.mockResolvedValue(false);
+    await controller.updateClientInfo({
+      body: {
+        clientID: 2,
+        clientFName: 'Jane',
+        clientLName: 'Doe',
+        dateOfBirth: '2000-01-01',
+        intakeDate: '2026-04-01',
+        ghName: 'Home A',
+        medicadeNum: '1234',
+        behaviorPlanDueDate: '2026-07-01',
+      },
+    }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      clientAdded: false,
+      serverMessage: 'Unable add a client',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetAllClientData.mockResolvedValue(null);
+    await controller.getAllClientInfo({ body: {}, headers: {} }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Unable to locate client data',
     });
   });
 
@@ -190,6 +274,24 @@ describe('ABAController behavior lifecycle', () => {
     expect(res.json).toHaveBeenCalledWith({
       statusCode: 200,
       clientAdded: true,
+    });
+  });
+
+  it('returns not-found responses for client and behavior lookup failures', async () => {
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+
+    await controller.getClientInfo({ body: { clientID: 99 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(false);
+    await controller.getTargetBehavior({ body: { clientID: 2, behaviorID: 10 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Behavior does not exist',
     });
   });
 
@@ -282,6 +384,132 @@ describe('ABAController behavior lifecycle', () => {
     });
   });
 
+  it('returns read failure responses when client or behavior data cannot be found', async () => {
+    req.body = { clientID: 2, behaviorID: 55 };
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(true);
+    abaQueries.abaGetBehaviorDataById.mockResolvedValue([]);
+    abaQueries.abaGetBehaviorOrSkill.mockResolvedValue([]);
+    abaQueries.abaGetABehaviorOrSkill.mockResolvedValue([]);
+    abaQueries.abaGetArchivedBehaviorDataById.mockResolvedValue([]);
+    abaQueries.abaGetArchivedBehaviorOrSkill.mockResolvedValue([]);
+    abaQueries.abaGetAArchivedBehaviorOrSkill.mockResolvedValue([]);
+
+    await controller.getTargetBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate behavior data',
+    });
+
+    res.json.mockClear();
+    await controller.getClientTargetBehavior({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate client data',
+    });
+
+    res.json.mockClear();
+    await controller.getAClientTargetBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate client data',
+    });
+
+    res.json.mockClear();
+    await controller.getArchivedBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate behavior data',
+    });
+
+    res.json.mockClear();
+    await controller.getClientArchivedBehavior({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate client data',
+    });
+
+    res.json.mockClear();
+    await controller.getAClientArchivedBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate client data',
+    });
+
+    res.json.mockClear();
+    await controller.getAArchivedBehaviorData(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'Unable to locate behavior data',
+    });
+  });
+
+  it('returns client-not-found responses across the read endpoints', async () => {
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+
+    await controller.getClientTargetBehavior({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getAClientTargetBehavior({ body: { clientID: 2, behaviorID: 55 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getClientArchivedBehavior({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getAClientArchivedBehavior({ body: { clientID: 2, behaviorID: 55 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getSessionNotes({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getASessionNote({ body: { clientID: 2, sessionNoteId: 15 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getArchivedSessionNotes({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getAArchivedSessionNote({ body: { clientID: 2, sessionNoteId: 15 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    await controller.getClientSkillAquisition({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Client does not exist',
+    });
+  });
+
   it('submits target behavior measurements and rejects unsupported measurement types', async () => {
     req.body = {
       clientID: 2,
@@ -313,6 +541,103 @@ describe('ABAController behavior lifecycle', () => {
         count: 2,
         duration: 20,
       },
+    });
+  });
+
+  it('submits duration and rate behavior measurements successfully', async () => {
+    req.body = {
+      clientID: 2,
+      targetAmt: 2,
+      selectedTargets: [101, 202],
+      selectedMeasurementTypes: ['Duration', 'Rate'],
+      dates: ['2026-04-01', '2026-04-02'],
+      times: ['09:00', '10:00'],
+      count: [1, 2],
+      duration: [10, 20],
+    };
+
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.abaGetClientDataByID.mockResolvedValue({ fName: 'John', lName: 'Doe' });
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(true);
+    abaQueries.abaAddDurationBehaviorData.mockResolvedValue(true);
+    abaQueries.abaAddRateBehaviorData.mockResolvedValue(true);
+
+    await controller.submitTargetBehavior(req, res);
+
+    expect(abaQueries.abaAddDurationBehaviorData).toHaveBeenCalled();
+    expect(abaQueries.abaAddRateBehaviorData).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 201,
+      behaviorAdded: true,
+      serverMessage: 'All behavior data added',
+    });
+  });
+
+  it('returns client-not-found and query failure responses while submitting behavior data', async () => {
+    req.body = {
+      clientID: 2,
+      targetAmt: 1,
+      selectedTargets: [101],
+      selectedMeasurementTypes: ['Frequency'],
+      dates: ['2026-04-01'],
+      times: ['09:00'],
+      count: [1],
+      duration: [10],
+    };
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+
+    await controller.submitTargetBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorAdded: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.abaGetClientDataByID.mockResolvedValue({ fName: 'John', lName: 'Doe' });
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(true);
+    abaQueries.abaAddFrequencyBehaviorData.mockResolvedValue(false);
+
+    await controller.submitTargetBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorAdded: false,
+      serverMessage: 'Target behavior id, 101, does not exist',
+      Data: {
+        index: 0,
+        Date: '2026-04-01',
+        time: '09:00',
+        count: 1,
+        duration: 10,
+      },
+    });
+  });
+
+  it('skips unchecked targets and respects the target count limit while submitting behavior data', async () => {
+    req.body = {
+      clientID: 2,
+      targetAmt: 1,
+      selectedTargets: [101, 202],
+      selectedMeasurementTypes: ['Frequency', 'Rate'],
+      dates: ['2026-04-01', '2026-04-02'],
+      times: ['09:00', '10:00'],
+      count: [1, 2],
+      duration: [10, 20],
+    };
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.abaGetClientDataByID.mockResolvedValue({ fName: 'John', lName: 'Doe' });
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(false);
+
+    await controller.submitTargetBehavior(req, res);
+
+    expect(abaQueries.behaviorSkillExistByID).toHaveBeenCalledTimes(1);
+    expect(abaQueries.abaAddFrequencyBehaviorData).not.toHaveBeenCalled();
+    expect(abaQueries.abaAddRateBehaviorData).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 201,
+      behaviorAdded: true,
+      serverMessage: 'All behavior data added',
     });
   });
 
@@ -362,6 +687,61 @@ describe('ABAController behavior lifecycle', () => {
     });
   });
 
+  it('returns merge errors for missing clients, missing targets, merge failures, and delete failures', async () => {
+    req.body = {
+      clientID: 2,
+      targetBehaviorId: 55,
+      mergeBehaviorIds: [77],
+    };
+
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+    await controller.mergeBehaviors(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorMerged: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(false);
+    await controller.mergeBehaviors(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorMerged: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(true);
+    abaQueries.abaGetBehaviorOrSkill
+      .mockResolvedValueOnce({ measurment: 'Frequency', name: 'Target' })
+      .mockResolvedValueOnce({ measurment: 'Frequency', name: 'Source' });
+    abaQueries.abaGetBehaviorDataById.mockResolvedValue([{ behaviorDataID: 1 }]);
+    abaQueries.abaMergeBehaviorDataById.mockResolvedValue(false);
+    await controller.mergeBehaviors(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      behaviorMerged: false,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occured while merging Source',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetBehaviorOrSkill
+      .mockResolvedValueOnce({ measurment: 'Frequency', name: 'Target' })
+      .mockResolvedValueOnce({ measurment: 'Frequency', name: 'Source' });
+    abaQueries.abaMergeBehaviorDataById.mockResolvedValue(true);
+    abaQueries.abaDeleteBehaviorOrSkillByID.mockResolvedValue(false);
+    await controller.mergeBehaviors(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      behaviorMerged: false,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occured while deleting Source',
+    });
+  });
+
   it('deletes full behavior records and archived behavior records', async () => {
     req.body = { clientID: 2, behaviorId: 55 };
     abaQueries.abaGetBehaviorOrSkill.mockResolvedValue({ name: 'Aggression' });
@@ -382,6 +762,72 @@ describe('ABAController behavior lifecycle', () => {
       statusCode: 200,
       behaviorAdded: true,
       serverMessage: 'All behavior data merged successfully',
+    });
+  });
+
+  it('returns delete errors when behavior data or behavior records cannot be removed', async () => {
+    req.body = { clientID: 2, behaviorId: 55 };
+    abaQueries.abaGetBehaviorOrSkill.mockResolvedValue({ name: 'Aggression' });
+    abaQueries.abaFoundBehaviorDataById.mockResolvedValue(true);
+    abaQueries.abaDeleteBehaviorDataByID.mockResolvedValue(false);
+
+    await controller.deleteBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: "An error occured while deleting Aggression's data",
+    });
+
+    res.json.mockClear();
+    abaQueries.abaDeleteBehaviorDataByID.mockResolvedValue(true);
+    abaQueries.abaDeleteBehaviorOrSkillByID.mockResolvedValue(false);
+    await controller.deleteArchivedBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occured while deleting Aggression',
+    });
+  });
+
+  it('returns delete behavior-data errors when the entry is missing or the delete fails', async () => {
+    req.body = { clientID: 2, behaviorId: 55, behaviorDataId: 9 };
+    abaQueries.abaGetBehaviorOrSkill.mockResolvedValue({ name: 'Aggression' });
+    abaQueries.abaGetBehaviorDataByBehaviorId.mockResolvedValue(true);
+    abaQueries.abaDeleteBehaviorDataByBehaviorID.mockResolvedValue(false);
+
+    await controller.deleteBehaviorData(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: "An error occured while deleting Aggression's data",
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetBehaviorDataByBehaviorId.mockResolvedValue(false);
+    await controller.deleteBehaviorData(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'Unable to locate selected behavior data',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetArchivedBehaviorDataByBehaviorId.mockResolvedValue(true);
+    abaQueries.abaDeleteArchivedBehaviorDataByBehaviorID.mockResolvedValue(false);
+    await controller.deleteArchivedBehaviorData(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: "An error occured while deleting Aggression's data",
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetArchivedBehaviorDataByBehaviorId.mockResolvedValue(false);
+    await controller.deleteArchivedBehaviorData(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'Unable to locate selected behavior data',
     });
   });
 
@@ -412,6 +858,69 @@ describe('ABAController behavior lifecycle', () => {
       statusCode: 200,
       behaviorMerged: true,
       serverMessage: 'The behavior data reactivated successfully',
+    });
+  });
+
+  it('returns archive and activate errors for missing clients, missing behaviors, and failed data transitions', async () => {
+    req.body = { clientID: 2, behaviorId: 55 };
+
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+    await controller.archiveBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorMerged: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(false);
+    await controller.archiveBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorMerged: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(true);
+    abaQueries.abaGetBehaviorOrSkill.mockResolvedValue({ name: 'Aggression' });
+    abaQueries.abaFoundBehaviorDataById.mockResolvedValue(true);
+    abaQueries.abaArchiveBehaviorDataByID.mockResolvedValue(false);
+    await controller.archiveBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: "An error occured while archiving Aggression's data",
+    });
+
+    res.json.mockClear();
+    abaQueries.abaArchiveBehaviorDataByID.mockResolvedValue(true);
+    abaQueries.abaArchiveBehaviorOrSkillByID.mockResolvedValue(false);
+    await controller.archiveBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occured while archiving Aggression',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+    await controller.activateBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorMerged: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.behaviorSkillExistByID.mockResolvedValue(false);
+    await controller.activateBehavior(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorMerged: false,
+      serverMessage: 'Client does not exist',
     });
   });
 
@@ -502,6 +1011,99 @@ describe('ABAController behavior lifecycle', () => {
     expect(res.json).toHaveBeenCalledWith({
       statusCode: 200,
       serverMessage: 'Archived session note deleted successfully',
+    });
+  });
+
+  it('returns session-note failure responses for missing clients and failed persistence', async () => {
+    req.body = {
+      clientID: 2,
+      sessionDate: '2026-04-01',
+      sessionTime: '10:30',
+      sessionNotes: 'Worked on replacement behavior',
+      sessionNoteId: 15,
+    };
+
+    abaQueries.abaClientExistByID.mockResolvedValue(false);
+    await controller.submitSessionNotes(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorAdded: false,
+      serverMessage: 'Client does not exist',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+    abaQueries.abaGetClientDataByID.mockResolvedValue({ fName: 'John', lName: 'Doe' });
+    abaQueries.abaAddSessionNoteData.mockResolvedValue(false);
+    await controller.submitSessionNotes(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      behaviorAdded: false,
+      serverMessage: 'Unable to store notes',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaSessionNoteDataByClientIDExists.mockResolvedValue(false);
+    await controller.getSessionNotes({ body: { clientID: 2 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Unable to locate client data',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetSessionNoteByID.mockResolvedValue([]);
+    await controller.getASessionNote({ body: { clientID: 2, sessionNoteId: 15 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Unable to locate client data',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaGetArchivedSessionNoteByID.mockResolvedValue([]);
+    await controller.getAArchivedSessionNote({ body: { clientID: 2, sessionNoteId: 15 } }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      serverMessage: 'Unable to locate archived session note',
+    });
+  });
+
+  it('returns session-note delete/archive/reactivate failure responses', async () => {
+    req.body = { clientID: 2, sessionNoteId: 15 };
+    abaQueries.abaClientExistByID.mockResolvedValue(true);
+
+    abaQueries.abaDeleteSessionNoteDataByID.mockResolvedValue(false);
+    await controller.deleteSessionNote(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occured while deleting the session note',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaReactivateSessionNoteByID.mockResolvedValue(false);
+    await controller.activateSessionNote(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occurred while reactivating the session note',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaArchiveSessionNoteByID.mockResolvedValue(false);
+    await controller.archiveSessionNote(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occurred while archiving the session note',
+    });
+
+    res.json.mockClear();
+    abaQueries.abaDeleteArchivedSessionNoteByID.mockResolvedValue(false);
+    await controller.deleteArchivedSessionNote(req, res);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 500,
+      serverMessage: 'A server error occurred',
+      errorMessage: 'An error occurred while deleting the archived session note',
     });
   });
 
