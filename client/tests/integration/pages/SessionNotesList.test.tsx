@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SessionNotesPage from '../../../src/app/SessionNotes/page';
 import { api } from '../../../src/lib/Api';
@@ -67,6 +67,7 @@ describe('SessionNotes List Page Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     Storage.prototype.getItem = jest.fn(() => null);
     Storage.prototype.setItem = jest.fn();
     Storage.prototype.removeItem = jest.fn();
@@ -378,6 +379,17 @@ describe('SessionNotes List Page Integration', () => {
     expect(await screen.findByText('Error: Failed to load notes')).toBeInTheDocument();
   });
 
+  it('shows a server-side fetch failure when client loading returns a non-200 status', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 500,
+      serverMessage: 'Failed to load clients',
+    } as any);
+
+    render(<SessionNotesPage />);
+
+    expect(await screen.findByText('Error: Failed to load clients')).toBeInTheDocument();
+  });
+
   it('redirects to login when fetching clients returns an unauthorized status', async () => {
     mockApi.mockResolvedValueOnce({
       statusCode: 401,
@@ -430,5 +442,67 @@ describe('SessionNotes List Page Integration', () => {
     await user.click(screen.getByRole('button', { name: /confirm selection/i }));
 
     expect(await screen.findByText('Error: Failed to delete "1".')).toBeInTheDocument();
+  });
+
+  it('closes the row action menu when the ellipsis button is clicked twice', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockSessionNotes,
+      } as any);
+
+    render(<SessionNotesPage />);
+
+    const ellipsisButtons = await screen.findAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+
+    await user.click(ellipsisButtons[0]);
+
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+  });
+
+  it('clears the success message after the timer completes', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: mockClients,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        sessionNotesData: mockSessionNotes,
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Deleted',
+      } as any);
+
+    render(<SessionNotesPage />);
+
+    const ellipsisButtons = await screen.findAllByRole('button', { name: 'More options button' });
+    await user.click(ellipsisButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: /confirm selection/i }));
+
+    expect(await screen.findByText(/has been deleted successfully/i)).toBeInTheDocument();
+
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.queryByText(/has been deleted successfully/i)).not.toBeInTheDocument();
+    });
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BehaviorArchive from '../../../src/app/Behavior/Archive/page';
 import { api } from '../../../src/lib/Api';
@@ -73,6 +73,7 @@ const mockApi = api as jest.MockedFunction<typeof api>;
 describe('Behavior Archive Page Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     mockGetLoggedInUserStatus.mockReturnValue(true);
     mockGetLoggedInUser.mockReturnValue('testuser');
     jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => undefined);
@@ -389,6 +390,17 @@ describe('Behavior Archive Page Integration', () => {
     expect(await screen.findByText('Error: Failed to load archived behaviors')).toBeInTheDocument();
   });
 
+  it('shows the server message when client loading returns a non-200 status', async () => {
+    mockApi.mockResolvedValueOnce({
+      statusCode: 500,
+      serverMessage: 'Client lookup failed',
+    } as any);
+
+    render(<BehaviorArchive />);
+
+    expect(await screen.findByText('Error: Client lookup failed')).toBeInTheDocument();
+  });
+
   it('shows the server message when archived behavior fetch returns a non-200 status', async () => {
     mockApi
       .mockResolvedValueOnce({
@@ -538,5 +550,54 @@ describe('Behavior Archive Page Integration', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
     expect(await screen.findByText('Error: Failed to delete "Aggression".')).toBeInTheDocument();
+  });
+
+  it('clears the success message after the timer completes', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        serverMessage: 'Behavior restored',
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reactivate' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByText(/reactived successfully/i)).toBeInTheDocument();
+
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.queryByText(/reactived successfully/i)).not.toBeInTheDocument();
+    });
   });
 });
