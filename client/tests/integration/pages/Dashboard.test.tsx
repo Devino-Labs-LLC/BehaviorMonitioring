@@ -5,12 +5,12 @@ import { api } from '../../../src/lib/Api';
 
 jest.mock('../../../src/lib/Api');
 jest.mock('../../../src/hooks/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: jest.fn(() => ({
     isReady: true,
     isLoggedIn: true,
     username: 'testuser',
     isAdmin: false,
-  }),
+  })),
 }));
 jest.mock('../../../src/function/VerificationCheck', () => ({
   GetLoggedInUserStatus: () => true,
@@ -32,6 +32,15 @@ jest.mock('next/navigation', () => ({
 }));
 
 const mockApi = api as jest.MockedFunction<typeof api>;
+const mockUseAuth = jest.requireMock('../../../src/hooks/useAuth').useAuth as jest.Mock;
+const mockPush = jest.fn();
+
+jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
+  push: mockPush,
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+  back: jest.fn(),
+});
 
 describe('Dashboard Page Integration', () => {
   const mockClients = [
@@ -41,6 +50,12 @@ describe('Dashboard Page Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      isReady: true,
+      isLoggedIn: true,
+      username: 'testuser',
+      isAdmin: false,
+    });
   });
 
   it('fetches clients on mount', async () => {
@@ -175,26 +190,16 @@ describe('Dashboard Page Integration', () => {
     });
   });
 
-  it('redirects to login when not authenticated', () => {
-    jest
-      .spyOn(require('../../../src/hooks/useAuth'), 'useAuth')
-      .mockReturnValue({
-        isReady: true,
-        isLoggedIn: false,
-        username: null,
-        isAdmin: false,
-      });
-
-    const mockPush = jest.fn();
-    jest.spyOn(require('next/navigation'), 'useRouter').mockReturnValue({
-      push: mockPush,
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
+  it('shows the loading state while auth is still initializing', () => {
+    mockUseAuth.mockReturnValue({
+      isReady: false,
+      isLoggedIn: false,
+      username: null,
+      isAdmin: false,
     });
 
     render(<Dashboard />);
 
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/Login'));
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 });

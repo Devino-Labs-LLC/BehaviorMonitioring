@@ -371,4 +371,90 @@ describe('Behavior Archive Page Integration', () => {
     });
     expect(mockApi).toHaveBeenCalledTimes(2);
   });
+
+  it('navigates back when the back button is clicked', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [],
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
+
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('shows an error message when reactivation fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Reactivate failed',
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reactivate' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByText('Error: Failed to archive "Aggression".')).toBeInTheDocument();
+  });
+
+  it('shows an error message when delete fails', async () => {
+    const user = userEvent.setup();
+
+    mockApi
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        clientData: [{ clientID: 1, fName: 'John', lName: 'Doe' }],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 200,
+        behaviorSkillData: [
+          {
+            bsID: 7,
+            name: 'Aggression',
+            definition: 'Aggressive behavior',
+            date_entered: '2026-03-01',
+            measurement: 'Frequency',
+            category: 'Problem Behavior',
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        statusCode: 500,
+        serverMessage: 'Delete failed',
+      } as any);
+
+    render(<BehaviorArchive />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByText('Error: Failed to delete "Aggression".')).toBeInTheDocument();
+  });
 });
