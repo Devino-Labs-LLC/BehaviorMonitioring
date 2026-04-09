@@ -42,6 +42,9 @@ permissions:
 jobs:
   Analysis:
     runs-on: ubuntu-latest
+    env:
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
     environment: stellar-reverence / production
 
     steps:
@@ -87,8 +90,8 @@ jobs:
           args:
             # Unique keys of your project and organization. You can find them in SonarCloud > Information (bottom-left menu)
             # mandatory
-            -Dsonar.projectKey=Devino-Labs-LLC_BehaviorMonitioring
-            -Dsonar.organization=devino-labs-llc
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
             -Dsonar.sources=client/src,server
             -Dsonar.tests=client/tests,server/tests
             -Dsonar.exclusions=**/node_modules/**,**/coverage/**,client/tests/**,server/tests/**
