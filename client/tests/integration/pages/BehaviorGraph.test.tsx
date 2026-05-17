@@ -1,7 +1,22 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import BehaviorGraph from '../../../src/app/Behavior/Graph/page';
+import type { GetBehaviorDataResponse } from '../../../src/dto';
 import { api } from '../../../src/lib/Api';
+
+type MockGraphDataProcessorProps = {
+  title: string;
+  measurementType: string;
+  dateRange: number;
+  fetchedData: unknown[];
+};
+
+const graphDataResponse = (
+  behaviorSkillData: GetBehaviorDataResponse['behaviorSkillData'],
+): GetBehaviorDataResponse => ({
+  statusCode: 200,
+  behaviorSkillData,
+});
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
@@ -19,7 +34,7 @@ jest.mock('../../../src/function/debounce', () => ({
 }));
 jest.mock('../../../src/function/GraphDataProcessor', () => ({
   __esModule: true,
-  default: ({ title, measurementType, dateRange, fetchedData }: any) => (
+  default: ({ title, measurementType, dateRange, fetchedData }: MockGraphDataProcessorProps) => (
     <div
       data-testid="graph-data-processor"
       data-title={title}
@@ -68,18 +83,16 @@ describe('Behavior Graph Page Integration', () => {
 
   it('hydrates selected behaviors and fetches unique graph data', async () => {
     mockApi
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        behaviorSkillData: [
-          { behaviorDataID: 'a', bsID: 1, sessionDate: '2026-03-30', count: 2 },
-        ],
-      } as any)
-      .mockResolvedValueOnce({
-        statusCode: 200,
-        behaviorSkillData: [
-          { behaviorDataID: 'b', bsID: 2, sessionDate: '2026-03-29', count: 1 },
-        ],
-      } as any);
+      .mockResolvedValueOnce(
+        graphDataResponse([
+          { behaviorDataID: 'a', bsID: 1, sessionDate: '2026-03-30', count: 2 } as GetBehaviorDataResponse['behaviorSkillData'][number],
+        ]),
+      )
+      .mockResolvedValueOnce(
+        graphDataResponse([
+          { behaviorDataID: 'b', bsID: 2, sessionDate: '2026-03-29', count: 1 } as GetBehaviorDataResponse['behaviorSkillData'][number],
+        ]),
+      );
 
     render(<BehaviorGraph />);
 
@@ -108,13 +121,11 @@ describe('Behavior Graph Page Integration', () => {
   });
 
   it('updates the selected date range label when the dropdown changes', async () => {
-    mockApi
-      .mockResolvedValue({
-        statusCode: 200,
-        behaviorSkillData: [
-          { behaviorDataID: 'a', bsID: 1, sessionDate: '2026-03-30', count: 2 },
-        ],
-      } as any);
+    mockApi.mockResolvedValue(
+      graphDataResponse([
+        { behaviorDataID: 'a', bsID: 1, sessionDate: '2026-03-30', count: 2 } as GetBehaviorDataResponse['behaviorSkillData'][number],
+      ]),
+    );
 
     render(<BehaviorGraph />);
 
@@ -133,10 +144,7 @@ describe('Behavior Graph Page Integration', () => {
   });
 
   it('shows an empty-range message when no graphable data is returned', async () => {
-    mockApi.mockResolvedValue({
-      statusCode: 200,
-      behaviorSkillData: [],
-    } as any);
+    mockApi.mockResolvedValue(graphDataResponse([]));
 
     render(<BehaviorGraph />);
 
