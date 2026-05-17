@@ -21,6 +21,10 @@ describe('server entrypoint', () => {
     process.env = originalEnv;
   });
 
+  async function flushPromises() {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
   function loadServerWithMocks({ testConnectionImpl, syncDatabaseImpl } = {}) {
     const expressJson = jest.fn(() => 'json-middleware');
     const expressApp = {
@@ -68,7 +72,9 @@ describe('server entrypoint', () => {
     jest.doMock('../../routes/Employee', () => employeeRoute);
     jest.doMock('../../routes/ABA', () => abaRoute);
     jest.doMock('../../models', () => ({ testConnection, syncDatabase }));
-    jest.doMock('../../functions/base/jsonHandler', () => ({ testJson }));
+    jest.doMock('../../config/loadSecrets', () => ({
+      loadSecrets: jest.fn(() => Promise.resolve()),
+    }));
 
     jest.isolateModules(() => {
       require('../../index');
@@ -123,8 +129,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     expect(expressFactory).toHaveBeenCalled();
     expect(expressApp.disable).toHaveBeenCalledWith('x-powered-by');
@@ -149,8 +155,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     const corsOptions = cors.mock.calls[0][0];
     const callback = jest.fn();
@@ -174,8 +180,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     const corsOptions = cors.mock.calls[0][0];
     const callback = jest.fn();
@@ -201,8 +207,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     const rootHandler = expressApp.get.mock.calls.find(([path]) => path === '/')[2];
     const res = { send: jest.fn() };
@@ -227,8 +233,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     const csrfHandler = expressApp.get.mock.calls.find(([path]) => path === '/csrf-token')[2];
     const req = { id: 'req-1' };
@@ -252,8 +258,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     const { notFoundMiddleware, errorMiddleware } = getTerminalMiddleware(expressApp);
     const next = jest.fn();
@@ -280,8 +286,8 @@ describe('server entrypoint', () => {
       consoleErrorSpy,
     } = loadServerWithMocks();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     const { errorMiddleware } = getTerminalMiddleware(expressApp);
     const status = jest.fn(() => ({ send: jest.fn() }));
@@ -306,8 +312,8 @@ describe('server entrypoint', () => {
       testConnectionImpl: () => Promise.reject(startupError),
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushPromises();
+    await flushPromises();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to start server:', startupError);
     expect(exitSpy).toHaveBeenCalledWith(1);

@@ -26,6 +26,9 @@ describe('init-db script', () => {
     const sync = jest.fn(syncImpl || (() => Promise.resolve()));
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
 
+    jest.doMock('../../../config/loadSecrets', () => ({
+      loadSecrets: jest.fn(() => Promise.resolve()),
+    }));
     jest.doMock('../../../config/database', () => ({ authenticate, sync }));
     jest.doMock('../../../models/Employee', () => ({}));
     jest.doMock('../../../models/Client', () => ({}));
@@ -48,8 +51,8 @@ describe('init-db script', () => {
   it('syncs the database in safe mode by default', async () => {
     const { authenticate, sync, exitSpy } = loadScript();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(authenticate).toHaveBeenCalled();
     expect(sync).toHaveBeenCalledWith();
@@ -62,8 +65,8 @@ describe('init-db script', () => {
     process.argv = ['node', 'init-db.js', '--force'];
     const { sync, exitSpy } = loadScript();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(sync).toHaveBeenCalledWith({ force: true });
 
@@ -74,8 +77,8 @@ describe('init-db script', () => {
     process.argv = ['node', 'init-db.js', '--alter'];
     const { sync, exitSpy } = loadScript();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(sync).toHaveBeenCalledWith({ alter: true });
 
@@ -88,8 +91,8 @@ describe('init-db script', () => {
       authenticateImpl: () => Promise.reject(failure),
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(console.error).toHaveBeenCalledWith('❌ Database initialization failed:', failure);
     expect(exitSpy).toHaveBeenCalledWith(1);
