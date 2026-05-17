@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   full-test-suite:
@@ -53,10 +54,14 @@ jobs:
       uses: actions/github-script@v6
       with:
         script: |
-          github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: '❌ Nightly Tests Failed',
-            body: 'The nightly test suite has failed. Please check the workflow logs.',
-            labels: ['bug', 'tests']
-          })
+          try {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '❌ Nightly Tests Failed',
+              body: 'The nightly test suite has failed. Please check the workflow logs.',
+              labels: ['bug', 'tests']
+            });
+          } catch (error) {
+            core.warning(`Unable to create failure issue: ${error.message}`);
+          }

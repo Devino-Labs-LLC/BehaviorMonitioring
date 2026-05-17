@@ -43,6 +43,8 @@ const mockApi = api as jest.MockedFunction<typeof api>;
 describe('Behavior Graph Page Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-01T12:00:00Z'));
     mockGetLoggedInUserStatus.mockReturnValue(true);
     mockGetLoggedInUser.mockReturnValue('testuser');
 
@@ -60,6 +62,7 @@ describe('Behavior Graph Page Integration', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -100,9 +103,8 @@ describe('Behavior Graph Page Integration', () => {
         'data-title',
         "John Doe's Behavior(s) Over the Last 7 Days",
       );
+      expect(screen.getByTestId('graph-data-processor')).toHaveAttribute('data-points', '2');
     });
-
-    expect(screen.getByTestId('graph-data-processor')).toHaveAttribute('data-points', '2');
   });
 
   it('updates the selected date range label when the dropdown changes', async () => {
