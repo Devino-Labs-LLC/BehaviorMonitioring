@@ -1,35 +1,64 @@
 require('dotenv').config();
 
-async function bootstrap() {
-  const { loadSecrets } = require('./config/loadSecrets');
-  await loadSecrets();
+const DEFAULT_PORT = 8080;
 
-  const { testConnection, syncDatabase } = require('./models');
+function resolvePort() {
+  const raw = process.env.PORT;
+  const parsed = Number.parseInt(String(raw ?? ''), 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  console.warn(`[startup] PORT is missing or invalid (${raw}); defaulting to ${DEFAULT_PORT}`);
+  return DEFAULT_PORT;
+}
+
+async function loadSecretsSafely() {
+  const { loadSecrets } = require('./config/loadSecrets');
+
+  try {
+    await loadSecrets();
+    console.log('[startup] Secrets load complete');
+  } catch (error) {
+    console.error('[startup] Secrets load failed (server remains up for /healthz):', error);
+  }
+}
+
+async function startHealthListener(app, port) {
+  return new Promise((resolve, reject) => {
+    let server;
+
+    server = app.listen(port, '0.0.0.0', () => {
+      console.log(`[startup] Listening on 0.0.0.0:${port} (GET /healthz ready)`);
+      resolve(server);
+    });
+
+    server.on('error', (error) => {
+      console.error(`[startup] Failed to bind 0.0.0.0:${port}:`, error);
+      reject(error);
+    });
+  });
+}
+
+function registerApplicationRoutes(app) {
   const host = process.env.HOST;
-  const port = process.env.PORT;
+  const port = resolvePort();
   const prodStatus = process.env.IN_PROD === 'true';
   const clientOrigin = process.env.ClientHost;
   const amplifyOrigin = process.env.AmplifyHost;
   const cors = require('cors');
-  const express = require('express');
-  const app = express();
-  app.disable('x-powered-by');
   const cookieParser = require('cookie-parser');
   const authMiddleware = require('./middleware/authMiddleware');
-  const { requireRole } = require('./middleware/rbac');
   const requestLogger = require('./middleware/requestLogger');
   const { generalLimiter, apiLimiter } = require('./middleware/rateLimiter');
   const { csrfProtection, generateToken } = require('./middleware/csrfProtection');
   const hostPort = port ? `:${port}` : '';
   const prodHost = prodStatus ? host : `${host}${hostPort}`;
 
-  // Define allowed origins
   const allowedOrigins = [clientOrigin, amplifyOrigin].filter(Boolean);
 
-  // CORS configuration
   const corsOptions = {
     origin(origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -48,16 +77,8 @@ async function bootstrap() {
   app.use(cors(corsOptions));
   app.use(cookieParser());
   app.use(csrfProtection);
-  app.use(express.json());
+  app.use(expressJsonMiddleware());
 
-  // Commented out to prevent automatic S3 import on server start
-  // if (prodStatus) {
-  //   prodHost = host;
-  //   jsonHandler.testJson();
-  //   AWS_S3_Bucket_Handler.importBackupFromS3();
-  // }
-
-  // Define your routes before the middleware for handling 404 errors
   app.get('/', generalLimiter, (req, res) => {
     if (prodStatus) {
       return res.send(`The server is running successfully. <br/>The server url is ${prodHost}...`);
@@ -68,24 +89,20 @@ async function bootstrap() {
     );
   });
 
-  // Endpoint to get CSRF token
   app.get('/csrf-token', generalLimiter, (req, res) => {
     res.json({ csrfToken: generateToken(req, res) });
   });
 
   const authRoute = require('./routes/Auth');
-  app.use('/auth', authRoute); // Rate limiting applied per-route in Auth.js
+  app.use('/auth', authRoute);
 
   const adminRoute = require('./routes/Admin');
-  // Apply rate limiting at mount point for CodeQL detection
   app.use('/admin', apiLimiter, authMiddleware, adminRoute);
 
   const employeeRoute = require('./routes/Employee');
-  // Apply rate limiting at mount point for CodeQL detection
   app.use('/employee', apiLimiter, authMiddleware, employeeRoute);
 
   const abaRoute = require('./routes/ABA');
-  // Apply rate limiting at mount point for CodeQL detection
   app.use('/aba', apiLimiter, authMiddleware, abaRoute);
 
   app.use((req, res, next) => {
@@ -94,7 +111,6 @@ async function bootstrap() {
     next(err);
   });
 
-  // Middleware for handling errors and setting CORS headers
   app.use((err, req, res, next) => {
     if (err.status && err.status === 404) {
       return res.redirect(`${host}/PageNotFound`);
@@ -108,23 +124,62 @@ async function bootstrap() {
     res.status(500).send('Internal Server Error');
   });
 
-  // Initialize database and start server
+  console.log('[startup] Application routes registered');
+}
+
+function expressJsonMiddleware() {
+  const express = require('express');
+  return express.json();
+}
+
+async function initializeDatabase() {
+  const { testConnection, syncDatabase } = require('./models');
+
   try {
     await testConnection();
     await syncDatabase();
-
-    app.listen(port, () => {
-      console.log(`✓ Server running on port ${port}...`);
-      console.log(`✓ Environment: ${process.env.NODE_ENV}`);
-      console.log(`✓ Database: ${process.env.MYSQL_DATABASE} at ${process.env.MYSQL_HOST}`);
-    });
+    console.log(`[startup] Database ready: ${process.env.MYSQL_DATABASE} at ${process.env.MYSQL_HOST}`);
   } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+    console.error('[startup] Database initialization failed (healthz remains available):', error);
   }
 }
 
+async function bootstrap() {
+  console.log('[startup] BMetrics API bootstrap beginning');
+  console.log(
+    '[startup] node=%s env=%s port=%s cwd=%s',
+    process.version,
+    process.env.NODE_ENV ?? '(unset)',
+    process.env.PORT ?? '(unset)',
+    process.cwd(),
+  );
+
+  const port = resolvePort();
+  const express = require('express');
+  const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
+
+  const { registerHealthRoutes } = require('./routes/health');
+  registerHealthRoutes(app);
+  console.log('[startup] Registered GET /healthz');
+
+  await startHealthListener(app, port);
+
+  await loadSecretsSafely();
+
+  try {
+    registerApplicationRoutes(app);
+  } catch (error) {
+    console.error('[startup] Route registration failed (healthz remains available):', error);
+  }
+
+  console.log(`[startup] Environment: ${process.env.NODE_ENV ?? '(unset)'}`);
+
+  void initializeDatabase();
+}
+
 bootstrap().catch((error) => {
-  console.error('Failed to bootstrap server:', error);
+  console.error('[startup] Fatal bootstrap error:', error);
   process.exit(1);
 });

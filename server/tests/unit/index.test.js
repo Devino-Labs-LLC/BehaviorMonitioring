@@ -29,11 +29,15 @@ describe('server entrypoint', () => {
     const expressJson = jest.fn(() => 'json-middleware');
     const expressApp = {
       disable: jest.fn(),
+      set: jest.fn(),
       use: jest.fn(),
       get: jest.fn(),
-      listen: jest.fn((port, callback) => {
+      listen: jest.fn((port, host, callback) => {
+        if (typeof host === 'function') {
+          callback = host;
+        }
         if (callback) callback();
-        return { close: jest.fn() };
+        return { on: jest.fn(), close: jest.fn() };
       }),
     };
     const expressFactory = jest.fn(() => expressApp);
@@ -134,13 +138,18 @@ describe('server entrypoint', () => {
 
     expect(expressFactory).toHaveBeenCalled();
     expect(expressApp.disable).toHaveBeenCalledWith('x-powered-by');
+    expect(expressApp.set).toHaveBeenCalledWith('trust proxy', 1);
+    expect(expressApp.get.mock.calls[0][0]).toBe('/healthz');
     expect(cors).toHaveBeenCalled();
     expect(cookieParser).toHaveBeenCalled();
     expect(expressJson).toHaveBeenCalled();
     expect(testConnection).toHaveBeenCalled();
     expect(syncDatabase).toHaveBeenCalled();
-    expect(expressApp.listen).toHaveBeenCalledWith('3001', expect.any(Function));
-    expect(consoleLogSpy).toHaveBeenCalledWith('✓ Server running on port 3001...');
+    expect(expressApp.listen).toHaveBeenCalledWith(3001, '0.0.0.0', expect.any(Function));
+    expect(expressApp.listen.mock.invocationCallOrder[0]).toBeLessThan(
+      testConnection.mock.invocationCallOrder[0],
+    );
+    expect(consoleLogSpy).toHaveBeenCalledWith('[startup] Listening on 0.0.0.0:3001 (GET /healthz ready)');
 
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();
@@ -305,22 +314,54 @@ describe('server entrypoint', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('logs startup failures and exits', async () => {
+  it('keeps listening when database initialization fails', async () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
     const startupError = new Error('db unavailable');
-    const { consoleErrorSpy, consoleWarnSpy, consoleLogSpy } = loadServerWithMocks({
+    const { expressApp, consoleErrorSpy, consoleWarnSpy, consoleLogSpy } = loadServerWithMocks({
       testConnectionImpl: () => Promise.reject(startupError),
     });
 
     await flushPromises();
     await flushPromises();
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to start server:', startupError);
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(expressApp.listen).toHaveBeenCalledWith(3001, '0.0.0.0', expect.any(Function));
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[startup] Database initialization failed (healthz remains available):',
+      startupError,
+    );
+    expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
     consoleLogSpy.mockRestore();
+  });
+
+  it('responds from /healthz with a fast JSON payload', async () => {
+    const { expressApp } = loadServerWithMocks();
+
+    await flushPromises();
+    await flushPromises();
+
+    const healthHandler = expressApp.get.mock.calls.find(([path]) => path === '/healthz')[1];
+    const res = {
+      statusCode: null,
+      body: null,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload) {
+        this.body = payload;
+      },
+    };
+
+    const started = Date.now();
+    healthHandler({}, res);
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeLessThan(1000);
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, service: 'bmetrics-api' });
   });
 });
