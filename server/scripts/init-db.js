@@ -1,15 +1,47 @@
 /**
- * Database initialization script
- * Syncs Sequelize models with the database
+ * Database initialization script.
+ * Default: production-safe sync (create missing tables only).
+ * Dev-only: --alter (db:sync) or --force (db:reset) — never use on production RDS.
  */
 
 require('dotenv').config();
 
-async function initDatabase() {
-  const { loadSecrets } = require('../config/loadSecrets');
-  await loadSecrets();
+const MODEL_NAMES = [
+  'Employee',
+  'Client',
+  'Home',
+  'BehaviorAndSkill',
+  'BehaviorData',
+  'SkillData',
+  'SessionNoteData',
+  'CompanyData',
+  'RefreshToken',
+  'AuthLog',
+];
 
-  const sequelize = require('../config/database');
+function isProductionDatabaseTarget() {
+  return (
+    process.env.NODE_ENV === 'production'
+    || process.env.IN_PROD === 'true'
+    || Boolean(process.env.AWS_DB_SECRET_NAME)
+  );
+}
+
+function assertDestructiveFlagsAllowed({ force, alter }) {
+  if (!force && !alter) {
+    return;
+  }
+
+  if (isProductionDatabaseTarget()) {
+    throw new Error(
+      'Refusing --alter or --force: production database target detected '
+      + '(NODE_ENV=production, IN_PROD=true, or AWS_DB_SECRET_NAME is set). '
+      + 'Use npm run db:init without flags for safe schema initialization.',
+    );
+  }
+}
+
+function loadModels() {
   require('../models/Employee');
   require('../models/Client');
   require('../models/Home');
@@ -20,41 +52,57 @@ async function initDatabase() {
   require('../models/CompanyData');
   require('../models/RefreshToken');
   require('../models/AuthLog');
+}
+
+async function runDestructiveDevSync(sequelize, { force, alter }) {
+  loadModels();
+
+  console.log('Connecting to database...');
+  await sequelize.authenticate();
+  console.log('✓ Database connection established successfully.');
+
+  if (force) {
+    console.log('⚠️  DEV ONLY: Dropping all tables and recreating...');
+    await sequelize.sync({ force: true });
+    console.log('✓ Database reset complete. All tables recreated.');
+    return;
+  }
+
+  console.log('⚠️  DEV ONLY: Syncing database with alter (may modify existing columns)...');
+  await sequelize.sync({ alter: true });
+  console.log('✓ Database schema updated successfully.');
+}
+
+async function runSafeSync() {
+  const { testConnection, syncDatabaseSafe } = require('../models');
+
+  console.log('Connecting to database...');
+  await testConnection();
+  await syncDatabaseSafe();
+}
+
+async function initDatabase() {
+  const { loadSecrets } = require('../config/loadSecrets');
+  await loadSecrets();
+
+  const args = new Set(process.argv.slice(2));
+  const force = args.has('--force');
+  const alter = args.has('--alter');
 
   try {
-    console.log('Connecting to database...');
-    await sequelize.authenticate();
-    console.log('✓ Database connection established successfully.');
+    assertDestructiveFlagsAllowed({ force, alter });
 
-    const args = new Set(process.argv.slice(2));
-    const force = args.has('--force');
-    const alter = args.has('--alter');
-
-    if (force) {
-      console.log('⚠️  WARNING: Dropping all tables and recreating...');
-      await sequelize.sync({ force: true });
-      console.log('✓ Database reset complete. All tables recreated.');
-    } else if (alter) {
-      console.log('Syncing database with model changes...');
-      await sequelize.sync({ alter: true });
-      console.log('✓ Database schema updated successfully.');
+    if (force || alter) {
+      const sequelize = require('../config/database');
+      await runDestructiveDevSync(sequelize, { force, alter });
     } else {
-      console.log('Syncing database (safe mode)...');
-      await sequelize.sync();
-      console.log('✓ Database synced successfully.');
+      await runSafeSync();
     }
 
-    console.log('\nAvailable models:');
-    console.log('- Employee');
-    console.log('- Client');
-    console.log('- Home');
-    console.log('- BehaviorAndSkill');
-    console.log('- BehaviorData');
-    console.log('- SkillData');
-    console.log('- SessionNoteData');
-    console.log('- CompanyData');
-    console.log('- RefreshToken');
-    console.log('- AuthLog');
+    console.log('\nModels:');
+    for (const name of MODEL_NAMES) {
+      console.log(`- ${name}`);
+    }
 
     console.log('\n✅ Database initialization complete!');
     process.exit(0);

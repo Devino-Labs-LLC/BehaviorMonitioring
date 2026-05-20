@@ -21,13 +21,24 @@ describe('init-db script', () => {
     process.argv = originalArgv;
   });
 
-  function loadScript({ authenticateImpl, syncImpl } = {}) {
+  function loadScript({
+    testConnectionImpl,
+    syncDatabaseSafeImpl,
+    authenticateImpl,
+    syncImpl,
+  } = {}) {
+    const testConnection = jest.fn(testConnectionImpl || (() => Promise.resolve()));
+    const syncDatabaseSafe = jest.fn(syncDatabaseSafeImpl || (() => Promise.resolve()));
     const authenticate = jest.fn(authenticateImpl || (() => Promise.resolve()));
     const sync = jest.fn(syncImpl || (() => Promise.resolve()));
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
 
     jest.doMock('../../../config/loadSecrets', () => ({
       loadSecrets: jest.fn(() => Promise.resolve()),
+    }));
+    jest.doMock('../../../models', () => ({
+      testConnection,
+      syncDatabaseSafe,
     }));
     jest.doMock('../../../config/database', () => ({ authenticate, sync }));
     jest.doMock('../../../models/Employee', () => ({}));
@@ -45,54 +56,89 @@ describe('init-db script', () => {
       require('../../../scripts/init-db');
     });
 
-    return { authenticate, sync, exitSpy };
+    return {
+      testConnection,
+      syncDatabaseSafe,
+      authenticate,
+      sync,
+      exitSpy,
+    };
   }
 
-  it('syncs the database in safe mode by default', async () => {
-    const { authenticate, sync, exitSpy } = loadScript();
-
+  async function flushAsync() {
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
+  }
 
-    expect(authenticate).toHaveBeenCalled();
-    expect(sync).toHaveBeenCalledWith();
+  it('uses production-safe sync by default', async () => {
+    const { testConnection, syncDatabaseSafe, sync, exitSpy } = loadScript();
+
+    await flushAsync();
+
+    expect(testConnection).toHaveBeenCalled();
+    expect(syncDatabaseSafe).toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
     expect(exitSpy).toHaveBeenCalledWith(0);
 
     exitSpy.mockRestore();
   });
 
-  it('uses force sync when the --force flag is present', async () => {
+  it('uses force sync when the --force flag is present in development', async () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.AWS_DB_SECRET_NAME;
     process.argv = ['node', 'init-db.js', '--force'];
-    const { sync, exitSpy } = loadScript();
 
-    await new Promise((resolve) => setImmediate(resolve));
-    await new Promise((resolve) => setImmediate(resolve));
+    const { sync, syncDatabaseSafe, exitSpy } = loadScript();
+
+    await flushAsync();
 
     expect(sync).toHaveBeenCalledWith({ force: true });
+    expect(syncDatabaseSafe).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
 
     exitSpy.mockRestore();
   });
 
-  it('uses alter sync when the --alter flag is present', async () => {
+  it('uses alter sync when the --alter flag is present in development', async () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.AWS_DB_SECRET_NAME;
     process.argv = ['node', 'init-db.js', '--alter'];
-    const { sync, exitSpy } = loadScript();
 
-    await new Promise((resolve) => setImmediate(resolve));
-    await new Promise((resolve) => setImmediate(resolve));
+    const { sync, syncDatabaseSafe, exitSpy } = loadScript();
+
+    await flushAsync();
 
     expect(sync).toHaveBeenCalledWith({ alter: true });
+    expect(syncDatabaseSafe).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
 
     exitSpy.mockRestore();
   });
 
-  it('logs failures and exits non-zero when initialization fails', async () => {
+  it('refuses --force against a production database target', async () => {
+    process.env.NODE_ENV = 'production';
+    process.argv = ['node', 'init-db.js', '--force'];
+
+    const { exitSpy } = loadScript();
+
+    await flushAsync();
+
+    expect(console.error).toHaveBeenCalledWith(
+      '❌ Database initialization failed:',
+      expect.objectContaining({ message: expect.stringContaining('Refusing --alter or --force') }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+
+    exitSpy.mockRestore();
+  });
+
+  it('logs failures and exits non-zero when safe sync fails', async () => {
     const failure = new Error('db unavailable');
     const { exitSpy } = loadScript({
-      authenticateImpl: () => Promise.reject(failure),
+      testConnectionImpl: () => Promise.reject(failure),
     });
 
-    await new Promise((resolve) => setImmediate(resolve));
-    await new Promise((resolve) => setImmediate(resolve));
+    await flushAsync();
 
     expect(console.error).toHaveBeenCalledWith('❌ Database initialization failed:', failure);
     expect(exitSpy).toHaveBeenCalledWith(1);

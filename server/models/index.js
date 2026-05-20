@@ -65,50 +65,50 @@ const ensureHomeCapacityColumns = async (queryInterface, existingTables) => {
 // Client.hasMany(BehaviorAndSkill, { foreignKey: 'clientID' });
 // BehaviorAndSkill.belongsTo(Client, { foreignKey: 'clientID' });
 
-// Auto-sync database (creates/updates tables)
+// Create missing tables only — safe for production/RDS (no alter, no force).
+const syncDatabaseSafe = async () => {
+  console.log('Checking database schema (create missing tables only)...');
+
+  const queryInterface = sequelize.getQueryInterface();
+  const existingTables = normalizeTableNames(await queryInterface.showAllTables());
+
+  let tablesCreated = 0;
+  let tablesSkipped = 0;
+
+  for (const [, model] of Object.entries(models)) {
+    const tableName = model.tableName;
+
+    if (existingTables.includes(tableName)) {
+      tablesSkipped++;
+      continue;
+    }
+
+    console.log(`  → Creating table: ${tableName}`);
+    await model.sync();
+    tablesCreated++;
+  }
+
+  await ensureHomeCapacityColumns(queryInterface, existingTables);
+
+  if (tablesCreated > 0) {
+    console.log(`✓ Created ${tablesCreated} new table(s)`);
+  }
+  if (tablesSkipped > 0) {
+    console.log(`✓ Skipped ${tablesSkipped} existing table(s) (use migrations for schema changes)`);
+  }
+  console.log('✓ Database schema check complete');
+};
+
+// Auto-sync on server startup (production only).
 const syncDatabase = async () => {
   try {
-    // Check if we're in production/Railway environment
     const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
-    
+
     if (isProduction) {
       console.log('🔄 Production environment detected - checking database schema...');
-      
-      // In production, only create tables that don't exist
-      // This avoids "Too many keys" errors when trying to alter existing tables
-      const queryInterface = sequelize.getQueryInterface();
-      const existingTables = normalizeTableNames(await queryInterface.showAllTables());
-      
-      let tablesCreated = 0;
-      let tablesSkipped = 0;
-      
-      // Check each model and only sync if table doesn't exist
-      for (const [, model] of Object.entries(models)) {
-        const tableName = model.tableName;
-        
-        if (existingTables.includes(tableName)) {
-          tablesSkipped++;
-          continue;
-        }
-
-        console.log(`  → Creating table: ${tableName}`);
-        await model.sync();
-        tablesCreated++;
-      }
-
-      await ensureHomeCapacityColumns(queryInterface, existingTables);
-      
-      if (tablesCreated > 0) {
-        console.log(`✓ Created ${tablesCreated} new table(s)`);
-      }
-      if (tablesSkipped > 0) {
-        console.log(`✓ Skipped ${tablesSkipped} existing table(s) (use migrations for schema changes)`);
-      }
-      console.log('✓ Database schema check complete');
+      await syncDatabaseSafe();
     } else {
-      // In development, skip auto-sync to avoid "Too many keys" errors
-      // Use `npm run db:init` or `npm run db:sync` to manually sync when needed
-      console.log('✓ Development mode - skipping auto-sync (use npm run db:sync to sync manually)');
+      console.log('✓ Development mode - skipping auto-sync (use npm run db:init to sync manually)');
     }
   } catch (error) {
     console.error('✗ Database sync failed:', error);
@@ -131,6 +131,7 @@ module.exports = {
   sequelize,
   models,
   syncDatabase,
+  syncDatabaseSafe,
   testConnection,
   // Export individual models for direct access
   Employee,
