@@ -64,12 +64,13 @@ describe('csrfProtection middleware', () => {
       statusCode: 403,
       success: false,
       message: 'Invalid or missing CSRF token',
+      errorMessage: 'Invalid or missing CSRF token',
     });
   });
 
-  it('handles csrf validator exceptions', () => {
+  it('handles csrf validator exceptions with a safe errorMessage (no internals)', () => {
     mockValidateRequest.mockImplementation(() => {
-      throw new Error('csrf exploded');
+      throw new Error('csrf exploded with secret details');
     });
     const { csrfProtection } = require('../../../middleware/csrfProtection');
     const res = {
@@ -84,7 +85,8 @@ describe('csrfProtection middleware', () => {
       statusCode: 403,
       success: false,
       message: 'Invalid or missing CSRF token',
-      errorMessage: 'csrf exploded',
+      errorMessage: 'Invalid or missing CSRF token',
     });
+    expect(JSON.stringify(res.json.mock.calls[0][0])).not.toContain('csrf exploded');
   });
 });

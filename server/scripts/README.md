@@ -26,6 +26,8 @@ Use `db:sync` only when you intentionally need Sequelize to alter existing table
 
 ## AWS Elastic Beanstalk / RDS
 
+For ALB health checks, HTTP 4xx scanner noise, enhanced health, and related env vars (`TRUST_PROXY`, `LOG_SCANNER_REQUESTS`, `ALLOWED_HOSTS`), see [docs/AWS_ELASTIC_BEANSTALK_HEALTH.md](../docs/AWS_ELASTIC_BEANSTALK_HEALTH.md).
+
 ### Automatic (recommended)
 
 When `NODE_ENV=production`, the API calls `syncDatabase()` on startup (`server/models/index.js`). That uses the same safe logic as `db:init`: **creates tables that do not exist**; does not drop or alter existing tables.
@@ -34,6 +36,8 @@ Ensure EB environment variables include:
 
 - `NODE_ENV=production`
 - `AWS_DB_SECRET_NAME` (and IAM permission to read it), **or** `MYSQL_*` vars set directly
+- `TRUST_PROXY=1` (ALB); leave `ALLOWED_HOSTS` unset unless Host validation is intentionally enabled
+- `LOG_SCANNER_REQUESTS=false` (default behavior for routine 404 log suppression)
 
 ### Manual (SSH / one-off)
 

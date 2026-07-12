@@ -12,6 +12,7 @@ describe('requestLogger middleware', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    process.env.LOG_SCANNER_REQUESTS = 'true';
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
     fs = require('node:fs');
@@ -21,11 +22,12 @@ describe('requestLogger middleware', () => {
   afterEach(() => {
     console.log.mockRestore();
     console.error.mockRestore();
+    process.env.LOG_SCANNER_REQUESTS = 'false';
   });
 
   it('logs and appends the request entry after the response finishes', () => {
     const listeners = {};
-    const req = { method: 'GET', originalUrl: '/admin/health' };
+    const req = { method: 'GET', path: '/admin/health', originalUrl: '/admin/health' };
     const res = {
       statusCode: 200,
       on: jest.fn((event, handler) => {
@@ -46,12 +48,50 @@ describe('requestLogger middleware', () => {
     );
   });
 
+  it('suppresses routine 404 scanner logs when LOG_SCANNER_REQUESTS is false', () => {
+    process.env.LOG_SCANNER_REQUESTS = 'false';
+    jest.resetModules();
+    fs = require('node:fs');
+    requestLogger = require('../../../middleware/requestLogger');
+
+    const listeners = {};
+    const req = { method: 'GET', path: '/wp-admin', originalUrl: '/wp-admin' };
+    const res = {
+      statusCode: 404,
+      on: jest.fn((event, handler) => {
+        listeners[event] = handler;
+      }),
+    };
+
+    requestLogger(req, res, jest.fn());
+    listeners.finish();
+
+    expect(console.log).not.toHaveBeenCalled();
+    expect(fs.appendFile).not.toHaveBeenCalled();
+  });
+
+  it('logs 5xx at error level', () => {
+    const listeners = {};
+    const req = { method: 'POST', path: '/auth/login', originalUrl: '/auth/login' };
+    const res = {
+      statusCode: 500,
+      on: jest.fn((event, handler) => {
+        listeners[event] = handler;
+      }),
+    };
+
+    requestLogger(req, res, jest.fn());
+    listeners.finish();
+
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('POST /auth/login 500'));
+  });
+
   it('logs append failures without crashing', () => {
     fs.appendFile.mockImplementationOnce((path, entry, callback) =>
       callback(new Error('disk full')),
     );
     const listeners = {};
-    const req = { method: 'POST', originalUrl: '/auth/login' };
+    const req = { method: 'POST', path: '/auth/login', originalUrl: '/auth/login' };
     const res = {
       statusCode: 500,
       on: jest.fn((event, handler) => {
@@ -64,7 +104,7 @@ describe('requestLogger middleware', () => {
 
     expect(console.error).toHaveBeenCalledWith(
       'Failed to write request log:',
-      expect.any(Error),
+      expect.any(String),
     );
   });
 

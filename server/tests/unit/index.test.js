@@ -15,6 +15,7 @@ describe('server entrypoint', () => {
       MYSQL_DATABASE: 'behavior_monitoring_test',
       MYSQL_HOST: '127.0.0.1',
     };
+    delete process.env.SKIP_SERVER_BOOTSTRAP;
   });
 
   afterAll(() => {
@@ -25,7 +26,14 @@ describe('server entrypoint', () => {
     await new Promise((resolve) => setImmediate(resolve));
   }
 
-  function loadServerWithMocks({ testConnectionImpl, syncDatabaseImpl } = {}) {
+  function loadServerWithMocks({
+    testConnectionImpl,
+    syncDatabaseImpl,
+    loadSecretsImpl,
+    productionDbHost = '127.0.0.1',
+  } = {}) {
+    process.env.MYSQL_HOST = productionDbHost;
+
     const expressJson = jest.fn(() => 'json-middleware');
     const expressApp = {
       disable: jest.fn(),
@@ -51,13 +59,15 @@ describe('server entrypoint', () => {
     const generalLimiter = jest.fn((req, res, next) => next && next());
     const apiLimiter = jest.fn((req, res, next) => next && next());
     const authMiddleware = jest.fn((req, res, next) => next && next());
+    authMiddleware.createAuthMiddleware = jest.fn(() => authMiddleware);
     const requireRole = jest.fn();
     const authRoute = jest.fn();
-    const adminRoute = jest.fn();
-    const employeeRoute = jest.fn();
-    const abaRoute = jest.fn();
+    const adminRoute = { stack: [] };
+    const employeeRoute = { stack: [] };
+    const abaRoute = { stack: [] };
     const testConnection = jest.fn(testConnectionImpl || (() => Promise.resolve()));
     const syncDatabase = jest.fn(syncDatabaseImpl || (() => Promise.resolve()));
+    const loadSecrets = jest.fn(loadSecretsImpl || (() => Promise.resolve()));
     const testJson = jest.fn();
     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -70,6 +80,9 @@ describe('server entrypoint', () => {
     jest.doMock('../../middleware/csrfProtection', () => ({ csrfProtection, generateToken }));
     jest.doMock('../../middleware/rateLimiter', () => ({ generalLimiter, apiLimiter }));
     jest.doMock('../../middleware/authMiddleware', () => authMiddleware);
+    jest.doMock('../../middleware/routerRouteMatcher', () => ({
+      createRouterRouteMatcher: () => () => true,
+    }));
     jest.doMock('../../middleware/rbac', () => ({ requireRole }));
     jest.doMock('../../routes/Auth', () => authRoute);
     jest.doMock('../../routes/Admin', () => adminRoute);
@@ -77,7 +90,17 @@ describe('server entrypoint', () => {
     jest.doMock('../../routes/ABA', () => abaRoute);
     jest.doMock('../../models', () => ({ testConnection, syncDatabase }));
     jest.doMock('../../config/loadSecrets', () => ({
-      loadSecrets: jest.fn(() => Promise.resolve()),
+      loadSecrets,
+    }));
+    jest.doMock('../../config/assertProductionDbHost', () => ({
+      assertProductionDbHost: jest.fn(() => {
+        const { assertProductionDbHost } = jest.requireActual('../../config/assertProductionDbHost');
+        assertProductionDbHost({
+          NODE_ENV: process.env.NODE_ENV,
+          IN_PROD: process.env.IN_PROD,
+          MYSQL_HOST: process.env.MYSQL_HOST,
+        });
+      }),
     }));
 
     jest.isolateModules(() => {
@@ -101,6 +124,7 @@ describe('server entrypoint', () => {
       abaRoute,
       testConnection,
       syncDatabase,
+      loadSecrets,
       testJson,
       consoleLogSpy,
       consoleWarnSpy,
@@ -119,7 +143,7 @@ describe('server entrypoint', () => {
     };
   }
 
-  it('initializes middleware, routes, and starts the server', async () => {
+  it('initializes middleware, routes, and starts the server after secrets', async () => {
     const {
       expressApp,
       expressFactory,
@@ -128,6 +152,7 @@ describe('server entrypoint', () => {
       cookieParser,
       testConnection,
       syncDatabase,
+      loadSecrets,
       consoleLogSpy,
       consoleWarnSpy,
       consoleErrorSpy,
@@ -146,6 +171,9 @@ describe('server entrypoint', () => {
     expect(testConnection).toHaveBeenCalled();
     expect(syncDatabase).toHaveBeenCalled();
     expect(expressApp.listen).toHaveBeenCalledWith(3001, '0.0.0.0', expect.any(Function));
+    expect(loadSecrets.mock.invocationCallOrder[0]).toBeLessThan(
+      expressApp.listen.mock.invocationCallOrder[0],
+    );
     expect(expressApp.listen.mock.invocationCallOrder[0]).toBeLessThan(
       testConnection.mock.invocationCallOrder[0],
     );
@@ -154,6 +182,61 @@ describe('server entrypoint', () => {
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+  });
+
+  it('does not call app.listen when secret loading fails', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
+    const secretError = new Error('secrets unavailable');
+    const {
+      expressApp,
+      consoleErrorSpy,
+      consoleWarnSpy,
+      consoleLogSpy,
+    } = loadServerWithMocks({
+      loadSecretsImpl: () => Promise.reject(secretError),
+    });
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(expressApp.listen).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[startup] Fatal bootstrap error:', secretError);
+
+    exitSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
+  it('does not call app.listen when production DB host validation fails', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
+    process.env.NODE_ENV = 'production';
+    process.env.IN_PROD = 'true';
+
+    const {
+      expressApp,
+      consoleErrorSpy,
+      consoleWarnSpy,
+      consoleLogSpy,
+    } = loadServerWithMocks({
+      productionDbHost: '127.0.0.1',
+    });
+
+    await flushPromises();
+    await flushPromises();
+
+    expect(expressApp.listen).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[startup] Fatal bootstrap error:',
+      expect.objectContaining({ message: expect.stringMatching(/loopback/i) }),
+    );
+
+    exitSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   it('allows requests with no origin and approved origins through the CORS callback', async () => {
@@ -259,7 +342,7 @@ describe('server entrypoint', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('redirects 404 errors to the page-not-found route', async () => {
+  it('returns JSON 404 for unknown API routes without redirecting', async () => {
     const {
       expressApp,
       consoleLogSpy,
@@ -271,16 +354,60 @@ describe('server entrypoint', () => {
     await flushPromises();
 
     const { notFoundMiddleware, errorMiddleware } = getTerminalMiddleware(expressApp);
-    const next = jest.fn();
-    const redirect = jest.fn();
+    const req = { path: '/auth/missing', method: 'GET', accepts: () => false };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      type: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      redirect: jest.fn(),
+    };
 
-    notFoundMiddleware({}, {}, next);
+    notFoundMiddleware(req, res, jest.fn());
 
-    const notFoundError = next.mock.calls[0][0];
-    errorMiddleware(notFoundError, {}, { redirect }, jest.fn());
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 404,
+        success: false,
+        error: expect.objectContaining({ code: 'ROUTE_NOT_FOUND' }),
+      }),
+    );
+    expect(res.redirect).not.toHaveBeenCalled();
+    expect(errorMiddleware).toEqual(expect.any(Function));
 
-    expect(notFoundError.status).toBe(404);
-    expect(redirect).toHaveBeenCalledWith('http://localhost/PageNotFound');
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns text 404 for unknown non-API routes without redirecting', async () => {
+    const {
+      expressApp,
+      consoleLogSpy,
+      consoleWarnSpy,
+      consoleErrorSpy,
+    } = loadServerWithMocks();
+
+    await flushPromises();
+    await flushPromises();
+
+    const { notFoundMiddleware } = getTerminalMiddleware(expressApp);
+    const req = { path: '/wp-admin', method: 'GET' };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      type: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+      redirect: jest.fn(),
+    };
+
+    notFoundMiddleware(req, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.type).toHaveBeenCalledWith('text/plain');
+    expect(res.send).toHaveBeenCalledWith('Not Found');
+    expect(res.redirect).not.toHaveBeenCalled();
 
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();
@@ -299,15 +426,29 @@ describe('server entrypoint', () => {
     await flushPromises();
 
     const { errorMiddleware } = getTerminalMiddleware(expressApp);
-    const status = jest.fn(() => ({ send: jest.fn() }));
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json, send: jest.fn(), type: jest.fn().mockReturnThis() }));
     const send = jest.fn();
+    const type = jest.fn().mockReturnThis();
 
-    errorMiddleware({ status: 401, message: 'Unauthorized' }, {}, { status }, jest.fn());
-    errorMiddleware(new Error('boom'), {}, { status: jest.fn(() => ({ send })) }, jest.fn());
+    errorMiddleware(
+      { status: 401, message: 'Unauthorized' },
+      { path: '/auth/login', accepts: () => 'json' },
+      { status, headersSent: false },
+      jest.fn(),
+    );
+    errorMiddleware(
+      new Error('boom'),
+      { path: '/auth/login', method: 'GET', accepts: () => 'json' },
+      { status: jest.fn(() => ({ json: send, send, type })), headersSent: false },
+      jest.fn(),
+    );
 
     expect(status).toHaveBeenCalledWith(401);
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Unhandled error:', expect.any(Error));
-    expect(send).toHaveBeenCalledWith('Internal Server Error');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Unhandled error:',
+      expect.objectContaining({ message: 'boom' }),
+    );
 
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();

@@ -23,6 +23,15 @@ const {
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+// Keep errorMessage for response-shape compatibility. Value is a fixed safe string —
+// never the validator exception message (no stacks / internals).
+const csrfForbiddenBody = {
+    statusCode: 403,
+    success: false,
+    message: 'Invalid or missing CSRF token',
+    errorMessage: 'Invalid or missing CSRF token',
+};
+
 const csrfProtection = (req, res, next) => {
     if (SAFE_METHODS.has(req.method) || process.env.SKIP_CSRF_PROTECTION === 'true') {
         return next();
@@ -31,20 +40,11 @@ const csrfProtection = (req, res, next) => {
     try {
         const isValid = validateRequest(req);
         if (!isValid) {
-            return res.status(403).json({
-                statusCode: 403,
-                success: false,
-                message: 'Invalid or missing CSRF token'
-            });
+            return res.status(403).json(csrfForbiddenBody);
         }
         return next();
-    } catch (error) {
-        return res.status(403).json({
-            statusCode: 403,
-            success: false,
-            message: 'Invalid or missing CSRF token',
-            errorMessage: error.message
-        });
+    } catch (_error) {
+        return res.status(403).json(csrfForbiddenBody);
     }
 };
 

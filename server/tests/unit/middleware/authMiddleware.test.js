@@ -24,12 +24,14 @@ describe('authMiddleware', () => {
     process.env = originalEnv;
   });
 
-  it('rejects missing bearer tokens', () => {
+  it('rejects missing bearer tokens and audits known routes by default', () => {
     const logAuthEvent = require('../../../middleware/helpers/authLog');
     const authMiddleware = require('../../../middleware/authMiddleware');
     const req = {
       headers: {},
       ip: '127.0.0.1',
+      path: '/getAllAdmins',
+      method: 'POST',
     };
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -48,6 +50,56 @@ describe('authMiddleware', () => {
       })
     );
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 without AuthLog for anonymous unknown protected paths', () => {
+    const logAuthEvent = require('../../../middleware/helpers/authLog');
+    const { createAuthMiddleware } = require('../../../middleware/authMiddleware');
+    const authMiddleware = createAuthMiddleware({
+      isKnownRoute: (req) => req.path === '/getAllAdmins',
+    });
+    const req = {
+      headers: {},
+      ip: '127.0.0.1',
+      path: '/wp-scanner',
+      method: 'GET',
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    authMiddleware(req, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Missing or invalid Authorization header' });
+    expect(logAuthEvent).not.toHaveBeenCalled();
+  });
+
+  it('still audits missing credentials against a registered protected route', () => {
+    const logAuthEvent = require('../../../middleware/helpers/authLog');
+    const { createAuthMiddleware } = require('../../../middleware/authMiddleware');
+    const authMiddleware = createAuthMiddleware({
+      isKnownRoute: (req) => req.path === '/getAllAdmins',
+    });
+    const req = {
+      headers: {},
+      ip: '10.0.0.2',
+      path: '/getAllAdmins',
+      method: 'POST',
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    authMiddleware(req, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(logAuthEvent).toHaveBeenCalledWith(
+      'MISSING_OR_INVALID_AUTH_HEADER',
+      expect.objectContaining({ ip: '10.0.0.2' }),
+    );
   });
 
   it('attaches the verified payload to the request', () => {

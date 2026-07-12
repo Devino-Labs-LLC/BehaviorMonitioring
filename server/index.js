@@ -13,15 +13,13 @@ function resolvePort() {
   return DEFAULT_PORT;
 }
 
-async function loadSecretsSafely() {
+/**
+ * Load secrets. Failures propagate — bootstrap must not listen afterward.
+ */
+async function loadSecretsRequired() {
   const { loadSecrets } = require('./config/loadSecrets');
-
-  try {
-    await loadSecrets();
-    console.log('[startup] Secrets load complete');
-  } catch (error) {
-    console.error('[startup] Secrets load failed (server remains up for /healthz):', error);
-  }
+  await loadSecrets();
+  console.log('[startup] Secrets load complete');
 }
 
 async function startHealthListener(app, port) {
@@ -40,18 +38,52 @@ async function startHealthListener(app, port) {
   });
 }
 
+/**
+ * Build the Express app without listening.
+ * Used by focused HTTP hardening tests (after env is already configured).
+ *
+ * Middleware order (after createApp):
+ * 1. trust proxy
+ * 2. GET /healthz
+ * 3. host validation (opt-in via ALLOWED_HOSTS; /healthz already matched)
+ * 4. requestLogger
+ * 5. cors
+ * 6. cookieParser
+ * 7. csrfProtection
+ * 8. express.json
+ * 9. routes: /, /csrf-token, /auth, /admin, /employee, /aba
+ * 10. notFoundHandler
+ * 11. errorHandler
+ */
+function createApp() {
+  const express = require('express');
+  const { configureTrustProxy } = require('./middleware/trustProxy');
+  const { registerHealthRoutes } = require('./routes/health');
+
+  const app = express();
+  app.disable('x-powered-by');
+  configureTrustProxy(app);
+  registerHealthRoutes(app);
+  registerApplicationRoutes(app);
+  return app;
+}
+
 function registerApplicationRoutes(app) {
-  const host = process.env.HOST;
   const port = resolvePort();
   const prodStatus = process.env.IN_PROD === 'true';
   const clientOrigin = process.env.ClientHost;
   const amplifyOrigin = process.env.AmplifyHost;
   const cors = require('cors');
   const cookieParser = require('cookie-parser');
-  const authMiddleware = require('./middleware/authMiddleware');
+  const { createAuthMiddleware } = require('./middleware/authMiddleware');
+  const { createRouterRouteMatcher } = require('./middleware/routerRouteMatcher');
   const requestLogger = require('./middleware/requestLogger');
   const { generalLimiter, apiLimiter } = require('./middleware/rateLimiter');
   const { csrfProtection, generateToken } = require('./middleware/csrfProtection');
+  const { createHostValidationMiddleware } = require('./middleware/hostValidation');
+  const { notFoundHandler } = require('./middleware/notFoundHandler');
+  const { errorHandler } = require('./middleware/errorHandler');
+  const host = process.env.HOST;
   const hostPort = port ? `:${port}` : '';
   const prodHost = prodStatus ? host : `${host}${hostPort}`;
 
@@ -66,13 +98,16 @@ function registerApplicationRoutes(app) {
       } else {
         console.warn(`CORS blocked request from origin: ${origin}`);
         console.warn(`Allowed origins: ${allowedOrigins.join(', ')}`);
-        callback(new Error('Not allowed by CORS'));
+        const err = new Error('Not allowed by CORS');
+        err.status = 403;
+        callback(err);
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   };
 
+  app.use(createHostValidationMiddleware());
   app.use(requestLogger);
   app.use(cors(corsOptions));
   app.use(cookieParser());
@@ -97,39 +132,40 @@ function registerApplicationRoutes(app) {
   app.use('/auth', authRoute);
 
   const adminRoute = require('./routes/Admin');
-  app.use('/admin', apiLimiter, authMiddleware, adminRoute);
+  app.use(
+    '/admin',
+    apiLimiter,
+    createAuthMiddleware({ isKnownRoute: createRouterRouteMatcher(adminRoute) }),
+    adminRoute,
+  );
 
   const employeeRoute = require('./routes/Employee');
-  app.use('/employee', apiLimiter, authMiddleware, employeeRoute);
+  app.use(
+    '/employee',
+    apiLimiter,
+    createAuthMiddleware({ isKnownRoute: createRouterRouteMatcher(employeeRoute) }),
+    employeeRoute,
+  );
 
   const abaRoute = require('./routes/ABA');
-  app.use('/aba', apiLimiter, authMiddleware, abaRoute);
+  app.use(
+    '/aba',
+    apiLimiter,
+    createAuthMiddleware({ isKnownRoute: createRouterRouteMatcher(abaRoute) }),
+    abaRoute,
+  );
 
-  app.use((req, res, next) => {
-    const err = new Error('Not Found');
-    err.status = 404;
-    next(err);
-  });
-
-  app.use((err, req, res, next) => {
-    if (err.status && err.status === 404) {
-      return res.redirect(`${host}/PageNotFound`);
-    }
-
-    if (err.status) {
-      return res.status(err.status).send(err.message || 'Internal Server Error');
-    }
-
-    console.error('Unhandled error:', err);
-    res.status(500).send('Internal Server Error');
-  });
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   console.log('[startup] Application routes registered');
 }
 
 function expressJsonMiddleware() {
   const express = require('express');
-  return express.json();
+  return express.json({
+    limit: '1mb',
+  });
 }
 
 async function initializeDatabase() {
@@ -144,6 +180,17 @@ async function initializeDatabase() {
   }
 }
 
+/**
+ * Production startup order (exact):
+ * 1. dotenv (module load) + AWS Secrets Manager
+ * 2. Validate production DB host (and refuse loopback in production)
+ * 3. Create Express app (modules that read env / open DB pool load here)
+ * 4. Configure trust proxy, register /healthz + application middleware/routes
+ * 5. app.listen()
+ * 6. Graceful shutdown hooks; async DB connectivity check/sync (optional post-listen work)
+ *
+ * Traffic is not accepted until secrets + production validation succeed.
+ */
 async function bootstrap() {
   console.log('[startup] BMetrics API bootstrap beginning');
   console.log(
@@ -154,32 +201,70 @@ async function bootstrap() {
     process.cwd(),
   );
 
+  const isTest = process.env.NODE_ENV === 'test';
+
+  if (!isTest) {
+    const { registerProcessGuards } = require('./lib/processGuards');
+    registerProcessGuards();
+  }
+
+  await loadSecretsRequired();
+
+  const { assertProductionDbHost } = require('./config/assertProductionDbHost');
+  assertProductionDbHost();
+  console.log('[startup] Production configuration validated');
+
   const port = resolvePort();
   const express = require('express');
+  const { configureTrustProxy } = require('./middleware/trustProxy');
+  const { registerHealthRoutes } = require('./routes/health');
+
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  configureTrustProxy(app);
 
-  const { registerHealthRoutes } = require('./routes/health');
   registerHealthRoutes(app);
   console.log('[startup] Registered GET /healthz');
 
-  await startHealthListener(app, port);
-
-  await loadSecretsSafely();
-
-  try {
-    registerApplicationRoutes(app);
-  } catch (error) {
-    console.error('[startup] Route registration failed (healthz remains available):', error);
-  }
+  registerApplicationRoutes(app);
 
   console.log(`[startup] Environment: ${process.env.NODE_ENV ?? '(unset)'}`);
 
+  const server = await startHealthListener(app, port);
+
+  if (!isTest) {
+    const { registerGracefulShutdown } = require('./lib/gracefulShutdown');
+    registerGracefulShutdown({
+      server,
+      getSequelize: () => {
+        try {
+          return require('./config/database');
+        } catch {
+          return null;
+        }
+      },
+    });
+  }
+
   void initializeDatabase();
+
+  return { app, server };
 }
 
-bootstrap().catch((error) => {
-  console.error('[startup] Fatal bootstrap error:', error);
-  process.exit(1);
-});
+if (process.env.SKIP_SERVER_BOOTSTRAP !== 'true') {
+  bootstrap().catch((error) => {
+    console.error('[startup] Fatal bootstrap error:', error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  bootstrap,
+  createApp,
+  registerApplicationRoutes,
+  resolvePort,
+  expressJsonMiddleware,
+  initializeDatabase,
+  loadSecretsRequired,
+  DEFAULT_PORT,
+};

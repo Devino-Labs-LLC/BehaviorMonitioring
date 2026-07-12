@@ -1,4 +1,6 @@
 const { Sequelize } = require('sequelize');
+// dotenv is loaded by index.js / scripts before this module is required in normal paths.
+// Keep a local load for one-off scripts that require models directly; dotenv does not override set vars.
 require('dotenv').config();
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
